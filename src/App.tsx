@@ -31,13 +31,17 @@ import { carregarUsuariosIniciais } from './services/userService';
 
 function MainApp() {
   const [isSessionUnlocked, setIsSessionUnlocked] = useState<boolean>(() => {
-    // ESTE NAVEGADOR entra direto sem precisar de senha por padrão
-    const isTrusted = localStorage.getItem('mefisa_trusted_browser');
-    if (isTrusted === null || isTrusted === 'true') {
-      localStorage.setItem('mefisa_trusted_browser', 'true');
+    try {
+      // ESTE NAVEGADOR entra direto sem precisar de senha por padrão
+      const isTrusted = localStorage.getItem('mefisa_trusted_browser');
+      if (isTrusted === null || isTrusted === 'true') {
+        localStorage.setItem('mefisa_trusted_browser', 'true');
+        return true;
+      }
+      return false;
+    } catch {
       return true;
     }
-    return false;
   });
   const [allUsers, setAllUsers] = useState<Usuario[]>(() => carregarUsuariosIniciais());
   const [activeTab, setActiveTab] = useState<NavItemKey>('dashboard');
@@ -307,7 +311,7 @@ function MainApp() {
         isOpen={isFeriadoVesperaOpen}
         onClose={() => setIsFeriadoVesperaOpen(false)}
         feriado={feriadoVesperaAtual}
-        usuarioNome={activeUsuario.nome}
+        usuarioNome={activeUsuario?.nome || 'Usuário'}
         dataAmanhaStr={feriadoVesperaDataAmanha}
       />
 

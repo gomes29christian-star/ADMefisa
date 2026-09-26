@@ -615,11 +615,16 @@ console.log('======================================================\n');
     `${datas10Sessoes[0]} -> ${datas10Sessoes[9]}`
   );
   // Caso 3: 15 sessões - Validação das Observações Recomendadas para Colagem
-  const datas15Sessoes = calcularDatasSessoesAlinhadas({
-    dataInicioStr: '2026-09-25',
-    quantidade: 15,
-    diaSemanaHabitual: 1,
-  });
+  // (Exemplo com dias com 2 repetições e dia com 3 repetições, totalizando 11 na semana)
+  const datas15Sessoes = [
+    '25/09/2026', '25/09/2026',
+    '28/09/2026', '28/09/2026', '28/09/2026',
+    '29/09/2026', '29/09/2026',
+    '30/09/2026', '30/09/2026',
+    '01/10/2026', '01/10/2026',
+    '02/10/2026', '02/10/2026',
+    '05/10/2026', '05/10/2026'
+  ];
 
   const textoRepeticoes15 = formatarContagemRepeticoesSessoes(datas15Sessoes);
   const sessoesSemanais15 = calcularSessoesSemanaisJanela(datas15Sessoes);

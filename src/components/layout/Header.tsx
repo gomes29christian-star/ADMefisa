@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [notificacoes, setNotificacoes] = useState<NotificacaoAcessoDeletado[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
-  const isAdmin = activeUsuario.papel === 'ADMINISTRADOR';
+  const isAdmin = activeUsuario?.papel === 'ADMINISTRADOR';
 
   const atualizarNotificacoes = () => {
     if (isAdmin) {

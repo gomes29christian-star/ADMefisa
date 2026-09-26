@@ -78,18 +78,20 @@ const SecretAchievementsContext = createContext<SecretAchievementsContextType | 
 export const SecretAchievementsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Inicialmente falso e sem NENHUM indício no sistema
   const [isSystemUnlocked, setIsSystemUnlocked] = useState<boolean>(() => {
-    return localStorage.getItem('mefisa_secret_unlocked') === 'true';
+    try {
+      return localStorage.getItem('mefisa_secret_unlocked') === 'true';
+    } catch {
+      return false;
+    }
   });
 
   const [conquistas, setConquistas] = useState<ConquistaSecreta[]>(() => {
-    const salvo = localStorage.getItem('mefisa_secret_achievements');
-    if (salvo) {
-      try {
+    try {
+      const salvo = localStorage.getItem('mefisa_secret_achievements');
+      if (salvo) {
         return JSON.parse(salvo);
-      } catch {
-        return CONQUISTAS_INICIAIS;
       }
-    }
+    } catch {}
     return CONQUISTAS_INICIAIS;
   });
 
@@ -97,11 +99,15 @@ export const SecretAchievementsProvider: React.FC<{ children: React.ReactNode }>
   const [ultimaConquistaNotificada, setUltimaConquistaNotificada] = useState<ConquistaSecreta | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('mefisa_secret_unlocked', String(isSystemUnlocked));
+    try {
+      localStorage.setItem('mefisa_secret_unlocked', String(isSystemUnlocked));
+    } catch {}
   }, [isSystemUnlocked]);
 
   useEffect(() => {
-    localStorage.setItem('mefisa_secret_achievements', JSON.stringify(conquistas));
+    try {
+      localStorage.setItem('mefisa_secret_achievements', JSON.stringify(conquistas));
+    } catch {}
   }, [conquistas]);
 
   // Regra Estrita: Desbloqueios e animações só acontecem após o duplo-clique na logo!
