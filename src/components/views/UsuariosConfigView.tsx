@@ -56,11 +56,6 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
   }, [usuarios]);
 
   const handleOpenEdit = (usr: Usuario) => {
-    const isOtherAdmin = usr.papel === 'ADMINISTRADOR' && usr.id !== activeUsuario.id;
-    if (isOtherAdmin) {
-      alert('Acesso negado: Administradores não podem editar o perfil de outros administradores.');
-      return;
-    }
     setEditingUser(usr);
     setFormNome(usr.nome);
     setFormEmail(usr.email);
@@ -196,11 +191,6 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
       return;
     }
     const target = usuarios.find((u) => u.id === userId);
-    if (target?.papel === 'ADMINISTRADOR') {
-      alert('Acesso negado: Administradores não podem excluir outros administradores.');
-      setDeletingUserId(null);
-      return;
-    }
     if (target) {
       salvarUsuarioDeletado(target, activeUsuario.nome);
     }
@@ -216,14 +206,8 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
   };
 
   const handleRequestViewPassword = (usr: Usuario) => {
-    const isOtherAdmin = usr.papel === 'ADMINISTRADOR' && usr.id !== activeUsuario.id;
-    if (isOtherAdmin) {
-      alert('Acesso negado: Administradores não podem visualizar a senha de outros administradores.');
-      return;
-    }
-
     if (isAdminActive) {
-      // Admins can see/copy immediately without passcode for non-other-admin
+      // Admins can see/copy immediately without passcode
       setRevealedUserId(revealedUserId === usr.id ? null : usr.id);
     } else {
       // Non-admin can only see their own password and needs personal passcode
@@ -272,7 +256,7 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Administradores gerenciam usuários, porém ADMs não podem interagir com, editar, excluir ou ver a senha de outros usuários que também são ADMs.
+            Administradores gerenciam usuários e possuem acesso total para visualizar e copiar as senhas de todos os usuários do sistema.
           </p>
         </div>
 
@@ -493,7 +477,7 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
           {usuarios.map((usr) => {
             const isActive = usr.id === activeUsuario.id;
             const isAdmin = usr.papel === 'ADMINISTRADOR';
-            const isOtherAdmin = isAdmin && !isActive;
+            const isOtherAdmin = false;
             const isRevealed = revealedUserId === usr.id;
 
             return (
