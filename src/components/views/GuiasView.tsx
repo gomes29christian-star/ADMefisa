@@ -33,7 +33,7 @@ import {
   calcularSessoesSemanaisJanela,
   sanitizarCbo,
 } from '../../services/businessRules';
-import { ValidacaoDuplicidadeGuiaSessao, DiaSemanaIndice, GuiaDigitacao, Usuario } from '../../types/clinic';
+import { ValidacaoDuplicidadeGuiaSessao, DiaSemanaIndice, GuiaDigitacao, Usuario, Prestador } from '../../types/clinic';
 import { carregarUsuariosIniciais } from '../../services/userService';
 import { useTheme } from '../../context/ThemeContext';
 import { useSecretAchievements } from '../../context/SecretAchievementsContext';
@@ -330,9 +330,15 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
     setGuiaPrincipalGerada(numeroGerado);
     setGuiaSelecionadaDrawer(aut);
     const temCustom = !!(aut.datasSessoesCustomizadas && aut.datasSessoesCustomizadas.length > 0);
+    const sessoesPorSemanaAut = obterSessoesPorSemanaPaciente(aut);
     const datasIniciais = temCustom
       ? [...aut.datasSessoesCustomizadas!]
-      : calcularDatasSessoes(aut.dataAutorizacao || aut.dataSolicitacao, aut.quantidadeSolicitada || 1, aut.pacienteNome || aut.pacienteId);
+      : calcularDatasSessoes(
+          aut.dataAutorizacao || aut.dataSolicitacao,
+          aut.quantidadeSolicitada || 1,
+          aut.pacienteNome || aut.pacienteId,
+          sessoesPorSemanaAut
+        );
     setDatasSessoesDrawer(datasIniciais);
     setAutomacaoDesativadaDrawer(temCustom);
     setModoEdicaoSessoesDrawer(false);
@@ -435,12 +441,13 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
   const calcularDatasSessoes = (
     dataInicioStr: string,
     quantidade: number,
-    pacienteNomeOuId?: string
+    pacienteNomeOuId?: string,
+    sessoesPorSemanaOverride?: number
   ): string[] => {
     if (!dataInicioStr) return [];
 
     let diaAlvo: DiaSemanaIndice = 1; // Padrão: Segunda-feira
-    let sessoesSemanaPac = 1;
+    let sessoesSemanaPac = sessoesPorSemanaOverride || 1;
     if (pacienteNomeOuId) {
       const termoNorm = pacienteNomeOuId.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
       const todosPacientes = PacientesService.obterPacientes();
@@ -456,7 +463,7 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
       if (pac?.diaDaSemana) {
         diaAlvo = parseDiaSemanaNomeParaIndice(pac.diaDaSemana);
       }
-      if (pac?.sessoesPorSemana) {
+      if (!sessoesPorSemanaOverride && pac?.sessoesPorSemana) {
         sessoesSemanaPac = pac.sessoesPorSemana;
       }
     }
@@ -548,14 +555,16 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
       return autCorrespondente.datasSessoesCustomizadas;
     }
     const qtd = autCorrespondente?.quantidadeSolicitada || 8;
-    return calcularDatasSessoes(guia.dataAutorizacao, qtd, guia.pacienteNome || guia.pacienteId);
+    const sessoesSemana = autCorrespondente ? obterSessoesPorSemanaPaciente(autCorrespondente) : 1;
+    return calcularDatasSessoes(guia.dataAutorizacao, qtd, guia.pacienteNome || guia.pacienteId, sessoesSemana);
   };
 
   const obterStatusDigitabilidadeGuia = (aut: AutorizacaoV2) => {
     const dataInicio = aut.dataAutorizacao || aut.dataSolicitacao;
+    const sessoesSemana = obterSessoesPorSemanaPaciente(aut);
     const sessoes = aut.datasSessoesCustomizadas && aut.datasSessoesCustomizadas.length > 0
       ? aut.datasSessoesCustomizadas
-      : calcularDatasSessoes(dataInicio, aut.quantidadeSolicitada || 1, aut.pacienteNome || aut.pacienteId);
+      : calcularDatasSessoes(dataInicio, aut.quantidadeSolicitada || 1, aut.pacienteNome || aut.pacienteId, sessoesSemana);
 
     if (!sessoes || sessoes.length === 0) {
       return {
@@ -648,12 +657,14 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
       return pacienteEncontrado.diasDaSemana.length;
     }
 
+    const sessoesSemana = obterSessoesPorSemanaPaciente(aut);
     const datasSessoes = (aut.datasSessoesCustomizadas && aut.datasSessoesCustomizadas.length > 0)
       ? aut.datasSessoesCustomizadas
       : calcularDatasSessoes(
           aut.dataAutorizacao || aut.dataSolicitacao,
           aut.quantidadeSolicitada || 1,
-          aut.pacienteNome || aut.pacienteId
+          aut.pacienteNome || aut.pacienteId,
+          sessoesSemana
         );
     const sessoesCalculadas = calcularSessoesSemanaisJanela(datasSessoes);
     return sessoesCalculadas || 1;
@@ -701,10 +712,12 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
 
   const handleRestaurarCalculoDrawer = () => {
     if (!guiaSelecionadaDrawer) return;
+    const sessoesSemana = obterSessoesPorSemanaPaciente(guiaSelecionadaDrawer);
     const datasAuto = calcularDatasSessoes(
       guiaSelecionadaDrawer.dataAutorizacao || guiaSelecionadaDrawer.dataSolicitacao,
       guiaSelecionadaDrawer.quantidadeSolicitada || 1,
-      guiaSelecionadaDrawer.pacienteNome || guiaSelecionadaDrawer.pacienteId
+      guiaSelecionadaDrawer.pacienteNome || guiaSelecionadaDrawer.pacienteId,
+      sessoesSemana
     );
     setDatasSessoesDrawer(datasAuto);
     setAutomacaoDesativadaDrawer(false);
@@ -722,10 +735,12 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
     if (!guiaParaEditarSessoes) return;
     const autCorrespondente = autorizacoesConcluidas.find((a) => a.id === guiaParaEditarSessoes.autorizacaoId);
     const qtd = autCorrespondente?.quantidadeSolicitada || 8;
+    const sessoesSemana = autCorrespondente ? obterSessoesPorSemanaPaciente(autCorrespondente) : 1;
     const padrao = calcularDatasSessoes(
       guiaParaEditarSessoes.dataAutorizacao,
       qtd,
-      guiaParaEditarSessoes.pacienteNome || guiaParaEditarSessoes.pacienteId
+      guiaParaEditarSessoes.pacienteNome || guiaParaEditarSessoes.pacienteId,
+      sessoesSemana
     );
     setDatasSessoesModalGuia(padrao);
     setAutomacaoDesativadaModalGuia(false);
@@ -1950,7 +1965,8 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   const datasPadraoOriginais = calcularDatasSessoes(
                     guiaSelecionadaDrawer.dataAutorizacao || guiaSelecionadaDrawer.dataSolicitacao,
                     guiaSelecionadaDrawer.quantidadeSolicitada,
-                    guiaSelecionadaDrawer.pacienteNome || guiaSelecionadaDrawer.pacienteId
+                    guiaSelecionadaDrawer.pacienteNome || guiaSelecionadaDrawer.pacienteId,
+                    sessoesPorSemanaDrawer
                   );
                   const datasSessoes = automacaoDesativadaDrawer
                     ? datasSessoesDrawer
@@ -2205,19 +2221,74 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
 
                 {/* Bloco de Observações Obrigatórias do Rodapé */}
                 {(() => {
+                  const sessoesPorSemanaDrawer = obterSessoesPorSemanaPaciente(guiaSelecionadaDrawer);
                   const datasSessoesDrawerEfetivas = datasSessoesDrawer.length > 0
                     ? datasSessoesDrawer
                     : calcularDatasSessoes(
                         guiaSelecionadaDrawer.dataAutorizacao || guiaSelecionadaDrawer.dataSolicitacao,
                         guiaSelecionadaDrawer.quantidadeSolicitada,
-                        guiaSelecionadaDrawer.pacienteNome || guiaSelecionadaDrawer.pacienteId
+                        guiaSelecionadaDrawer.pacienteNome || guiaSelecionadaDrawer.pacienteId,
+                        sessoesPorSemanaDrawer
                       );
                   const textoRepeticoes = formatarContagemRepeticoesSessoes(datasSessoesDrawerEfetivas);
                   const temMesmoDia = !!textoRepeticoes;
                   const sessoesSemanaisCalc = calcularSessoesSemanaisJanela(datasSessoesDrawerEfetivas);
 
+                  const doutorMefisaFormatado = (() => {
+                    const todosPacientes = PacientesService.obterPacientes();
+                    const pacEncontrado = todosPacientes.find(
+                      (p) =>
+                        p.id === guiaSelecionadaDrawer.pacienteId ||
+                        (p.nome && p.nome.toLowerCase().trim() === (guiaSelecionadaDrawer.pacienteNome || '').toLowerCase().trim())
+                    );
+
+                    const todosPrestadores: Prestador[] = typeof window !== 'undefined' && localStorage.getItem('clinica_mefisa_prestadores_v2')
+                      ? JSON.parse(localStorage.getItem('clinica_mefisa_prestadores_v2') || '[]')
+                      : MOCK_PRESTADORES;
+
+                    // 1. Tenta obter dos doutores atendentes Mefisa do paciente
+                    if (pacEncontrado?.doutoresAtendentesNomes && pacEncontrado.doutoresAtendentesNomes.length > 0) {
+                      const primeiroDoc = pacEncontrado.doutoresAtendentesNomes[0];
+                      if (primeiroDoc) {
+                        if (primeiroDoc.includes('(') && primeiroDoc.includes(')')) {
+                          return primeiroDoc;
+                        }
+                        const pEncontrado = todosPrestadores.find((p) => p.nome.toLowerCase().includes(primeiroDoc.toLowerCase()) || primeiroDoc.toLowerCase().includes(p.nome.toLowerCase()));
+                        if (pEncontrado) {
+                          return `${pEncontrado.nome} (${pEncontrado.orgaoClasse || 'CRM'} ${pEncontrado.crmOuCrp || ''})`.trim();
+                        }
+                        return primeiroDoc;
+                      }
+                    }
+
+                    // 2. Tenta obter pela Pasta do Doutor Mefisa
+                    const pastaStr = guiaSelecionadaDrawer.pastaDoutora || pacEncontrado?.pastaDoutoraMefisa;
+                    if (pastaStr) {
+                      const nomeLimpo = pastaStr.replace(/^Pasta\s+/i, '').trim();
+                      if (nomeLimpo && !nomeLimpo.toLowerCase().includes('credenciado') && !nomeLimpo.toLowerCase().includes('externo')) {
+                        const pEncontrado = todosPrestadores.find((p) => {
+                          const normP = (p.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                          const normBusca = nomeLimpo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                          return (p.tipo === 'MEFISA' || !p.tipo) && (normP.includes(normBusca) || normBusca.includes(normP));
+                        });
+                        if (pEncontrado) {
+                          return `${pEncontrado.nome} (${pEncontrado.orgaoClasse || 'CRM'} ${pEncontrado.crmOuCrp || ''})`.trim();
+                        }
+                        return nomeLimpo;
+                      }
+                    }
+
+                    // 3. Fallback: Primeiro Doutor Mefisa do sistema
+                    const mefisaPadrao = todosPrestadores.find((p) => p.tipo === 'MEFISA');
+                    if (mefisaPadrao) {
+                      return `${mefisaPadrao.nome} (${mefisaPadrao.orgaoClasse || 'CRM'} ${mefisaPadrao.crmOuCrp || ''})`.trim();
+                    }
+
+                    return `${guiaSelecionadaDrawer.prestador} (${guiaSelecionadaDrawer.crm || 'CRM 123456'})`;
+                  })();
+
                   const textoObs1 = `O paciente realizou, na mesma data em horarios diferentes, ${textoRepeticoes} sessoes pelo metodo ABA na clinica, conforme orientacao do formulario medico anexo a autorizacao.`;
-                  const textoObs2 = `Observacao: Paciente realiza ${sessoesSemanaisCalc} sessoes semanais de acordo com avaliacao tecnica. Profissional: ${guiaSelecionadaDrawer.prestador} (${guiaSelecionadaDrawer.crm || 'CRP 06/12345'}).`;
+                  const textoObs2 = `Observacao: Paciente realiza ${sessoesSemanaisCalc} sessoes semanais de acordo com avaliacao tecnica. Profissional: ${doutorMefisaFormatado}.`;
 
                   return (
                     <div className="p-4 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 rounded-xl space-y-3">

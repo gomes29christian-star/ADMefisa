@@ -266,6 +266,8 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
   const [novoSessoesPorSemana, setNovoSessoesPorSemana] = useState(3);
   const [novoStatusCriacao, setNovoStatusCriacao] = useState<StatusAutorizacao>('EM_ANALISE');
   const [novaDataEmAnaliseDesde, setNovaDataEmAnaliseDesde] = useState(() => new Date().toISOString().split('T')[0]);
+  const [novoNumeroGuiaCriacao, setNovoNumeroGuiaCriacao] = useState('');
+  const [novaDataAutorizacaoCriacao, setNovaDataAutorizacaoCriacao] = useState(() => new Date().toISOString().split('T')[0]);
   const [novaSenhaCriacao, setNovaSenhaCriacao] = useState('');
   const [novaValidadeSenhaCriacao, setNovaValidadeSenhaCriacao] = useState('');
   const [novoMotivoRecusaCriacao, setNovoMotivoRecusaCriacao] = useState('');
@@ -838,30 +840,38 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
     const isConcluido = novoStatusCriacao === 'CONCLUIDO';
     const isRecusado = novoStatusCriacao === 'RECUSADO';
 
+    // Data de início da análise / solicitação ou autorização
+    const dataSol = (novoStatusCriacao === 'EM_ANALISE' && novaDataEmAnaliseDesde)
+      ? novaDataEmAnaliseDesde
+      : new Date().toISOString().split('T')[0];
+
+    const dataAutEfetiva = isConcluido
+      ? (novaDataAutorizacaoCriacao || new Date().toISOString().split('T')[0])
+      : undefined;
+
     const diaIndice = pacienteObj?.diasSemanaHabituais && pacienteObj.diasSemanaHabituais.length > 0
       ? pacienteObj.diasSemanaHabituais
       : parseDiaSemanaNomeParaIndice(pacienteObj?.diaDaSemana);
-    const proximaAutCalculada = isConcluido
-      ? calcularAlinhamentoProximaAutorizacao({
-          diaSemanaHabitual: diaIndice,
-          dataInicioCicloStr: new Date().toISOString().split('T')[0],
-          sessoesPorSemana: novoSessoesPorSemana || 3,
-        }).dataProximaAutorizacaoCalculada
-      : (pacienteObj?.proximaAutorizacaoData || calcularAlinhamentoProximaAutorizacao({
-          diaSemanaHabitual: diaIndice,
-          dataInicioCicloStr: new Date().toISOString().split('T')[0],
-          sessoesPorSemana: novoSessoesPorSemana || 3,
-        }).dataProximaAutorizacaoCalculada);
 
-    // Se criada já como Concluída (Autorizada), sincroniza a data com o perfil do paciente
+    const proximaAutCalculada = calcularAlinhamentoProximaAutorizacao({
+      diaSemanaHabitual: diaIndice,
+      dataInicioCicloStr: isConcluido && dataAutEfetiva ? dataAutEfetiva : dataSol,
+      sessoesPorSemana: novoSessoesPorSemana || 3,
+    }).dataProximaAutorizacaoCalculada;
+
+    // Se criada já como Concluída (Autorizada), atualiza a última data de autorização no perfil do paciente sem sobrescrever os outros procedimentos
     if (isConcluido && pacienteObj) {
+      const normProcNew = (novoProcedimento || pacienteObj.procedimentoPrincipal || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
       const todosPacientes = PacientesService.obterPacientes();
       const pacientesAtualizados = todosPacientes.map((p) => {
-        if (p.id === pacienteObj.id || p.nome.toLowerCase() === pacienteObj.nome.toLowerCase()) {
+        const mesmoPac = p.id === pacienteObj.id || p.nome.toLowerCase().trim() === pacienteObj.nome.toLowerCase().trim();
+        const normProcP = (p.procedimentoPrincipal || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
+        const mesmoProc = !normProcP || !normProcNew || normProcP.includes(normProcNew) || normProcNew.includes(normProcP);
+        if (mesmoPac && mesmoProc) {
           return {
             ...p,
             proximaAutorizacaoData: proximaAutCalculada,
-            ultimaAutorizacaoData: new Date().toISOString().split('T')[0],
+            ultimaAutorizacaoData: dataAutEfetiva || new Date().toISOString().split('T')[0],
             dataUltimaAtualizacao: new Date().toISOString(),
             atualizadoPor: usuarioAtual.nome,
           };
@@ -871,18 +881,17 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       PacientesService.persistirPacientes(pacientesAtualizados);
     }
 
-    // Data de início da análise / solicitação
-    const dataSol = (novoStatusCriacao === 'EM_ANALISE' && novaDataEmAnaliseDesde)
-      ? novaDataEmAnaliseDesde
-      : new Date().toISOString().split('T')[0];
-
     const diasCalculados = novoStatusCriacao === 'EM_ANALISE'
       ? calcularDiasCorridos(dataSol)
       : 0;
 
+    const numGuiaFormatado = novoNumeroGuiaCriacao.trim()
+      ? novoNumeroGuiaCriacao.trim()
+      : `AUT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+
     const novaAut: AutorizacaoV2 = {
       id: `aut-v2-${Date.now()}`,
-      numeroAutorizacao: `AUT-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      numeroAutorizacao: numGuiaFormatado,
       pacienteId: pacId,
       pacienteNome: pacNome,
       carteirinha: cart,
@@ -893,7 +902,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       crm: crmFormatado,
       uf: prestadorObj?.uf || 'SP',
       dataSolicitacao: dataSol,
-      dataAutorizacao: isConcluido ? new Date().toISOString().split('T')[0] : undefined,
+      dataAutorizacao: dataAutEfetiva,
       senha: isConcluido ? (novaSenhaCriacao.trim() || `AUT-${Math.floor(100000 + Math.random() * 900000)}`) : undefined,
       dataValidadeSenha: isConcluido ? (novaValidadeSenhaCriacao || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]) : undefined,
       quantidadeSolicitada: novoQuantidade,
@@ -940,6 +949,8 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
     setTermoBuscaPaciente('');
     setNovoPacienteNomePersonalizado('');
     setNovoStatusCriacao('EM_ANALISE');
+    setNovoNumeroGuiaCriacao('');
+    setNovaDataAutorizacaoCriacao(new Date().toISOString().split('T')[0]);
     setNovaSenhaCriacao('');
     setNovaValidadeSenhaCriacao('');
     setNovoMotivoRecusaCriacao('');
@@ -956,6 +967,14 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
     }
 
     if (novoStatusRes === 'CONCLUIDO') {
+      if (!numAutorizacaoRes.trim()) {
+        setErroRes('O N° da Guia / Autorização é obrigatório para concluir.');
+        return;
+      }
+      if (!dataAutRes.trim()) {
+        setErroRes('A Data da Autorização é obrigatória para concluir.');
+        return;
+      }
       if (!senhaRes.trim()) {
         setErroRes('A Senha da Autorização é obrigatória para concluir.');
         return;
@@ -981,24 +1000,6 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         sessoesPorSemana: autorizacaoParaResultado.sessoesPorSemana || 3,
       });
       proximaDataAlinhada = alinhamento.dataProximaAutorizacaoCalculada;
-
-      // Sincroniza a data da próxima autorização no perfil mestre do paciente
-      if (pacEncontrado) {
-        const todosPacientes = PacientesService.obterPacientes();
-        const pacientesAtualizados = todosPacientes.map((p) => {
-          if (p.id === pacEncontrado.id || p.nome.toLowerCase() === pacEncontrado.nome.toLowerCase()) {
-            return {
-              ...p,
-              proximaAutorizacaoData: proximaDataAlinhada,
-              ultimaAutorizacaoData: dataAutRes,
-              dataUltimaAtualizacao: new Date().toISOString(),
-              atualizadoPor: usuarioAtual.nome,
-            };
-          }
-          return p;
-        });
-        PacientesService.persistirPacientes(pacientesAtualizados);
-      }
     }
 
     const statusAnterior = autorizacaoParaResultado.status;
@@ -1014,7 +1015,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       },
     ];
 
-    const atualizadas = autorizacoes.map(a => {
+    const atualizadas = autorizacoes.map((a) => {
       if (a.id === autorizacaoParaResultado.id) {
         return {
           ...a,
@@ -1033,6 +1034,33 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       }
       return a;
     });
+
+    // Sincroniza a data no perfil do paciente sem afetar a individualidade de cada autorização/procedimento
+    if (novoStatusRes === 'CONCLUIDO') {
+      const pacEncontrado = listaPacientes.find(
+        (p) => p.id === autorizacaoParaResultado.pacienteId || p.nome.toLowerCase().trim() === autorizacaoParaResultado.pacienteNome.toLowerCase().trim()
+      );
+      if (pacEncontrado) {
+        const normProcAut = (autorizacaoParaResultado.procedimento || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
+        const todosPacientes = PacientesService.obterPacientes();
+        const pacientesAtualizados = todosPacientes.map((p) => {
+          const mesmoPac = p.id === pacEncontrado.id || p.nome.toLowerCase().trim() === pacEncontrado.nome.toLowerCase().trim();
+          const normProcP = (p.procedimentoPrincipal || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
+          const mesmoProc = !normProcP || !normProcAut || normProcP.includes(normProcAut) || normProcAut.includes(normProcP);
+          if (mesmoPac && mesmoProc) {
+            return {
+              ...p,
+              proximaAutorizacaoData: proximaDataAlinhada,
+              ultimaAutorizacaoData: dataAutRes,
+              dataUltimaAtualizacao: new Date().toISOString(),
+              atualizadoPor: usuarioAtual.nome,
+            };
+          }
+          return p;
+        });
+        PacientesService.persistirPacientes(pacientesAtualizados);
+      }
+    }
 
     setAutorizacoes(atualizadas);
     salvarAutorizacoesStorage(atualizadas);
@@ -1578,7 +1606,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        N° da Guia
+                        N° da Guia / Autorização *
                       </label>
                       <input
                         type="text"
@@ -1586,17 +1614,19 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                         value={numAutorizacaoRes}
                         onChange={(e) => setNumAutorizacaoRes(e.target.value)}
                         className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-white"
+                        required={novoStatusRes === 'CONCLUIDO'}
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Data da Autorização
+                        Data da Autorização *
                       </label>
                       <input
                         type="date"
                         value={dataAutRes}
                         onChange={(e) => setDataAutRes(e.target.value)}
                         className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-white"
+                        required={novoStatusRes === 'CONCLUIDO'}
                       />
                     </div>
                   </div>
@@ -2384,31 +2414,63 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                 </div>
               )}
 
-              {/* Campos condicionais para Concluído (Senha / Validade) */}
+              {/* Campos condicionais para Concluído (N° Guia, Data Aut, Senha, Validade) */}
               {novoStatusCriacao === 'CONCLUIDO' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl">
-                  <div>
-                    <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
-                      Senha da Autorização
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ex: SENHA-83921"
-                      value={novaSenhaCriacao}
-                      onChange={(e) => setNovaSenhaCriacao(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg font-mono text-slate-800 dark:text-white"
-                    />
+                <div className="space-y-3 p-3 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
+                        N° da Guia / Autorização *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: OP-9882104"
+                        value={novoNumeroGuiaCriacao}
+                        onChange={(e) => setNovoNumeroGuiaCriacao(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg font-mono text-slate-800 dark:text-white"
+                        required={novoStatusCriacao === 'CONCLUIDO'}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
+                        Data da Autorização *
+                      </label>
+                      <input
+                        type="date"
+                        value={novaDataAutorizacaoCriacao}
+                        onChange={(e) => setNovaDataAutorizacaoCriacao(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg font-mono text-slate-800 dark:text-white"
+                        required={novoStatusCriacao === 'CONCLUIDO'}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
-                      Validade da Senha
-                    </label>
-                    <input
-                      type="date"
-                      value={novaValidadeSenhaCriacao}
-                      onChange={(e) => setNovaValidadeSenhaCriacao(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg font-mono text-slate-800 dark:text-white"
-                    />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
+                        Senha da Autorização *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: SENHA-83921"
+                        value={novaSenhaCriacao}
+                        onChange={(e) => setNovaSenhaCriacao(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg font-mono text-slate-800 dark:text-white"
+                        required={novoStatusCriacao === 'CONCLUIDO'}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
+                        Validade da Senha *
+                      </label>
+                      <input
+                        type="date"
+                        value={novaValidadeSenhaCriacao}
+                        onChange={(e) => setNovaValidadeSenhaCriacao(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg font-mono text-slate-800 dark:text-white"
+                        required={novoStatusCriacao === 'CONCLUIDO'}
+                      />
+                    </div>
                   </div>
                 </div>
               )}

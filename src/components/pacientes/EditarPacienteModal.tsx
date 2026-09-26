@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserCog, Check, X, Shield, AlertCircle, Building, Stethoscope, Search, FolderCheck } from 'lucide-react';
+import { UserCog, Check, X, Shield, AlertCircle, Building, Stethoscope, Search, FolderCheck, Clock } from 'lucide-react';
 import { Paciente, StatusPaciente, PapelUsuario } from '../../types/clinic';
 import { PacientesService } from '../../services/pacientesService';
 import { obterPrestadoresStorage } from '../../data/mockClinicData';
@@ -19,7 +19,6 @@ const DIAS_DA_SEMANA_OPCOES = [
   'Quinta-feira',
   'Sexta-feira',
   'Sábado',
-  'Domingo',
 ];
 
 export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
@@ -49,6 +48,9 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
   );
   const [procedimentoPrincipal, setProcedimentoPrincipal] = useState(
     paciente.procedimentoPrincipal || procedimentosSessoesApenas[0]?.descricao || 'TO Terapia Ocupacional ABA'
+  );
+  const [sessoesPorSemana, setSessoesPorSemana] = useState<number>(
+    paciente.sessoesPorSemana || paciente.quantidadeSemana || 3
   );
 
   const handleStatusChange = (novoStatus: StatusPaciente) => {
@@ -152,6 +154,8 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
             : (aguardandoDoutor ? 'AGUARDANDO DR.°(ª)' : proximaAutorizacaoData.trim()),
           procedimentoPrincipal: procedimentoPrincipal.trim(),
           procedimentos: [procedimentoPrincipal.trim()],
+          sessoesPorSemana,
+          quantidadeSemana: sessoesPorSemana,
           diaDaSemana: diasDaSemana.join(', '),
           diasDaSemana,
           prestadorId: prestadorObj ? prestadorObj.id : paciente.prestadorId,
@@ -505,24 +509,50 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
               </div>
             </div>
 
-            {/* Procedimento Principal (Sessões) */}
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                <span>Procedimento Terapêutico * (Apenas Sessões)</span>
-                <span className="text-[10px] text-emerald-600 font-bold">Sem Avaliações / Reavaliações</span>
-              </label>
-              <select
-                value={procedimentoPrincipal}
-                onChange={(e) => setProcedimentoPrincipal(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-[#002172]"
-                required
-              >
-                {procedimentosSessoesApenas.map((proc) => (
-                  <option key={proc.id} value={proc.descricao}>
-                    {proc.codigo} — {proc.descricao} (CID {proc.cid || 'F84.0'} • R$ {proc.preco.toFixed(2).replace('.', ',')})
-                  </option>
-                ))}
-              </select>
+            {/* Procedimento Principal e Quantidade de Sessões por Semana */}
+            <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Procedimento Terapêutico * (Apenas Sessões)</span>
+                  <span className="text-[10px] text-emerald-600 font-bold">Sem Avaliações</span>
+                </label>
+                <select
+                  value={procedimentoPrincipal}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setProcedimentoPrincipal(val);
+                    const procObj = procedimentosSessoesApenas.find((p) => p.descricao === val);
+                    if (procObj?.sessoesPorSemanaPadrao) {
+                      setSessoesPorSemana(procObj.sessoesPorSemanaPadrao);
+                    }
+                  }}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-[#002172]"
+                  required
+                >
+                  {procedimentosSessoesApenas.map((proc) => (
+                    <option key={proc.id} value={proc.descricao}>
+                      {proc.codigo} — {proc.descricao} (CID {proc.cid || 'F84.0'} • R$ {proc.preco.toFixed(2).replace('.', ',')})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Sessões / Sem *</span>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={sessoesPorSemana || ''}
+                  onChange={(e) => setSessoesPorSemana(e.target.value === '' ? 0 : Math.max(1, parseInt(e.target.value, 10)))}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-[#002172] text-center"
+                  placeholder="Ex: 3"
+                  required
+                />
+              </div>
             </div>
 
             {/* Observações Administrativas */}

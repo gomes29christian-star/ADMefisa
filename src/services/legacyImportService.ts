@@ -48,8 +48,18 @@ export class LegacyImportService {
    */
   public static extrairDiasAtendimentoInteligente(
     textoRaw?: string,
-    qtdInformada?: number
+    qtdInformadaRaw?: number | string
   ): ResultadoAtendimentoInteligente {
+    let qtdInformada = 0;
+    if (typeof qtdInformadaRaw === 'number' && !isNaN(qtdInformadaRaw) && qtdInformadaRaw > 0) {
+      qtdInformada = qtdInformadaRaw;
+    } else if (typeof qtdInformadaRaw === 'string') {
+      const match = (qtdInformadaRaw as string).match(/\d+/);
+      if (match) {
+        qtdInformada = parseInt(match[0], 10);
+      }
+    }
+
     if (!textoRaw || typeof textoRaw !== 'string') {
       const defaultDias = ['seg.', 'ter.', 'qua.', 'sex.'];
       const qtd = qtdInformada && qtdInformada > 0 ? qtdInformada : defaultDias.length;
@@ -236,7 +246,7 @@ export class LegacyImportService {
         mapeamento[coluna] = 'procedimento';
       } else if (colNorm.includes('passa') || colNorm.includes('dias') || colNorm.includes('dia') || colNorm.includes('escala') || colNorm.includes('semana')) {
         mapeamento[coluna] = 'diaDaSemana';
-      } else if (colNorm.includes('qtd') || colNorm.includes('quant') || colNorm.includes('sess') || colNorm.includes('vezes') || colNorm.includes('frequencia')) {
+      } else if (colNorm.includes('qtd') || colNorm.includes('quant') || colNorm.includes('sess') || colNorm.includes('vezes') || colNorm.includes('frequencia') || colNorm.includes('x/sem') || colNorm.includes('x/semana')) {
         mapeamento[coluna] = 'quantidadeSemana';
       } else if (colNorm.includes('ultim') || colNorm.includes('ult') || colNorm.includes('anterior')) {
         mapeamento[coluna] = 'ultimaAutorizacao';

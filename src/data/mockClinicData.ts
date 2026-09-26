@@ -67,6 +67,22 @@ export const MOCK_USUARIOS: Usuario[] = [
 
 const STORAGE_KEY_PRESTADORES = 'clinica_mefisa_prestadores_v2';
 
+export const sanitizarPrestadorExternoCrm = (p: Prestador): Prestador => {
+  if (!p) return p;
+  const isExterno = p.tipo === 'PRESTADOR' || p.tipo !== 'MEFISA' || (p.pastaAtribuida && p.pastaAtribuida.toLowerCase().includes('externo'));
+  if (isExterno && (p.orgaoClasse === 'CRP' || (p.orgaoClasse as string) === 'CRP')) {
+    const novoCrmOuCrp = p.crmOuCrp ? p.crmOuCrp.replace(/crp/gi, 'CRM').trim() : p.crmOuCrp;
+    const novoTitulo = p.titulo ? p.titulo.replace(/CRP/gi, 'CRM') : p.titulo;
+    return {
+      ...p,
+      orgaoClasse: 'CRM',
+      crmOuCrp: novoCrmOuCrp,
+      titulo: novoTitulo,
+    };
+  }
+  return p;
+};
+
 /**
  * Remove membros duplicados da lista de Doutores/Prestadores com base no CPF,
  * Registro Profissional (Conselho + Número) ou Nome.
@@ -77,8 +93,9 @@ export const deduplicarPrestadores = (lista: Prestador[]): Prestador[] => {
   const unicos: Prestador[] = [];
   const chavesVistas = new Set<string>();
 
-  for (const p of lista) {
-    if (!p || !p.nome || typeof p.nome !== 'string') continue;
+  for (const pBruto of lista) {
+    if (!pBruto || !pBruto.nome || typeof pBruto.nome !== 'string') continue;
+    const p = sanitizarPrestadorExternoCrm(pBruto);
 
     const nomeNorm = p.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
     const cpfLimpo = (p.cpf || '').replace(/\D/g, '').trim();

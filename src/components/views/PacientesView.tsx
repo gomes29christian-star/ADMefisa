@@ -337,6 +337,43 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
     return [...statusTexts, ...datasValidas];
   };
 
+  const carregarDataProximaAutorizacaoEfetiva = (pac: Paciente): string | undefined => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const rawAuts = localStorage.getItem('clinica_mefisa_autorizacoes_v2');
+        if (rawAuts) {
+          const auts = JSON.parse(rawAuts);
+          if (Array.isArray(auts)) {
+            const normPacNome = (pac.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+            const normProcP = (pac.procedimentoPrincipal || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
+
+            const autCorrespondente = auts.find((a: any) => {
+              if (!a) return false;
+              const mesmoPac = a.pacienteId === pac.id || (a.pacienteNome && (a.pacienteNome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() === normPacNome);
+              if (!mesmoPac) return false;
+              const normProcA = (a.procedimento || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
+              if (!normProcP || !normProcA) return true;
+              return normProcP.includes(normProcA) || normProcA.includes(normProcP);
+            });
+
+            if (autCorrespondente) {
+              if (autCorrespondente.status === 'CONCLUIDO' && autCorrespondente.proximaAutorizacao) {
+                return autCorrespondente.proximaAutorizacao;
+              }
+              // Se a autorização para este procedimento ainda não foi concluída (está EM_ANALISE ou RECUSADO), não exibe a data de outro procedimento concluído!
+              if (autCorrespondente.status !== 'CONCLUIDO') {
+                return undefined;
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao verificar data da próxima autorização efetiva', e);
+    }
+    return pac.proximaAutorizacaoData;
+  };
+
   const opcoesDatasProximaAut = useMemo(() => {
     const set = new Set<string>();
     set.add('AGUARDANDO DR.°(ª)');
@@ -996,7 +1033,6 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
                   <option value="qui.">qui. (Quinta-feira)</option>
                   <option value="sex.">sex. (Sexta-feira)</option>
                   <option value="sáb.">sáb. (Sábado)</option>
-                  <option value="dom.">dom. (Domingo)</option>
                 </datalist>
               </th>
               {/* 5. Status */}
@@ -1289,24 +1325,34 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
 
                       {/* 5. Próxima autorização */}
                       <td className="py-3 px-4 font-bold text-[#002172]">
-                        {isAguardandoDr ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-2xs font-mono" title="Alerta: Doutora em falta no sistema">
-                            <AlertTriangle className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                            <span>AGUARDANDO DR.°(ª)</span>
-                          </span>
-                        ) : ehAutorizacaoAtrasada ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800 shadow-2xs font-mono" title="Alerta: Autorização Atrasada">
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            <span>AUTORIZAÇÃO ATRASADA</span>
-                          </span>
-                        ) : pac.status === 'ENCERRADO' || pac.status === 'INATIVO' || !pac.proximaAutorizacaoData ? (
-                          <span className="text-slate-400 font-mono text-[11px]">—</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-[#91CA0C]" />
-                            <span>{formatarDataBr(pac.proximaAutorizacaoData, showMonthInitials)}</span>
-                          </span>
-                        )}
+                        {(() => {
+                          const dataEfetivaProc = carregarDataProximaAutorizacaoEfetiva(pac);
+                          if (isAguardandoDr) {
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shadow-2xs font-mono" title="Alerta: Doutora em falta no sistema">
+                                <AlertTriangle className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                <span>AGUARDANDO DR.°(ª)</span>
+                              </span>
+                            );
+                          }
+                          if (ehAutorizacaoAtrasada) {
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800 shadow-2xs font-mono" title="Alerta: Autorização Atrasada">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span>AUTORIZAÇÃO ATRASADA</span>
+                              </span>
+                            );
+                          }
+                          if (pac.status === 'ENCERRADO' || pac.status === 'INATIVO' || !dataEfetivaProc) {
+                            return <span className="text-slate-400 font-mono text-[11px]">—</span>;
+                          }
+                          return (
+                            <span className="inline-flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5 text-[#91CA0C]" />
+                              <span>{formatarDataBr(dataEfetivaProc, showMonthInitials)}</span>
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* 6. Última autorização */}

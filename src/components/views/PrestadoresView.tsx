@@ -25,7 +25,7 @@ import {
   LayoutGrid,
   List,
 } from 'lucide-react';
-import { MOCK_PRESTADORES, salvarPrestadoresStorage, deduplicarPrestadores } from '../../data/mockClinicData';
+import { MOCK_PRESTADORES, salvarPrestadoresStorage, deduplicarPrestadores, sanitizarPrestadorExternoCrm } from '../../data/mockClinicData';
 import { LISTA_CBOS_OPCOES, obterDescricaoCbo } from '../../data/cbosData';
 import { Prestador } from '../../types/clinic';
 import { sanitizarCbo } from '../../services/businessRules';
@@ -49,8 +49,10 @@ Dra. Mariana Souza;345.678.901-23;CREFITO;15892;SP;Psicomotricidade;Psicomotrici
 
 export const PrestadoresView: React.FC = () => {
   const { getThemeStrokeStyle } = useTheme();
-  const [prestadores, setPrestadores] = useState<Prestador[]>(() => deduplicarPrestadores(MOCK_PRESTADORES));
-  
+  const [prestadores, setPrestadores] = useState<Prestador[]>(() =>
+    deduplicarPrestadores(MOCK_PRESTADORES).map(sanitizarPrestadorExternoCrm)
+  );
+
   // Divisória de abas: 'mefisa' | 'prestadores' | 'importacao'
   const [abaAtiva, setAbaAtiva] = useState<'mefisa' | 'prestadores' | 'importacao'>('mefisa');
 
@@ -78,6 +80,16 @@ export const PrestadoresView: React.FC = () => {
   const [pesquisaCboModal, setPesquisaCboModal] = useState('');
   const [procedimentosSelecionados, setProcedimentosSelecionados] = useState<string[]>(['Psicologia']);
   const [erro, setErro] = useState('');
+
+  // Converte automaticamente CRP para CRM se for prestador externo
+  React.useEffect(() => {
+    if (tipoCadastro === 'PRESTADOR' && orgaoClasse === 'CRP') {
+      setOrgaoClasse('CRM');
+      if (crmOuCrp.toLowerCase().includes('crp')) {
+        setCrmOuCrp((prev) => prev.replace(/crp/gi, 'CRM').trim());
+      }
+    }
+  }, [tipoCadastro, orgaoClasse, crmOuCrp]);
 
   // Filtro de CBOs no Modal com base no termo digitado
   const cbosFiltradosModal = React.useMemo(() => {
@@ -316,7 +328,7 @@ export const PrestadoresView: React.FC = () => {
     if (prestadorEmEdicao) {
       const index = novosDados.findIndex((p) => p.id === prestadorEmEdicao.id);
       if (index !== -1) {
-        novosDados[index] = {
+        novosDados[index] = sanitizarPrestadorExternoCrm({
           ...prestadorEmEdicao,
           nome: nome.trim(),
           cpf: cpf.trim() || undefined,
@@ -329,11 +341,11 @@ export const PrestadoresView: React.FC = () => {
           procedimentos: procedimentosSelecionados,
           tipo: tipoCadastro,
           pastaAtribuida: tipoCadastro === 'MEFISA' ? 'Pasta Corpo Clínico — Mefisa' : 'Pasta Credenciados Externos',
-        };
+        });
       }
       setSucessoMsg(`Registro de ${nome.trim()} atualizado com sucesso!`);
     } else {
-      const novoPrestador: Prestador = {
+      const novoPrestador: Prestador = sanitizarPrestadorExternoCrm({
         id: `prest-${Date.now()}`,
         nome: nome.trim(),
         cpf: cpf.trim() || undefined,
@@ -347,7 +359,7 @@ export const PrestadoresView: React.FC = () => {
         pastaAtribuida: tipoCadastro === 'MEFISA' ? 'Pasta Corpo Clínico — Mefisa' : 'Pasta Credenciados Externos',
         ativo: true,
         tipo: tipoCadastro,
-      };
+      });
 
       novosDados.push(novoPrestador);
       setSucessoMsg(`Registro de ${novoPrestador.nome} cadastrado com sucesso!`);
@@ -564,21 +576,23 @@ export const PrestadoresView: React.FC = () => {
 
   const handleConfirmarImportacaoPrestadores = () => {
     const isMefisa = tipoImportacaoLote === 'MEFISA';
-    const novos: Prestador[] = linhasPreviasImport.map((p, idx) => ({
-      id: `prest-imp-${Date.now()}-${idx}`,
-      nome: p.nome,
-      cpf: p.cpf || undefined,
-      titulo: `${p.orgaoClasse} ${p.crmOuCrp} - ${isMefisa ? 'Especialista Mefisa' : 'Credenciado Externo'}`,
-      cbo: sanitizarCbo(p.cbo) || '251510',
-      crmOuCrp: p.crmOuCrp,
-      orgaoClasse: p.orgaoClasse,
-      uf: p.uf,
-      especialidade: p.especialidade,
-      procedimentos: p.procedimentos,
-      pastaAtribuida: isMefisa ? 'Pasta Corpo Clínico — Mefisa' : 'Pasta Credenciados Externos',
-      ativo: true,
-      tipo: tipoImportacaoLote,
-    }));
+    const novos: Prestador[] = linhasPreviasImport.map((p, idx) =>
+      sanitizarPrestadorExternoCrm({
+        id: `prest-imp-${Date.now()}-${idx}`,
+        nome: p.nome,
+        cpf: p.cpf || undefined,
+        titulo: `${p.orgaoClasse} ${p.crmOuCrp} - ${isMefisa ? 'Especialista Mefisa' : 'Credenciado Externo'}`,
+        cbo: sanitizarCbo(p.cbo) || '251510',
+        crmOuCrp: p.crmOuCrp,
+        orgaoClasse: p.orgaoClasse,
+        uf: p.uf,
+        especialidade: p.especialidade,
+        procedimentos: p.procedimentos,
+        pastaAtribuida: isMefisa ? 'Pasta Corpo Clínico — Mefisa' : 'Pasta Credenciados Externos',
+        ativo: true,
+        tipo: tipoImportacaoLote,
+      })
+    );
 
     const novosDados = [...prestadores, ...novos];
     setPrestadores(novosDados);
