@@ -1,0 +1,617 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --mefisa-navy: #002172;
+    --mefisa-teal: #2A657E;
+    --mefisa-lime: #91CA0C;
+    --mefisa-neutral: #6B7A90;
+    --theme-color: #002172;
+    --app-font-scale: 100%;
+  }
+
+  html {
+    font-size: var(--app-font-scale, 100%);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #0f172a;
+    background-color: #f8fafc;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  h1, h2, h3, h4, .font-headline {
+    font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .font-data, .font-mono, td.tabular-nums, .tabular-nums {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ==========================================================================
+   MODO CLARO (LIGHT MODE) — ALTO CONTRASTE E LEGIBILIDADE WCAG AA
+   Garante que nenhum texto fique desbotado (slate-400 / slate-300 / gray-400)
+   sobre fundos brancos e cinzas claros. Contraste mínimo elevado para >= 5:1.
+   ========================================================================== */
+html:not(.dark) .text-slate-400,
+html:not(.dark) .text-gray-400,
+html:not(.dark) .text-zinc-400,
+html:not(.dark) [class*="text-slate-400"],
+html:not(.dark) [class*="text-gray-400"] {
+  color: #475569 !important; /* slate-600: 5.8:1 contraste sobre branco */
+}
+
+html:not(.dark) .text-slate-300,
+html:not(.dark) .text-gray-300,
+html:not(.dark) [class*="text-slate-300"] {
+  color: #64748b !important; /* slate-500: 4.6:1 contraste sobre branco */
+}
+
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* ========================================================
+   REGRA CRÍTICA: FUNDO DA LOGO PERMANECE BRANCO (MODO ESCURO)
+   ======================================================== */
+.logo-white-bg,
+.keep-white,
+.dark .keep-white,
+.dark .logo-white-bg {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.dark .keep-white .text-\[\#002172\],
+.dark .keep-white .text-\[\#002B7F\],
+.dark .keep-white text[fill="#002B7F"],
+.dark .keep-white [class*="text-[#002172]"],
+.dark .keep-white [class*="text-[#002B7F]"],
+.dark .keep-white span {
+  color: #002B7F !important;
+}
+
+/* ========================================================
+   LOGOTIPO OFICIAL MEFISA — RESPONSIVIDADE FORMA 1 / FORMA 2
+   (Forma 1 = Horizontal Oficial; Forma 2 = Compacto Vertical)
+   ======================================================== */
+.mefisa-forma-1 {
+  display: flex !important;
+}
+.mefisa-forma-2 {
+  display: none !important;
+}
+
+/* Se o layout for encurtado (telas muito estreitas ou barra lateral reduzida) */
+@media (max-width: 640px) {
+  .mefisa-forma-1 {
+    display: none !important;
+  }
+  .mefisa-forma-2 {
+    display: flex !important;
+  }
+}
+
+.layout-encurtado .mefisa-forma-1,
+.compact-sidebar .mefisa-forma-1 {
+  display: none !important;
+}
+.layout-encurtado .mefisa-forma-2,
+.compact-sidebar .mefisa-forma-2 {
+  display: flex !important;
+}
+
+/* ==========================================================================
+   MODO ESCURO (DARK MODE) — ALTO CONTRASTE SISTÊMICO & ZERO FUNDOS CLAROS
+   ========================================================================== */
+.dark body {
+  background-color: #0a0f1d !important;
+  color: #f8fafc !important;
+}
+
+/* 1. Títulos e Textos Principais: Branco Puro (#ffffff) para Contraste Máximo */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6,
+.dark th,
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-zinc-900,
+.dark .text-zinc-800,
+.dark .text-neutral-900,
+.dark .text-black,
+.dark strong,
+.dark b {
+  color: #ffffff !important;
+}
+
+/* 2. Textos de Corpo e Dados: Branco Luminoso (#f8fafc) */
+.dark .text-slate-700,
+.dark .text-gray-700,
+.dark .text-zinc-700,
+.dark .text-slate-600,
+.dark .text-gray-600,
+.dark .text-zinc-600 {
+  color: #f8fafc !important;
+}
+
+/* 3. Textos Secundários, Rótulos e Metadados: Branco/Cinza Claro Nítido (Contraste 10:1+) */
+.dark .text-slate-500,
+.dark .text-gray-500,
+.dark .text-zinc-500,
+.dark [class*="text-slate-500"],
+.dark [class*="text-gray-500"] {
+  color: #e2e8f0 !important; /* Claríssimo e 100% legível no fundo escuro */
+}
+
+.dark .text-slate-400,
+.dark .text-gray-400,
+.dark .text-zinc-400,
+.dark [class*="text-slate-400"],
+.dark [class*="text-gray-400"] {
+  color: #cbd5e1 !important; /* Nitidez cristalina */
+}
+
+.dark .text-slate-300,
+.dark .text-gray-300,
+.dark [class*="text-slate-300"] {
+  color: #f8fafc !important;
+}
+
+/* Botões com fundo claro no modo escuro são automaticamente convertidos para fundo escuro com texto branco cristalino */
+.dark button.bg-slate-200,
+.dark button.bg-slate-100,
+.dark button.bg-slate-300,
+.dark button.bg-gray-100,
+.dark button.bg-gray-200,
+.dark button[class*="bg-slate-200"],
+.dark button[class*="bg-slate-100"],
+.dark button[class*="bg-slate-300"] {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  border-color: #334155 !important;
+}
+
+.dark button.bg-slate-200:hover,
+.dark button.bg-slate-100:hover,
+.dark button.bg-slate-300:hover,
+.dark button[class*="bg-slate-200"]:hover,
+.dark button[class*="bg-slate-100"]:hover,
+.dark button[class*="bg-slate-300"]:hover {
+  background-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+/* 4. Textos Institucionais Escuros convertem-se em Azul Celeste Vibrante (#93c5fd) */
+.dark .text-\[\#002172\],
+.dark .text-\[\#002B7F\],
+.dark .text-\[\#002b7f\],
+.dark .text-\[\#2A657E\],
+.dark .text-\[\#2a657e\],
+.dark .text-blue-900,
+.dark .text-blue-950,
+.dark .text-blue-800,
+.dark .text-indigo-900,
+.dark .text-indigo-950 {
+  color: #93c5fd !important; /* Azul celeste luminoso com contraste 9.5:1 */
+}
+
+/* 5. Cores Semânticas de Apoio */
+.dark .text-emerald-700,
+.dark .text-emerald-800,
+.dark .text-emerald-900,
+.dark .text-emerald-950 {
+  color: #86efac !important; /* Verde claro luminoso */
+}
+
+.dark .text-red-700,
+.dark .text-red-800,
+.dark .text-red-900,
+.dark .text-red-950 {
+  color: #fca5a5 !important; /* Vermelho claro luminoso */
+}
+
+.dark .text-amber-700,
+.dark .text-amber-800,
+.dark .text-amber-900,
+.dark .text-yellow-700,
+.dark .text-yellow-800,
+.dark .text-yellow-900 {
+  color: #fde047 !important; /* Amarelo vivo */
+}
+
+/* ==========================================================================
+   INDICAÇÕES DE ANÁLISE EM AMARELO CONTRASTANTE (PADRÃO MEFISA ADM)
+   Sobrescreve qualquer regra anterior para garantir Amarelo Ouro + Preto
+   ========================================================================== */
+.badge-analise-amarelo,
+.indicador-analise-amarelo,
+.badge-em-analise,
+[data-badge="analise"],
+.dark .badge-analise-amarelo,
+.dark .indicador-analise-amarelo,
+.dark .badge-em-analise,
+.dark [data-badge="analise"] {
+  background-color: #facc15 !important; /* Amarelo ouro de altíssimo contraste */
+  color: #020617 !important; /* Preto/Slate-950 para contraste absoluto (13.5:1) */
+  border: 1.5px solid #eab308 !important;
+  font-weight: 900 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.25) !important;
+}
+
+.badge-analise-amarelo *,
+.indicador-analise-amarelo *,
+.badge-em-analise *,
+[data-badge="analise"] *,
+.dark .badge-analise-amarelo *,
+.dark .indicador-analise-amarelo *,
+.dark .badge-em-analise *,
+.dark [data-badge="analise"] * {
+  color: #020617 !important;
+}
+
+/* Elementos com fundo claro que exigem texto escuro forçado no modo escuro */
+.force-text-dark,
+.dark .force-text-dark,
+.dark [data-force-dark-text="true"] {
+  color: #0f172a !important;
+}
+
+/* Elementos específicos com fundo Verde Lima Institucional garantem texto escuro */
+.badge-lime-mefisa {
+  background-color: #91CA0C !important;
+  color: #002172 !important;
+}
+
+/* Botão com Stroke Verde Institucional */
+.dark .border-\[\#91CA0C\],
+.dark .border-lime-500 {
+  border-color: #91CA0C !important;
+}
+
+.dark .text-\[\#91CA0C\],
+.dark .text-lime-400 {
+  color: #91CA0C !important;
+}
+
+/* ==========================================================================
+   LOGOTIPO OFICIAL MEFISA — PRESERVAÇÃO DE CORES DA MARCA
+   Sobrescreve textos claros no container da logo para manter fidelidade
+   ========================================================================== */
+.logo-white-bg,
+.keep-white,
+.dark .logo-white-bg,
+.dark .keep-white {
+  background-color: #ffffff !important;
+}
+
+.logo-white-bg *,
+.keep-white *,
+.dark .logo-white-bg *,
+.dark .keep-white * {
+  color: #002B7F !important;
+}
+
+/* ==========================================================================
+   SUPERFÍCIES ESCURAS — REMOÇÃO TOTAL DE FUNDOS CLAROS NOS CARDS E MODAIS
+   ========================================================================== */
+.dark .bg-white:not(.keep-white):not(.logo-white-bg),
+.dark [class*="bg-white"]:not(.keep-white):not(.logo-white-bg):not([class*="hover:"]):not([class*="active:"]):not([class*="focus:"]) {
+  background-color: #0f172a !important; /* Slate-900 elegante */
+}
+
+.dark .bg-slate-50,
+.dark .bg-gray-50,
+.dark .bg-zinc-50,
+.dark .bg-neutral-50,
+.dark [class*="bg-slate-50"]:not(.keep-white):not(.logo-white-bg):not([class*="hover:"]):not([class*="active:"]):not([class*="focus:"]),
+.dark [class*="bg-gray-50"]:not(.keep-white):not(.logo-white-bg):not([class*="hover:"]):not([class*="active:"]):not([class*="focus:"]),
+.dark [class*="bg-zinc-50"]:not(.keep-white):not(.logo-white-bg):not([class*="hover:"]):not([class*="active:"]):not([class*="focus:"]),
+.dark [class*="bg-neutral-50"]:not(.keep-white):not(.logo-white-bg):not([class*="hover:"]):not([class*="active:"]):not([class*="focus:"]) {
+  background-color: #020617 !important; /* Slate-950 profundo */
+}
+
+.dark .bg-slate-100,
+.dark .bg-gray-100,
+.dark .bg-zinc-100,
+.dark [class*="bg-slate-100"]:not(.keep-white):not(.logo-white-bg):not([class*="hover:"]):not([class*="active:"]):not([class*="focus:"]),
+.dark [class*="bg-gray-100"]:not(.keep-white):not(.logo-white-bg):not([class*="hover:"]):not([class*="active:"]):not([class*="focus:"]),
+.dark [class*="bg-zinc-100"]:not(.keep-white):not(.logo-white-bg):not([class*="hover:"]):not([class*="active:"]):not([class*="focus:"]) {
+  background-color: #1e293b !important; /* Slate-800 */
+}
+
+/* Badges e destaques suaves — Fundo escurecido sem ofuscar as letras claras */
+.dark [class*="bg-amber-50"]:not(.keep-white):not(.logo-white-bg):not(.badge-analise-amarelo),
+.dark [class*="bg-amber-100"]:not(.keep-white):not(.logo-white-bg):not(.badge-analise-amarelo),
+.dark [class*="bg-yellow-50"]:not(.keep-white):not(.logo-white-bg):not(.badge-analise-amarelo),
+.dark [class*="bg-yellow-100"]:not(.keep-white):not(.logo-white-bg):not(.badge-analise-amarelo) {
+  background-color: rgba(120, 53, 15, 0.28) !important;
+  color: #fde68a !important;
+}
+
+.dark [class*="bg-blue-50"]:not(.keep-white):not(.logo-white-bg),
+.dark [class*="bg-blue-100"]:not(.keep-white):not(.logo-white-bg) {
+  background-color: rgba(30, 58, 138, 0.28) !important;
+  color: #bfdbfe !important;
+}
+
+.dark [class*="bg-indigo-50"]:not(.keep-white):not(.logo-white-bg),
+.dark [class*="bg-indigo-100"]:not(.keep-white):not(.logo-white-bg) {
+  background-color: rgba(49, 46, 129, 0.28) !important;
+  color: #c7d2fe !important;
+}
+
+.dark [class*="bg-red-50"]:not(.keep-white):not(.logo-white-bg),
+.dark [class*="bg-red-100"]:not(.keep-white):not(.logo-white-bg) {
+  background-color: rgba(127, 29, 29, 0.28) !important;
+  color: #fecaca !important;
+}
+
+.dark [class*="bg-emerald-50"]:not(.keep-white):not(.logo-white-bg),
+.dark [class*="bg-emerald-100"]:not(.keep-white):not(.logo-white-bg),
+.dark [class*="bg-green-50"]:not(.keep-white):not(.logo-white-bg),
+.dark [class*="bg-green-100"]:not(.keep-white):not(.logo-white-bg) {
+  background-color: rgba(6, 78, 59, 0.28) !important;
+  color: #a7f3d0 !important;
+}
+
+/* Hover e Seleção no Modo Escuro: Fundo LEVEMENTE mais claro, sem atrapalhar o contraste */
+.dark [class*="hover:bg-white"]:hover:not(.keep-white):not(.logo-white-bg),
+.dark [class*="hover:bg-slate-50"]:hover:not(.keep-white):not(.logo-white-bg),
+.dark [class*="hover:bg-slate-100"]:hover:not(.keep-white):not(.logo-white-bg),
+.dark [class*="hover:bg-gray-50"]:hover:not(.keep-white):not(.logo-white-bg),
+.dark [aria-selected="true"]:not(.keep-white):not(.logo-white-bg),
+.dark [data-selected="true"]:not(.keep-white):not(.logo-white-bg),
+.dark .selected:not(.keep-white):not(.logo-white-bg),
+.dark tr[data-selected="true"],
+.dark tr.selected,
+.dark tr:hover {
+  background-color: #1e293b !important;
+}
+
+.dark .border-slate-200,
+.dark .border-slate-200\/80,
+.dark .border-slate-200\/90,
+.dark .border-slate-100,
+.dark .border-slate-100\/80,
+.dark .border-slate-100\/90,
+.dark .border-slate-300,
+.dark [class*="border-slate-100"],
+.dark [class*="border-slate-200"],
+.dark [class*="border-slate-300"] {
+  border-color: #1e293b !important;
+}
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1e293b !important;
+}
+
+.dark input:not([type="checkbox"]):not([type="radio"]):not(.keep-white),
+.dark select:not(.keep-white),
+.dark textarea:not(.keep-white) {
+  background-color: #020617 !important;
+  color: #ffffff !important;
+  border-color: #334155 !important;
+}
+
+.dark input:focus:not([type="checkbox"]):not([type="radio"]),
+.dark select:focus,
+.dark textarea:focus {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #38bdf8 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.dark option {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.dark th {
+  color: #f1f5f9 !important;
+  background-color: #0b1329 !important;
+  border-color: #1e293b !important;
+}
+
+.dark td {
+  color: #f8fafc !important;
+  border-color: #1e293b !important;
+}
+
+.dark label {
+  color: #f1f5f9 !important;
+}
+
+.dark dialog,
+.dark [role="dialog"] {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #1e293b !important;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0d1527;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* ========================================================
+   MODO SUAVE — ACESSIBILIDADE DE LEITURA & ANTI-FADIGA
+   ======================================================== */
+.font-suave {
+  letter-spacing: 0.015em;
+  word-spacing: 0.03em;
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========================================================
+   MODO ALTO CONTRASTE (WCAG AAA)
+   ======================================================== */
+.high-contrast body {
+  color: #000000 !important;
+}
+
+.high-contrast button,
+.high-contrast a,
+.high-contrast input,
+.high-contrast select {
+  font-weight: 700 !important;
+}
+
+.dark.high-contrast body {
+  color: #ffffff !important;
+}
+
+/* ========================================================
+   COMPATIBILIDADE SEGURA (SEM TORNAR TEXTOS INVISÍVEIS)
+   ======================================================== */
+.theme-stroke-text {
+  font-weight: 700;
+}
+
+.theme-stroke-icon {
+  color: var(--theme-color);
+}
+
+.theme-stroke-badge {
+  border-color: var(--theme-color);
+}
+
+/* Efeito de Neblina para o Cofre Secreto */
+@keyframes fogDrift {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+.secret-fog-overlay {
+  background: radial-gradient(circle, rgba(15, 23, 42, 0.85) 0%, rgba(10, 15, 30, 0.98) 100%),
+              repeating-radial-gradient(circle at 20% 40%, rgba(255, 255, 255, 0.05) 0, rgba(255, 255, 255, 0.05) 20px, transparent 20px, transparent 40px);
+  background-size: 200% 200%;
+  animation: fogDrift 14s ease infinite;
+}
+
+/* Scrollbars limpas */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Scrollbar superior no topo da lista (Roll Superior) */
+.custom-scrollbar-top::-webkit-scrollbar {
+  height: 9px !important;
+}
+.custom-scrollbar-top::-webkit-scrollbar-track {
+  background: #cbd5e1 !important;
+  border-radius: 4px !important;
+}
+.dark .custom-scrollbar-top::-webkit-scrollbar-track {
+  background: #1e293b !important;
+  border-radius: 4px !important;
+}
+.custom-scrollbar-top::-webkit-scrollbar-thumb {
+  background: #002172 !important;
+  border-radius: 4px !important;
+}
+.dark .custom-scrollbar-top::-webkit-scrollbar-thumb {
+  background: #3b82f6 !important;
+  border-radius: 4px !important;
+}
+.custom-scrollbar-top::-webkit-scrollbar-thumb:hover {
+  background: #001752 !important;
+}
+.dark .custom-scrollbar-top::-webkit-scrollbar-thumb:hover {
+  background: #60a5fa !important;
+}
+
+/* ========================================================
+   ÍCONES DE CALENDÁRIO EM CAMPOS DE DATA
+   Garantia de contraste perfeito:
+   - Modo Claro: brightness(0) => Ícone 100% Preto
+   - Modo Escuro: brightness(0) invert(1) => Ícone 100% Branco
+   ======================================================== */
+
+/* 1. MODO CLARO: Ícone 100% Preto */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0) !important;
+  opacity: 0.75 !important;
+  cursor: pointer;
+}
+
+/* 2. MODO ESCURO: Ícone 100% Branco */
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator,
+.dark input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0) invert(1) !important;
+  opacity: 1 !important;
+  cursor: pointer;
+}
+
+.dark input[type="date"],
+.dark input[type="datetime-local"],
+.dark input[type="time"],
+.dark input[type="month"] {
+  color-scheme: dark !important;
+}
+
+:root:not(.dark) input[type="date"],
+:root:not(.dark) input[type="datetime-local"],
+:root:not(.dark) input[type="time"],
+:root:not(.dark) input[type="month"] {
+  color-scheme: light !important;
+}
+
+/* Garante que ícones Lucide Calendar associados a campos de busca de data também fiquem brancos */
+.dark .relative:has(input[type="date"]) svg,
+.dark div:has(> input[type="date"]) svg,
+.dark label:has(input[type="date"]) svg {
+  color: #ffffff !important;
+}
+

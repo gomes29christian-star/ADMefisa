@@ -1,0 +1,6 @@
+{
+  "name": "Clínica Mefisa — Sistema de Gestão e Autorizações",
+  "description": "Plataforma administrativa centralizada para gestão de pacientes, autorizações de convênios, sessões e rastreabilidade da Clínica Mefisa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
