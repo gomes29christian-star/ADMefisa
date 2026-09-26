@@ -1,12 +1,11 @@
+import { describe, it, expect } from 'vitest';
 import { calcularDiasCorridos, carregarAutorizacoesIniciais } from './autorizacoesService';
 import { AutorizacaoV2 } from '../types/autorizacao';
 
-console.log('======================================================');
-console.log('CLÍNICA MEFISA — TESTES UNITÁRIOS DO MÓDULO AUTORIZAÇÕES V2');
-console.log('======================================================');
-
-let testesPassaram = 0;
-let testesFalharam = 0;
+describe('Testes do Módulo de Autorizações V2', () => {
+  it('deve executar e aprovar os testes do módulo de autorizações', () => {
+    let testesPassaram = 0;
+    let testesFalharam = 0;
 
 const assert = (condicao: boolean, descricao: string) => {
   if (condicao) {
@@ -109,8 +108,6 @@ console.log('======================================================');
 console.log(`TOTAL DE TESTES V2: ${testesPassaram + testesFalharam} | PASSARAM: ${testesPassaram} | FALHARAM: ${testesFalharam}`);
 console.log('======================================================');
 
-if (testesFalharam > 0) {
-  process.exit(1);
-} else {
-  console.log('🎉 TODOS OS TESTES DO MÓDULO AUTORIZAÇÕES V2 FORAM APROVADOS COM SUCESSO!');
-}
+    expect(testesFalharam).toBe(0);
+  });
+});

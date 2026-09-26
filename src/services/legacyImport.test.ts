@@ -3,22 +3,24 @@
  * Valida parsing de CSV, mapeamento, validação (INFO, WARNING, ERROR), detecção de duplicidade e importação transacional.
  */
 
+import { describe, it, expect } from 'vitest';
 import { LegacyImportService, DADOS_FICTICIOS_EXEMPLO_CSV } from './legacyImportService';
 import { PacientesService } from './pacientesService';
 
-let totalTestes = 0;
-let testesAprovados = 0;
+describe('Testes do Importador Legado', () => {
+  it('deve executar e aprovar os testes do importador legado', () => {
+    let totalTestes = 0;
+    let testesAprovados = 0;
 
-function assert(condicao: boolean, mensagem: string) {
-  totalTestes++;
-  if (condicao) {
-    testesAprovados++;
-    console.log(`  ✓ [PASSOU] ${mensagem}`);
-  } else {
-    console.error(`  ✗ [FALHOU] ${mensagem}`);
-    process.exitCode = 1;
-  }
-}
+    function assert(condicao: boolean, mensagem: string) {
+      totalTestes++;
+      if (condicao) {
+        testesAprovados++;
+        console.log(`  ✓ [PASSOU] ${mensagem}`);
+      } else {
+        console.error(`  ✗ [FALHOU] ${mensagem}`);
+      }
+    }
 
 console.log('======================================================');
 console.log('CLÍNICA MEFISA — TESTES UNITÁRIOS DO IMPORTADOR LEGADO');
@@ -55,7 +57,10 @@ assert(lote.status === 'CONCLUIDO', '4.1 Lote de importação deve ser concluíd
 assert(relatorio.resumo.totalAnalisadas === 4, '4.2 Relatório deve contabilizar 4 linhas analisadas');
 assert(relatorio.resumo.rejeitados >= 0, '4.3 Relatório deve calcular registros rejeitados com exatidão');
 
-console.log(`\n======================================================`);
-console.log(`TOTAL DE TESTES IMPORTADOR: ${totalTestes} | PASSARAM: ${testesAprovados} | FALHARAM: ${totalTestes - testesAprovados}`);
-console.log(`🎉 TODOS OS TESTES DO IMPORTADOR LEGADO PASSARAM COM SUCESSO!`);
-console.log(`======================================================`);
+    console.log(`\n======================================================`);
+    console.log(`TOTAL DE TESTES IMPORTADOR: ${totalTestes} | PASSARAM: ${testesAprovados} | FALHARAM: ${totalTestes - testesAprovados}`);
+    console.log(`🎉 TODOS OS TESTES DO IMPORTADOR LEGADO PASSARAM COM SUCESSO!`);
+    console.log(`======================================================`);
+    expect(testesAprovados).toBe(totalTestes);
+  });
+});

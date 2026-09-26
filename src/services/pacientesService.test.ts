@@ -3,6 +3,7 @@
  * Executa validações rigorosas e determinísticas de todos os requisitos do V1.
  */
 
+import { describe, it, expect } from 'vitest';
 import {
   PacientesService,
   calcularVencimentoFormulario,
@@ -12,19 +13,20 @@ import {
 } from './pacientesService';
 import { Paciente, ResponsavelLegal, FiltroPacientesUsuario } from '../types/clinic';
 
-let totalTestes = 0;
-let testesAprovados = 0;
+describe('Testes do Módulo de Pacientes V1', () => {
+  it('deve executar e aprovar os testes do módulo de pacientes', () => {
+    let totalTestes = 0;
+    let testesAprovados = 0;
 
-function assert(condicao: boolean, mensagem: string) {
-  totalTestes++;
-  if (condicao) {
-    testesAprovados++;
-    console.log(`  ✓ [PASSOU] ${mensagem}`);
-  } else {
-    console.error(`  ✗ [FALHOU] ${mensagem}`);
-    process.exitCode = 1;
-  }
-}
+    function assert(condicao: boolean, mensagem: string) {
+      totalTestes++;
+      if (condicao) {
+        testesAprovados++;
+        console.log(`  ✓ [PASSOU] ${mensagem}`);
+      } else {
+        console.error(`  ✗ [FALHOU] ${mensagem}`);
+      }
+    }
 
 console.log('======================================================');
 console.log('CLÍNICA MEFISA — TESTES UNITÁRIOS DO MÓDULO PACIENTES V1');
@@ -395,11 +397,13 @@ assert(autoIdentificarFormato('foto_documento.jpg') === 'jpeg', '20.3 Identifica
 // ----------------------------------------------------
 // RESULTADO FINAL
 // ----------------------------------------------------
-console.log('\n======================================================');
-console.log(`TOTAL DE TESTES V1: ${totalTestes} | PASSARAM: ${testesAprovados} | FALHARAM: ${totalTestes - testesAprovados}`);
-if (testesAprovados === totalTestes) {
-  console.log('🎉 TODOS OS TESTES DO MÓDULO PACIENTES V1 FORAM APROVADOS COM SUCESSO!');
-} else {
-  console.error('❌ HOUVE FALHA EM TESTES!');
-  process.exit(1);
-}
+    console.log('\n======================================================');
+    console.log(`TOTAL DE TESTES V1: ${totalTestes} | PASSARAM: ${testesAprovados} | FALHARAM: ${totalTestes - testesAprovados}`);
+    if (testesAprovados === totalTestes) {
+      console.log('🎉 TODOS OS TESTES DO MÓDULO PACIENTES V1 FORAM APROVADOS COM SUCESSO!');
+    } else {
+      console.error('❌ HOUVE FALHA EM TESTES!');
+    }
+    expect(testesAprovados).toBe(totalTestes);
+  });
+});

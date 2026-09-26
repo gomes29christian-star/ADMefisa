@@ -338,11 +338,8 @@ export function calcularAlinhamentoProximaAutorizacao(params: {
   ];
   const mesCompetencia = `${MESES_NOMES[dataFinal.getMonth()]}/${dataFinal.getFullYear()}`;
 
-  // A data de Próxima Autorização é a PRIMEIRA ocorrência do dia habitual de atendimento APÓS o término da última sessão do ciclo atual
-  const dataProximaAutorizacaoCalculadaIso = calcularProximaAutorizacaoAposUltimaSessao(
-    formatIsoDate(dataFinal),
-    diasArray
-  );
+  // A data de Próxima Autorização é a data alinhada do ciclo atual
+  const dataProximaAutorizacaoCalculadaIso = formatIsoDate(dataFinal);
 
   return {
     diaSemanaHabitual,
@@ -395,14 +392,28 @@ export function verificarConflitoFeriado(dataIsoStr: string): ConflitoFeriadoSes
  */
 export function calcularProximaAutorizacaoAposUltimaSessao(
   dataUltimaSessaoStr: string,
-  diaSemanaHabitualParam: DiaSemanaIndice | DiaSemanaIndice[]
+  diaSemanaHabitualParam: DiaSemanaIndice | DiaSemanaIndice[],
+  dataInicioStr?: string,
+  sessoesPorSemana: number = 1
 ): string {
   const diasArray: DiaSemanaIndice[] = Array.isArray(diaSemanaHabitualParam)
     ? diaSemanaHabitualParam
     : [diaSemanaHabitualParam];
 
+  // Se for ciclo semanal de múltiplas sessões (ex: 3 sessões/semana) a partir de uma data de autorização inicial
+  if (sessoesPorSemana > 1 && dataInicioStr) {
+    let dNextCycle = parseIsoDateLocal(dataInicioStr);
+    dNextCycle.setDate(dNextCycle.getDate() + 7);
+
+    // Ajusta apenas se cair em domingo
+    if (dNextCycle.getDay() === 0) {
+      dNextCycle.setDate(dNextCycle.getDate() + 1);
+    }
+    return formatIsoDate(dNextCycle);
+  }
+
   const dUltima = parseIsoDateLocal(dataUltimaSessaoStr);
-  const dNext = new Date(dUltima);
+  let dNext = new Date(dUltima);
   dNext.setDate(dNext.getDate() + 1);
 
   // Encontra a próxima data que corresponda a um dos dias habituais
@@ -477,8 +488,35 @@ export function gerarCronogramaComAuditoriaFeriados(
 
     // Sessões #2 em diante:
     if (totalSessoes > 1) {
-      if (diasArray.length <= 1) {
-        // Se o paciente passa em 1 dia específico da semana (ex: Terça-feira = dia 2):
+      if (sessoesPorSemana > 1) {
+        // Quando há múltiplas sessões por semana (ex: 3 sessões/semana = 1 sessão a cada 2 dias)
+        const passoDias = Math.max(1, Math.floor(7 / sessoesPorSemana));
+        let dNext = new Date(dCurr);
+
+        for (let i = 2; i <= totalSessoes; i++) {
+          dNext.setDate(dNext.getDate() + passoDias);
+
+          // Pula Domingo ou Feriado nacional/municipal
+          let tentativas = 0;
+          while ((dNext.getDay() === 0 || verificarConflitoFeriado(formatIsoDate(dNext))) && tentativas < 14) {
+            dNext.setDate(dNext.getDate() + 1);
+            tentativas++;
+          }
+
+          const dataIso = formatIsoDate(dNext);
+          const conflito = verificarConflitoFeriado(dataIso);
+          if (conflito) totalConflitos++;
+
+          sessoes.push({
+            numero: i,
+            data: dataIso,
+            diaSemana: formatarDiaSemanaPt(dNext.getDay() as DiaSemanaIndice),
+            temConflitoFeriado: !!conflito,
+            conflito: conflito || undefined,
+          });
+        }
+      } else if (diasArray.length <= 1) {
+        // Se 1 sessão por semana e passa em 1 dia habitual específico (ex: Terça-feira = dia 2):
         // A partir da 1ª sessão, avança para a primeira ocorrência do dia habitual do paciente
         const diaHabitual = diasArray[0] ?? 1;
         let dNext = new Date(dCurr);
@@ -491,6 +529,13 @@ export function gerarCronogramaComAuditoriaFeriados(
         }
 
         for (let i = 2; i <= totalSessoes; i++) {
+          // Pula Domingo ou Feriado nacional/municipal
+          let tentativas = 0;
+          while ((dNext.getDay() === 0 || verificarConflitoFeriado(formatIsoDate(dNext))) && tentativas < 14) {
+            dNext.setDate(dNext.getDate() + 1);
+            tentativas++;
+          }
+
           const dataIso = formatIsoDate(dNext);
           const conflito = verificarConflitoFeriado(dataIso);
           if (conflito) totalConflitos++;
@@ -539,7 +584,12 @@ export function gerarCronogramaComAuditoriaFeriados(
   }
 
   const ultimaData = sessoes.length > 0 ? sessoes[sessoes.length - 1].data : dataPrimeiraSessaoStr;
-  const proximaData = calcularProximaAutorizacaoAposUltimaSessao(ultimaData, diasArray);
+  const proximaData = calcularProximaAutorizacaoAposUltimaSessao(
+    ultimaData,
+    diasArray,
+    dataPrimeiraSessaoStr,
+    sessoesPorSemana
+  );
 
   return {
     sessoes,

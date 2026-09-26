@@ -2,6 +2,7 @@
  * Testes Unitários de Segurança — Gestão de Usuários Deletados e Bloqueio de Senhas Revogadas
  */
 
+import { describe, it, expect } from 'vitest';
 import {
   carregarUsuariosIniciais,
   salvarUsuarioDeletado,
@@ -32,9 +33,11 @@ function assert(condicao: boolean, nome: string, detalheFalha?: string) {
   }
 }
 
-console.log('\n======================================================');
-console.log('CLÍNICA MEFISA — TESTES UNITÁRIOS DE SEGURANÇA (USUÁRIOS DELETADOS)');
-console.log('======================================================\n');
+describe('Testes de Segurança de Usuários', () => {
+  it('deve executar e validar testes de usuários deletados', () => {
+    console.log('\n======================================================');
+    console.log('CLÍNICA MEFISA — TESTES UNITÁRIOS DE SEGURANÇA (USUÁRIOS DELETADOS)');
+    console.log('======================================================\n');
 
 // 1. Teste de Senhas Pré-cadastradas de Usuários Deletados
 const usuarioDeletadoConhecido = verificarSenhaUsuarioDeletado('mefisa_sys_secure_key_REVOKED_DELETED_USER_ROBERTO_SILVEIRA_901_OLD_SECRET_PASS');
@@ -96,11 +99,14 @@ assert(
   '4.2 Deve limpar as notificações de segurança dos ADMs'
 );
 
-console.log('\n======================================================');
-const total = resultados.length;
-const passaram = resultados.filter((r) => r.passou).length;
-console.log(`TOTAL DE TESTES DE SEGURANÇA: ${total} | PASSARAM: ${passaram} | FALHARAM: ${total - passaram}`);
-if (passaram === total) {
-  console.log('🎉 TODOS OS TESTES DE SEGURANÇA PASSARAM COM SUCESSO!');
-}
-console.log('======================================================\n');
+    console.log('\n======================================================');
+    const total = resultados.length;
+    const passaram = resultados.filter((r) => r.passou).length;
+    console.log(`TOTAL DE TESTES DE SEGURANÇA: ${total} | PASSARAM: ${passaram} | FALHARAM: ${total - passaram}`);
+    if (passaram === total) {
+      console.log('🎉 TODOS OS TESTES DE SEGURANÇA PASSARAM COM SUCESSO!');
+    }
+    console.log('======================================================\n');
+    expect(passaram).toBe(total);
+  });
+});
