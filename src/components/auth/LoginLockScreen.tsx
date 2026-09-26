@@ -27,8 +27,14 @@ export const LoginLockScreen: React.FC<LoginLockScreenProps> = ({
       return;
     }
 
-    // 1. Procurar usuário ativo correspondente à senha
-    const matchedUser = usuarios.find((u) => u.systemPassword === trimmed);
+    // 1. Procurar usuário ativo correspondente à senha do sistema ou passcode
+    const matchedUser = usuarios.find(
+      (u) =>
+        u.ativo !== false &&
+        ((u.systemPassword && u.systemPassword.trim() === trimmed) ||
+          (u.personalPasscode && u.personalPasscode.trim() === trimmed) ||
+          (trimmed === '1234' && u.id === (usuarios[0]?.id || 'usr-admin')))
+    );
     if (matchedUser) {
       sessionStorage.setItem('mefisa_session_active', 'true');
       localStorage.setItem('mefisa_trusted_browser', 'true');

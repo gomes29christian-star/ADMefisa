@@ -35,15 +35,16 @@ import { carregarUsuariosIniciais } from './services/userService';
 function MainApp() {
   const [isSessionUnlocked, setIsSessionUnlocked] = useState<boolean>(() => {
     try {
-      // ESTE NAVEGADOR entra direto sem precisar de senha por padrão
-      const isTrusted = localStorage.getItem('mefisa_trusted_browser');
-      if (isTrusted === null || isTrusted === 'true') {
-        localStorage.setItem('mefisa_trusted_browser', 'true');
+      // Se estiver no iFrame do AI Studio, permite navegação direta no ambiente de desenvolvimento
+      const isInsideAIStudio = typeof window !== 'undefined' && window.self !== window.top;
+      if (isInsideAIStudio) {
         return true;
       }
-      return false;
+      // Fora do AI Studio: Bloqueado por padrão! Exige a senha de acesso na sessão atual
+      const sessionActive = sessionStorage.getItem('mefisa_session_active');
+      return sessionActive === 'true';
     } catch {
-      return true;
+      return false;
     }
   });
   const [allUsers, setAllUsers] = useState<Usuario[]>(() => carregarUsuariosIniciais());
@@ -198,6 +199,11 @@ function MainApp() {
           activeUsuario={activeUsuario}
           onSelectUsuario={(usr) => setActiveUsuario(usr)}
           onOpenBackup={() => setIsBackupOpen(true)}
+          onLockSession={() => {
+            sessionStorage.removeItem('mefisa_session_active');
+            localStorage.removeItem('mefisa_trusted_browser');
+            setIsSessionUnlocked(false);
+          }}
         />
 
         <main className="flex-1 p-3 sm:p-5 lg:p-6 w-full max-w-[1920px] mx-auto transition-all">

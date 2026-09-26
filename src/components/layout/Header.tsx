@@ -25,6 +25,7 @@ interface HeaderProps {
   onOpenCalculator?: () => void;
   onOpenArchitectureDocs?: () => void;
   onOpenBackup?: () => void;
+  onLockSession?: () => void;
 }
 
 const getInitials = (name: string) => {
@@ -39,6 +40,7 @@ const getInitials = (name: string) => {
 export const Header: React.FC<HeaderProps> = ({
   activeUsuario,
   onOpenBackup,
+  onLockSession,
 }) => {
   const [notificacoes, setNotificacoes] = useState<NotificacaoAcessoDeletado[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -283,6 +285,18 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Botão para Bloquear Sessão Manualmente */}
+        {onLockSession && (
+          <button
+            type="button"
+            onClick={onLockSession}
+            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-800 transition-all cursor-pointer shadow-2xs"
+            title="Bloquear Sessão / Sair do Sistema (Exige Senha para Entrar)"
+          >
+            <Lock className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </header>
   );
