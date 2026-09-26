@@ -338,21 +338,27 @@ export function calcularAlinhamentoProximaAutorizacao(params: {
   ];
   const mesCompetencia = `${MESES_NOMES[dataFinal.getMonth()]}/${dataFinal.getFullYear()}`;
 
+  // A data de Próxima Autorização é a PRIMEIRA ocorrência do dia habitual de atendimento APÓS o término da última sessão do ciclo atual
+  const dataProximaAutorizacaoCalculadaIso = calcularProximaAutorizacaoAposUltimaSessao(
+    formatIsoDate(dataFinal),
+    diasArray
+  );
+
   return {
     diaSemanaHabitual,
-    diaSemanaNome: formatarDiaSemanaPt(dataFinal.getDay() as DiaSemanaIndice),
+    diaSemanaNome: formatarDiaSemanaPt(parseIsoDateLocal(dataProximaAutorizacaoCalculadaIso).getDay() as DiaSemanaIndice),
     mesCompetenciaReferencia: mesCompetencia,
     dataReferenciaInicialCorte: formatIsoDate(dataCorteBase),
-    dataProximaAutorizacaoCalculada: formatIsoDate(dataFinal),
+    dataProximaAutorizacaoCalculada: dataProximaAutorizacaoCalculadaIso,
     foiDeslocadoParaDiaAnterior: diasRecuo > 0,
     diasDeslocadosAnterior: diasRecuo,
     adicionouOcorrenciaSemanal,
     semanasCicloCalculadas: semanasCalculadas,
     totalSessoesSugeridas,
     excecaoSabado: excecaoSabadoInfo,
-    regraDescritiva: `A data da próxima autorização foi alinhada estritamente ao dia habitual (${formatarDiaSemanaPt(
+    regraDescritiva: `A data da próxima autorização foi alinhada à próxima ${formatarDiaSemanaPt(
       diaSemanaHabitual
-    )}), sem ultrapassar o corte de ${formatIsoDate(dataCorteBase)}.`,
+    )} (${formatarDataBr(dataProximaAutorizacaoCalculadaIso)}), subsequente à última sessão do ciclo (${formatarDataBr(formatIsoDate(dataFinal))}).`,
   };
 }
 
