@@ -23,6 +23,7 @@ import {
   StatusPaciente,
 } from '../types/clinic';
 import { parseIsoDateLocal, formatIsoDate } from './businessRules';
+import { CloudSyncService } from './cloudSyncService';
 import { DeletedRecordsService } from './deletedRecordsService';
 import { AuditoriaService } from './auditoriaService';
 
@@ -105,6 +106,47 @@ export function calcularVencimentoFormulario(
     status,
     alertaUrgenteEmpregados,
   };
+}
+
+/**
+ * Converte strings de datas variadas (YYYY-MM-DD, DD/MM/YYYY) em YYYY-MM-DD local
+ */
+export function converterDataParaIso(dataStr: string | undefined | null): string | null {
+  if (!dataStr) return null;
+  const str = dataStr.trim();
+  if (!str || str.startsWith('AGUARDANDO') || str.startsWith('AUTORIZAÇÃO') || str === '—') return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    return str.substring(0, 10);
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) {
+    const parts = str.split('/');
+    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+  }
+  if (/^\d{2}-\d{2}-\d{4}/.test(str)) {
+    const parts = str.split('-');
+    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+  }
+  return null;
+}
+
+/**
+ * Verificação unificada se a autorização do paciente está atrasada
+ * (ou seja, se a data de Próxima Autorização é anterior à data atual ou marcada como atrasada)
+ */
+export function isAutorizacaoAtrasada(pac: Paciente, hojeIsoInput?: string): boolean {
+  if (!pac) return false;
+  if (pac.status === 'ENCERRADO' || pac.status === 'INATIVO') return false;
+  if (pac.autorizacaoAtrasada || pac.proximaAutorizacaoData === 'AUTORIZAÇÃO ATRASADA') {
+    return true;
+  }
+  if (!pac.proximaAutorizacaoData || pac.proximaAutorizacaoData === 'AGUARDANDO DR.°(ª)' || pac.proximaAutorizacaoData === 'AGUARDANDO_DOUTOR') {
+    return false;
+  }
+  const dataIso = converterDataParaIso(pac.proximaAutorizacaoData);
+  if (!dataIso) return false;
+
+  const hoje = hojeIsoInput || new Date().toISOString().split('T')[0];
+  return dataIso < hoje;
 }
 
 /**
@@ -287,6 +329,11 @@ export class PacientesService {
         setTimeout(() => {
           window.dispatchEvent(new Event('storage'));
         }, 0);
+
+        // Sincroniza em nuvem em segundo plano
+        sanitizados.forEach((p) => {
+          CloudSyncService.salvarPacienteNuvem(p).catch(() => {});
+        });
       } catch (err) {
         console.warn('Alerta de cota excedida do localStorage. Aplicando limpeza dos anexos para manter sincronia:', err);
         try {
@@ -950,12 +997,17 @@ export class PacientesService {
         }
       }
 
-      // 3. Filtro de Pendências
+      // 3. Filtro de Autorizações Atrasadas (Próxima Autorização antes da data atual)
+      if (filtros.autorizacoesAtrasadasApenas && !isAutorizacaoAtrasada(pac)) {
+        return false;
+      }
+
+      // 4. Filtro de Pendências
       if (filtros.comPendenciasApenas && (!pac.pendenciasQuantidade || pac.pendenciasQuantidade <= 0)) {
         return false;
       }
 
-      // 4. Filtro de Formulário Vencido
+      // 5. Filtro de Formulário Vencido
       if (filtros.formularioVencidoApenas && !isFormularioVencido(pac)) {
         return false;
       }

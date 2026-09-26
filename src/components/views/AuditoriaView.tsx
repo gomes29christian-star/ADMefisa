@@ -21,6 +21,7 @@ import {
   Layers,
   Sparkles,
   Info,
+  Trash2,
 } from 'lucide-react';
 import { AuditoriaService, EventoAuditoriaCompleto } from '../../services/auditoriaService';
 import { formatarDataBr } from '../../services/businessRules';
@@ -49,10 +50,20 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
   const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<DirecaoOrdenacao>('desc');
 
   const [logSelecionado, setLogSelecionado] = useState<EventoAuditoriaCompleto | null>(null);
+  const [isConfirmarLimparOpen, setIsConfirmarLimparOpen] = useState(false);
+  const [feedbackLimpeza, setFeedbackLimpeza] = useState<string | null>(null);
 
   // Recarregar logs do localStorage
   const handleAtualizarLogs = () => {
     setLogs(AuditoriaService.obterLogs());
+  };
+
+  const handleLimparHistorico = () => {
+    AuditoriaService.limparLogs();
+    setLogs([]);
+    setIsConfirmarLimparOpen(false);
+    setFeedbackLimpeza('Histórico de ações limpo com sucesso! Novo em folha.');
+    setTimeout(() => setFeedbackLimpeza(null), 4000);
   };
 
   // Lista única de usuários para o filtro
@@ -270,8 +281,28 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
             <Printer className="w-3.5 h-3.5 text-[#91CA0C]" />
             <span>Imprimir Relatório</span>
           </button>
+
+          {usuarioAtual?.papel === 'ADMINISTRADOR' && (
+            <button
+              type="button"
+              onClick={() => setIsConfirmarLimparOpen(true)}
+              disabled={logs.length === 0}
+              className="px-3 py-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50/80 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+              title="Limpar Histórico de Ações (Deixar novo em folha)"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+              <span>Limpar Histórico</span>
+            </button>
+          )}
         </div>
       </div>
+
+      {feedbackLimpeza && (
+        <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{feedbackLimpeza}</span>
+        </div>
+      )}
 
       {/* KPI Cards de Estatísticas do Histórico */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -680,6 +711,43 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
                 className="px-5 py-2 rounded-xl bg-[#002172] hover:bg-[#001752] text-white font-bold cursor-pointer"
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação para Limpar Histórico de Ações */}
+      {isConfirmarLimparOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 font-['Quicksand'] animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-red-200 dark:border-red-900/60 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center space-y-3 bg-red-50/50 dark:bg-red-950/20 border-b border-red-100 dark:border-red-900/40">
+              <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto shadow-sm">
+                <Trash2 className="w-7 h-7" />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                Limpar Histórico de Ações?
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Esta ação apagará todos os registros e logs de ações armazenados no sistema. O histórico ficará <strong>novo em folha</strong>.
+              </p>
+            </div>
+
+            <div className="p-5 flex items-center justify-end gap-2.5 bg-slate-50/50 dark:bg-slate-900/50">
+              <button
+                type="button"
+                onClick={() => setIsConfirmarLimparOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold cursor-pointer transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleLimparHistorico}
+                className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md cursor-pointer transition-colors flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Sim, Limpar Tudo</span>
               </button>
             </div>
           </div>

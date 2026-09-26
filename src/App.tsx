@@ -22,6 +22,8 @@ import { ArchitectureDocModal } from './components/documentation/ArchitectureDoc
 import { SecretAchievementsModal } from './components/common/SecretAchievementsModal';
 import { FeriadoVesperaModal } from './components/common/FeriadoVesperaModal';
 import { BackupSyncModal } from './components/common/BackupSyncModal';
+import { BackupDailyReminderModal } from './components/common/BackupDailyReminderModal';
+import { CloudSyncService } from './services/cloudSyncService';
 import { HolidayService } from './services/holidaysService';
 import { MOCK_USUARIOS, MOCK_AUDITORIA, MOCK_PENDENCIAS } from './data/mockClinicData';
 import { Usuario, FeriadoConfig } from './types/clinic';
@@ -79,10 +81,63 @@ function MainApp() {
   const [isAuditOpen, setIsAuditOpen] = useState(false);
   const [isArchDocOpen, setIsArchDocOpen] = useState(false);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isBackupDailyReminderOpen, setIsBackupDailyReminderOpen] = useState(false);
 
   const [isFeriadoVesperaOpen, setIsFeriadoVesperaOpen] = useState(false);
   const [feriadoVesperaAtual, setFeriadoVesperaAtual] = useState<FeriadoConfig | null>(null);
   const [feriadoVesperaDataAmanha, setFeriadoVesperaDataAmanha] = useState<string>('');
+
+  // Sincronização em Nuvem em Tempo Real (Firebase Firestore)
+  React.useEffect(() => {
+    // Garante que o histórico de ações inicial fique zerado e novo em folha
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        if (!localStorage.getItem('mefisa_auditoria_reset_v3')) {
+          localStorage.setItem('mefisa_auditoria_geral_v2', JSON.stringify([]));
+          localStorage.setItem('mefisa_auditoria_pacientes_v1', JSON.stringify([]));
+          localStorage.setItem('mefisa_auditoria_reset_v3', 'true');
+        }
+      }
+    } catch {}
+
+    CloudSyncService.initRealtimeSync();
+    const unsubscribe = CloudSyncService.subscribe(() => {
+      setAutorizacoesApp(carregarAutorizacoesIniciais());
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Lembrete Diário de Backup do Site — Exclusivo para Administradores (ADMs)
+  React.useEffect(() => {
+    if (!isSessionUnlocked) return;
+    if (activeUsuario?.papel !== 'ADMINISTRADOR') return;
+
+    // Data no formato brasileiro "dd/mm/aaaa"
+    const agora = new Date();
+    const dia = String(agora.getDate()).padStart(2, '0');
+    const mes = String(agora.getMonth() + 1).padStart(2, '0');
+    const ano = agora.getFullYear();
+    const hojeBr = `${dia}/${mes}/${ano}`;
+
+    try {
+      const ignoradoHoje = localStorage.getItem('mefisa_lembrete_backup_ignorado_data');
+      const backupFeitoHoje = localStorage.getItem('mefisa_data_ultimo_backup');
+
+      // Se já fez backup hoje ou já dispensou o lembrete hoje, não reabre
+      if (ignoradoHoje === hojeBr || backupFeitoHoje === hojeBr) {
+        return;
+      }
+
+      // Abre suavemente após 1 segundo da sessão ativa
+      const timer = setTimeout(() => {
+        setIsBackupDailyReminderOpen(true);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    } catch {
+      // Ignora erro de storage
+    }
+  }, [isSessionUnlocked, activeUsuario?.id, activeUsuario?.papel]);
 
   // Notificação de Véspera de Feriado no Login / Desbloqueio da Sessão
   React.useEffect(() => {
@@ -327,6 +382,13 @@ function MainApp() {
           setAllUsers(carregarUsuariosIniciais());
           setAutorizacoesApp(carregarAutorizacoesIniciais());
         }}
+      />
+
+      <BackupDailyReminderModal
+        isOpen={isBackupDailyReminderOpen}
+        onClose={() => setIsBackupDailyReminderOpen(false)}
+        onOpenBackupModal={() => setIsBackupOpen(true)}
+        usuarioNome={activeUsuario?.nome}
       />
     </div>
     </>

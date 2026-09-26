@@ -201,6 +201,7 @@ import {
   mascararCpf,
   mascararCarteirinha,
   isFormularioVencido,
+  isAutorizacaoAtrasada,
 } from '../../services/pacientesService';
 import { MOCK_CONVENIOS } from '../../data/mockClinicData';
 import { NovoPacienteModal } from '../pacientes/NovoPacienteModal';
@@ -832,16 +833,17 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input
                 type="checkbox"
-                checked={Boolean(filtros.autorizacoesAtrasadasApenas || filtros.comPendenciasApenas)}
+                checked={Boolean(filtros.autorizacoesAtrasadasApenas)}
                 onChange={(e) =>
                   handleAtualizarFiltro({
                     autorizacoesAtrasadasApenas: e.target.checked,
-                    comPendenciasApenas: e.target.checked,
                   })
                 }
-                className="rounded text-[#002172] focus:ring-[#002172]"
+                className="rounded text-amber-600 focus:ring-amber-500"
               />
-              <span className="text-slate-700 dark:text-slate-300 font-medium">Autorizações Atrasadas</span>
+              <span className={filtros.autorizacoesAtrasadasApenas ? 'font-bold text-amber-700 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300 font-medium'}>
+                Autorizações Atrasadas
+              </span>
             </label>
 
             <label className="flex items-center gap-1.5 cursor-pointer">
@@ -1116,10 +1118,7 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
                     pac.proximaAutorizacaoData === 'AGUARDANDO DR.°(ª)' ||
                     pac.proximaAutorizacaoData === 'AGUARDANDO_DOUTOR'
                   );
-                  const isAutorizacaoAtrasada = Boolean(
-                    pac.autorizacaoAtrasada ||
-                    pac.proximaAutorizacaoData === 'AUTORIZAÇÃO ATRASADA'
-                  );
+                  const ehAutorizacaoAtrasada = isAutorizacaoAtrasada(pac);
 
                   return (
                     <tr
@@ -1130,7 +1129,7 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
                           ? `🚨 ATENÇÃO: Formulário cadastral deste paciente está VENCIDO há mais de 180 dias!`
                           : isAguardandoDr
                           ? `⚪ ALERTA: Doutora/Médico em falta no sistema (Aguardando Dr.º(ª))`
-                          : isAutorizacaoAtrasada
+                          : ehAutorizacaoAtrasada
                           ? `🟡 ALERTA: Autorização deste paciente está atrasada no sistema`
                           : temObs
                           ? `📝 OBSERVAÇÃO DO PACIENTE:\n"${pac.observacoes?.trim()}"`
@@ -1139,10 +1138,10 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
                       className={`cursor-pointer transition-all duration-150 group relative ${
                         ehFormVencido
                           ? 'bg-red-50/90 dark:bg-red-950/70 hover:bg-red-100 dark:hover:bg-red-900/80 border-2 border-red-500 ring-2 ring-red-500/80 shadow-xs font-medium'
+                          : ehAutorizacaoAtrasada
+                          ? 'bg-amber-100/90 dark:bg-amber-950/60 hover:bg-amber-200/90 dark:hover:bg-amber-900/80 border-l-4 border-l-amber-500 font-semibold text-amber-950 dark:text-amber-100'
                           : isAguardandoDr
                           ? 'bg-slate-100/90 dark:bg-slate-900/90 hover:bg-slate-200/80 dark:hover:bg-slate-800 border-l-4 border-l-slate-400 dark:border-l-slate-600 font-medium'
-                          : isAutorizacaoAtrasada
-                          ? 'bg-amber-50/80 dark:bg-amber-950/40 hover:bg-amber-100/80 dark:hover:bg-amber-900/60 border-l-4 border-l-amber-500 font-medium'
                           : temObs
                           ? 'bg-amber-50/90 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 border-l-4 border-l-amber-500 font-medium'
                           : selecionado
@@ -1182,7 +1181,7 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
                                 Aguardando Dr.º(ª)
                               </span>
                             )}
-                            {isAutorizacaoAtrasada && (
+                            {ehAutorizacaoAtrasada && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-200 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800 shadow-2xs uppercase tracking-tight" title="Alerta: Autorização Atrasada">
                                 <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
                                 Autorização Atrasada
@@ -1295,7 +1294,7 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
                             <AlertTriangle className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                             <span>AGUARDANDO DR.°(ª)</span>
                           </span>
-                        ) : isAutorizacaoAtrasada ? (
+                        ) : ehAutorizacaoAtrasada ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800 shadow-2xs font-mono" title="Alerta: Autorização Atrasada">
                             <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                             <span>AUTORIZAÇÃO ATRASADA</span>

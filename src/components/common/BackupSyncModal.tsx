@@ -47,7 +47,13 @@ export const BackupSyncModal: React.FC<BackupSyncModalProps> = ({
   const handleDownload = () => {
     try {
       BackupSyncService.baixarArquivoBackup();
-      setFeedback({ tipo: 'sucesso', texto: 'Arquivo de backup baixado com sucesso!' });
+      const agora = new Date();
+      const dia = String(agora.getDate()).padStart(2, '0');
+      const mes = String(agora.getMonth() + 1).padStart(2, '0');
+      const ano = agora.getFullYear();
+      const hojeBr = `${dia}/${mes}/${ano}`;
+      localStorage.setItem('mefisa_data_ultimo_backup', hojeBr);
+      setFeedback({ tipo: 'sucesso', texto: `Arquivo de backup baixado com sucesso em ${hojeBr}!` });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setFeedback({ tipo: 'erro', texto: `Erro ao baixar: ${msg}` });

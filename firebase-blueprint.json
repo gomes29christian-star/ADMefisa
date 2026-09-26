@@ -1,0 +1,123 @@
+{
+  "entities": {
+    "Paciente": {
+      "title": "Paciente",
+      "description": "Registro clínico e cadastral de paciente atendido na Clínica Mefisa",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "cpf": { "type": "string" },
+        "dataNascimento": { "type": "string" },
+        "telefone": { "type": "string" },
+        "convenio": { "type": "string" },
+        "numeroCarteirinha": { "type": "string" },
+        "status": { "type": "string" },
+        "ativo": { "type": "boolean" },
+        "criadoEm": { "type": "string" },
+        "atualizadoEm": { "type": "string" }
+      },
+      "required": ["id", "nome"]
+    },
+    "Prestador": {
+      "title": "Prestador",
+      "description": "Profissional médico ou terapeuta da Clínica Mefisa",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "especialidade": { "type": "string" },
+        "crm": { "type": "string" },
+        "diasAtendimento": { "type": "string" },
+        "ativo": { "type": "boolean" }
+      },
+      "required": ["id", "nome", "especialidade"]
+    },
+    "Autorizacao": {
+      "title": "Autorizacao",
+      "description": "Autorização de procedimento ou plano de saúde para paciente",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "pacienteId": { "type": "string" },
+        "pacienteNome": { "type": "string" },
+        "numeroGuia": { "type": "string" },
+        "convenio": { "type": "string" },
+        "procedimento": { "type": "string" },
+        "status": { "type": "string" },
+        "dataSolicitacao": { "type": "string" },
+        "dataValidade": { "type": "string" },
+        "sessoesTotais": { "type": "number" },
+        "sessoesUtilizadas": { "type": "number" }
+      },
+      "required": ["id", "pacienteNome", "status"]
+    },
+    "Guia": {
+      "title": "Guia",
+      "description": "Guia de faturamento ou consulta TISS",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "numeroGuia": { "type": "string" },
+        "pacienteNome": { "type": "string" },
+        "convenio": { "type": "string" },
+        "status": { "type": "string" },
+        "valor": { "type": "number" },
+        "dataEmissao": { "type": "string" }
+      },
+      "required": ["id", "numeroGuia"]
+    },
+    "Usuario": {
+      "title": "Usuario",
+      "description": "Usuário operador do sistema da clínica",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "email": { "type": "string" },
+        "papel": { "type": "string" },
+        "departamento": { "type": "string" },
+        "ativo": { "type": "boolean" }
+      },
+      "required": ["id", "nome", "papel"]
+    },
+    "ConfiguracaoClinica": {
+      "title": "ConfiguracaoClinica",
+      "description": "Configurações institucionais e regras de negócio da clínica",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tipo": { "type": "string" },
+        "dadosJson": { "type": "string" },
+        "atualizadoEm": { "type": "string" }
+      },
+      "required": ["id"]
+    }
+  },
+  "firestore": {
+    "/pacientes/{pacienteId}": {
+      "schema": { "$ref": "entities/Paciente" },
+      "description": "Coleção de pacientes cadastrados na clínica"
+    },
+    "/prestadores/{prestadorId}": {
+      "schema": { "$ref": "entities/Prestador" },
+      "description": "Coleção de médicos e profissionais prestadores"
+    },
+    "/autorizacoes/{autorizacaoId}": {
+      "schema": { "$ref": "entities/Autorizacao" },
+      "description": "Coleção de autorizações de convênios"
+    },
+    "/guias/{guiaId}": {
+      "schema": { "$ref": "entities/Guia" },
+      "description": "Coleção de guias de faturamento"
+    },
+    "/usuarios/{usuarioId}": {
+      "schema": { "$ref": "entities/Usuario" },
+      "description": "Coleção de operadores e permissões do sistema"
+    },
+    "/configuracoes/{configId}": {
+      "schema": { "$ref": "entities/ConfiguracaoClinica" },
+      "description": "Configurações gerais e regras da clínica"
+    }
+  }
+}

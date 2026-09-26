@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Coleção: Pacientes
+    match /pacientes/{pacienteId} {
+      allow read: if isValidId(pacienteId);
+      allow create, update: if isValidId(pacienteId)
+        && request.resource.data.id is string
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() > 0
+        && request.resource.data.nome.size() <= 200;
+      allow delete: if isValidId(pacienteId);
+    }
+
+    // Coleção: Prestadores (Médicos e Terapeutas)
+    match /prestadores/{prestadorId} {
+      allow read: if isValidId(prestadorId);
+      allow create, update: if isValidId(prestadorId)
+        && request.resource.data.id is string
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() > 0;
+      allow delete: if isValidId(prestadorId);
+    }
+
+    // Coleção: Autorizações
+    match /autorizacoes/{autorizacaoId} {
+      allow read: if isValidId(autorizacaoId);
+      allow create, update: if isValidId(autorizacaoId)
+        && request.resource.data.id is string
+        && request.resource.data.pacienteNome is string;
+      allow delete: if isValidId(autorizacaoId);
+    }
+
+    // Coleção: Guias
+    match /guias/{guiaId} {
+      allow read: if isValidId(guiaId);
+      allow create, update: if isValidId(guiaId)
+        && request.resource.data.id is string;
+      allow delete: if isValidId(guiaId);
+    }
+
+    // Coleção: Usuários
+    match /usuarios/{usuarioId} {
+      allow read: if isValidId(usuarioId);
+      allow create, update: if isValidId(usuarioId)
+        && request.resource.data.id is string
+        && request.resource.data.nome is string;
+      allow delete: if isValidId(usuarioId);
+    }
+
+    // Coleção: Configurações Gerais
+    match /configuracoes/{configId} {
+      allow read: if isValidId(configId);
+      allow create, update: if isValidId(configId);
+      allow delete: if isValidId(configId);
+    }
+
+    // Conexão de teste
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -8,6 +8,7 @@ import {
   X,
   Lock,
   Database,
+  ArrowRight,
 } from 'lucide-react';
 import { Usuario } from '../../types/clinic';
 import { AccessibilityBar } from '../common/AccessibilityBar';
@@ -44,9 +45,23 @@ export const Header: React.FC<HeaderProps> = ({
 
   const isAdmin = activeUsuario?.papel === 'ADMINISTRADOR';
 
+  // Data atual no formato brasileiro "dd/mm/aaaa"
+  const agora = new Date();
+  const dia = String(agora.getDate()).padStart(2, '0');
+  const mes = String(agora.getMonth() + 1).padStart(2, '0');
+  const ano = agora.getFullYear();
+  const dataHojeBr = `${dia}/${mes}/${ano}`;
+
+  const [ultimoBackupData, setUltimoBackupData] = useState(() => {
+    return typeof window !== 'undefined' ? localStorage.getItem('mefisa_data_ultimo_backup') : null;
+  });
+
   const atualizarNotificacoes = () => {
     if (isAdmin) {
       setNotificacoes(carregarNotificacoesAdmAcessoDeletado());
+      if (typeof window !== 'undefined') {
+        setUltimoBackupData(localStorage.getItem('mefisa_data_ultimo_backup'));
+      }
     }
   };
 
@@ -56,7 +71,8 @@ export const Header: React.FC<HeaderProps> = ({
     return () => clearInterval(interval);
   }, [isAdmin]);
 
-  const naoLidasCount = notificacoes.filter((n) => !n.lida).length;
+  const backupPendenteHoje = isAdmin && ultimoBackupData !== dataHojeBr;
+  const naoLidasCount = notificacoes.filter((n) => !n.lida).length + (backupPendenteHoje ? 1 : 0);
 
   const handleMarcarLida = (id: string) => {
     marcarNotificacaoComoLida(id);
@@ -127,10 +143,41 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
-                  {notificacoes.length === 0 ? (
+                  {/* Card de Lembrete Diário de Backup do Site para ADM */}
+                  {backupPendenteHoje && (
+                    <div className="p-3 rounded-xl border bg-blue-50/90 dark:bg-blue-950/60 border-blue-300 dark:border-blue-800 shadow-2xs text-left space-y-1.5 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-blue-800 dark:text-blue-300 flex items-center gap-1.5 text-xs">
+                          <Database className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                          Lembrete Diário: Backup do Site
+                        </span>
+                        <span className="text-[10px] text-blue-700 dark:text-blue-300 font-mono font-bold bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.5 rounded">
+                          {dataHojeBr}
+                        </span>
+                      </div>
+                      <p className="text-slate-700 dark:text-slate-300 leading-snug font-medium text-[11px]">
+                        Lembrete diário para administradores: salve uma cópia física (.json) dos dados da clínica hoje.
+                      </p>
+                      <div className="flex items-center justify-end pt-1 border-t border-blue-200/80 dark:border-blue-900/40">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsNotifOpen(false);
+                            onOpenBackup?.();
+                          }}
+                          className="text-blue-700 dark:text-blue-300 font-bold hover:underline cursor-pointer flex items-center gap-1 text-xs"
+                        >
+                          <span>Fazer Backup Agora</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {notificacoes.length === 0 && !backupPendenteHoje ? (
                     <div className="p-4 text-center text-slate-400 text-xs font-medium space-y-1">
                       <CheckCircle className="w-6 h-6 text-emerald-500 mx-auto" />
-                      <p>Nenhuma tentativa de login com senha deletada registrada.</p>
+                      <p>Nenhuma notificação ou alerta pendente.</p>
                     </div>
                   ) : (
                     notificacoes.map((notif) => (
@@ -193,16 +240,27 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* Botão de Backup e Sincronização de Dados */}
-        <button
-          type="button"
-          onClick={onOpenBackup}
-          className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/80 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-all flex items-center gap-1.5 cursor-pointer text-xs font-bold shadow-2xs"
-          title="Backup e Sincronização de Dados (Studio ↔ GitHub Pages)"
+        {/* Status de Sincronização em Nuvem (Firebase) */}
+        <div
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 select-none"
+          title="Sincronização em tempo real ativa na Nuvem (Firebase Firestore)"
         >
-          <Database className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          <span className="hidden sm:inline">Backup & Dados</span>
-        </button>
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="hidden md:inline">Nuvem Conectada</span>
+        </div>
+
+        {/* Botão de Backup e Exportação Manual — Exclusivo Administradores */}
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={onOpenBackup}
+            className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/80 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-all flex items-center gap-1.5 cursor-pointer text-xs font-bold shadow-2xs"
+            title="Backup & Exportação Manual (Acesso de Administrador)"
+          >
+            <Database className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <span className="hidden sm:inline">Backup & Dados (ADM)</span>
+          </button>
+        )}
 
         {/* Barra de Acessibilidade */}
         <AccessibilityBar />

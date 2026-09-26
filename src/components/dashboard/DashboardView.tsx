@@ -216,6 +216,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     ? `Formulário de: ${(proximoVencimento as { pacienteNome: string; diasFaltantes: number }).pacienteNome}`
     : 'Nenhum vencimento futuro';
 
+  // 8. Lista de Pacientes com Formulário Vencido ou a Vencer em 30 dias ou menos (Regra dos 180 Dias)
+  const pacientesFormularioAlertas = pacientesList
+    .map((p) => {
+      if (!p.formulario || !p.formulario.dataEmissao) return null;
+      const calc = calcularVencimentoFormulario(p.formulario.dataEmissao, hojeStr);
+      if (calc.diasRestantes <= 30) {
+        return { paciente: p, calc };
+      }
+      return null;
+    })
+    .filter((item): item is { paciente: (typeof pacientesList)[0]; calc: ReturnType<typeof calcularVencimentoFormulario> } => Boolean(item))
+    .sort((a, b) => a.calc.diasRestantes - b.calc.diasRestantes);
+
   // Métricas do Dashboard formuladas conforme regras sem interatividade de clique
   const kpis = [
     {
@@ -319,6 +332,94 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           );
         })}
+      </div>
+
+      {/* Seção Alerta: Pacientes com Formulários Cadastrais Vencidos ou a Vencer (30 dias ou menos) */}
+      <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center">
+              <ClockAlert className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm font-['Quicksand']">
+                  Formulários Cadastrais Vencidos ou a Vencer (30 Dias ou Menos)
+                </h3>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/80 text-red-800 dark:text-red-300">
+                  {pacientesFormularioAlertas.length} {pacientesFormularioAlertas.length === 1 ? 'paciente' : 'pacientes'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 dark:text-slate-400">
+                Acompanhamento da validade de 180 dias corridos conforme regras de autorização clínica
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigate('pacientes')}
+            className="text-xs text-blue-700 dark:text-blue-400 font-semibold hover:underline cursor-pointer"
+          >
+            Ver no Cadastro de Pacientes →
+          </button>
+        </div>
+
+        {pacientesFormularioAlertas.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {pacientesFormularioAlertas.map(({ paciente: p, calc }) => {
+              const ehVencido = calc.diasRestantes < 0;
+              const diasAbs = Math.abs(calc.diasRestantes);
+
+              return (
+                <div
+                  key={`form-alerta-${p.id}`}
+                  onClick={() => onNavigate('pacientes')}
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer space-y-2 ${
+                    ehVencido
+                      ? 'bg-red-50/80 dark:bg-red-950/40 border-red-200 dark:border-red-900/60 hover:border-red-400'
+                      : 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 hover:border-amber-400'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-slate-900 dark:text-white text-xs truncate">
+                      {p.nome}
+                    </span>
+                    <span
+                      className={`text-[9.5px] font-black px-2 py-0.5 rounded-md shrink-0 uppercase ${
+                        ehVencido
+                          ? 'bg-red-600 text-white shadow-xs'
+                          : 'bg-amber-500 text-slate-950 font-extrabold'
+                      }`}
+                    >
+                      {ehVencido
+                        ? `Vencido há ${diasAbs} ${diasAbs === 1 ? 'dia' : 'dias'}`
+                        : calc.diasRestantes === 0
+                        ? 'Vence hoje!'
+                        : `Vence em ${calc.diasRestantes} ${calc.diasRestantes === 1 ? 'dia' : 'dias'}`}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5">
+                    <div>
+                      <strong>Convênio:</strong> {p.convenioPrincipalNome || p.convenioNome || 'N/A'}
+                    </div>
+                    <div>
+                      <strong>Prontuário:</strong> {p.codigoProntuario || p.id}
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-800">
+                      <span>Emissão: {formatarDataBr(p.formulario?.dataEmissao, showMonthInitials)}</span>
+                      <span>Vencimento: {formatarDataBr(calc.dataVencimento, showMonthInitials)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-center text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <span>Nenhum formulário cadastral vencido ou a vencer nos próximos 30 dias. Todos em dia!</span>
+          </div>
+        )}
       </div>
 
       {/* Grid de 2 Colunas: O Que Precisa Ser Feito Hoje + Trilha de Auditoria Recente */}

@@ -1,6 +1,7 @@
 import { AutorizacaoV2, HistoricoStatusAutorizacao, StatusAutorizacao } from '../types/autorizacao';
 import { GuiaDigitacao } from '../types/clinic';
 import { MOCK_AUDITORIA } from '../data/mockClinicData';
+import { CloudSyncService } from './cloudSyncService';
 
 const STORAGE_KEY_AUTORIZACOES = 'clinica_mefisa_autorizacoes_v2';
 const STORAGE_KEY_GUIAS_FATURAMENTO = 'clinica_mefisa_guias_faturamento_v2';
@@ -333,6 +334,11 @@ export const salvarAutorizacoesStorage = (autorizacoes: AutorizacaoV2[]) => {
       setTimeout(() => {
         window.dispatchEvent(new Event('storage'));
       }, 0);
+
+      // Sincroniza em nuvem em segundo plano
+      autorizacoes.forEach((a) => {
+        CloudSyncService.salvarAutorizacaoNuvem(a).catch(() => {});
+      });
     }
   } catch (e) {
     console.error('Erro ao salvar autorizações no localStorage', e);

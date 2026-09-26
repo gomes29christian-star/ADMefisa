@@ -14,7 +14,6 @@ import {
   Send,
   Building,
   RotateCcw,
-  Lock,
 } from 'lucide-react';
 import {
   calcularSessoesPeriodo,
@@ -74,10 +73,6 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
   const [opcaoSabado, setOpcaoSabado] = useState<'SEXTA_FEIRA_ANTERIOR' | 'SEGUNDA_FEIRA_SEGUINTE'>('SEXTA_FEIRA_ANTERIOR');
   const [overrideQuantidade, setOverrideQuantidade] = useState<number | null>(null);
   const [copiedJustificativa, setCopiedJustificativa] = useState<boolean>(false);
-
-  // Estados para senha e validade (para ir para a aba lateral)
-  const [senhaInput, setSenhaInput] = useState<string>('SENHA-' + Math.floor(1000 + Math.random() * 9000));
-  const [validadeSenhaInput, setValidadeSenhaInput] = useState<string>('2026-11-28');
 
   // REGRA 02 CONFIRMADA: Decisão do Usuário sobre Faltas Justificadas no Ciclo
   const [temFaltasJustificadas, setTemFaltasJustificadas] = useState<boolean>(false);
@@ -222,8 +217,6 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
         alinhamento,
         cronograma,
         datasCustomizadas,
-        senha: senhaInput,
-        dataValidadeSenha: validadeSenhaInput,
       });
     }
     onClose();
@@ -254,7 +247,7 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -269,7 +262,7 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
             </div>
             <button
               onClick={() => setNotificacaoEnviadaSucesso(null)}
-              className="text-amber-800 dark:text-amber-300 hover:text-black dark:hover:text-white font-bold text-[10px] underline"
+              className="text-amber-800 dark:text-amber-300 hover:text-black dark:hover:text-white font-bold text-[10px] underline cursor-pointer"
             >
               Fechar
             </button>
@@ -278,52 +271,6 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
 
         {/* Content */}
         <div className="p-6 overflow-y-auto space-y-5 text-xs text-slate-700 dark:text-slate-200">
-          {/* Seção Nova: Registro da Senha da Autorização e Validade (Para a Aba Lateral) */}
-          <div className="bg-blue-50/80 dark:bg-slate-800/80 p-4 rounded-2xl border border-blue-200/90 dark:border-slate-700 space-y-3">
-            <div className="font-bold text-blue-950 dark:text-blue-200 text-xs flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Lock className="w-4 h-4 text-[#002172] dark:text-blue-300" />
-                Registro da Senha da Autorização & Validade (Dados para a Aba Lateral)
-              </span>
-              <span className="text-[10px] text-blue-900 dark:text-blue-200 font-semibold bg-blue-200 dark:bg-blue-900/80 px-2 py-0.5 rounded-md">
-                Obrigatório para Aba Lateral
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
-                  Senha da Autorização:
-                </label>
-                <input
-                  type="text"
-                  value={senhaInput}
-                  onChange={(e) => setSenhaInput(e.target.value)}
-                  placeholder="Ex: SENHA-9921"
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-blue-300 dark:border-slate-600 rounded-xl font-mono font-bold text-slate-800 dark:text-white focus:outline-[#002172] dark:focus:outline-blue-400"
-                />
-                <span className="text-[10px] text-slate-400 dark:text-slate-400 mt-0.5 block">
-                  Chave informada pelo convênio
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-slate-600 dark:text-slate-300 font-medium mb-1">
-                  Validade da Senha:
-                </label>
-                <input
-                  type="date"
-                  value={validadeSenhaInput}
-                  onChange={(e) => setValidadeSenhaInput(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-blue-300 dark:border-slate-600 rounded-xl font-medium text-slate-800 dark:text-white focus:outline-[#002172] dark:focus:outline-blue-400"
-                />
-                <span className="text-[10px] text-slate-400 dark:text-slate-400 mt-0.5 block">
-                  Data limite de validade no portal
-                </span>
-              </div>
-            </div>
-          </div>
-
           {/* Seção 1: Parâmetros do Paciente e Dia Habitual de Atendimento */}
           <div className="bg-slate-50 dark:bg-slate-800/60 p-4.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 space-y-3.5 shadow-2xs">
             <div className="font-bold text-slate-800 dark:text-slate-100 text-xs flex items-center justify-between">
