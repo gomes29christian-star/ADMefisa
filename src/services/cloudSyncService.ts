@@ -1,6 +1,7 @@
 /**
  * Serviço de Sincronização em Tempo Real via Firebase Cloud Firestore — Clínica Mefisa
  * Sincroniza Pacientes, Prestadores, Autorizações e Configurações entre múltiplos dispositivos.
+ * Possui mecanismo de proteção contra estouro de cota diária (Resource Exhausted Circuit Breaker).
  */
 
 import {
@@ -12,15 +13,86 @@ import {
   getDocs,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Paciente, Prestador, Usuario } from '../types/clinic';
+import { Paciente, Prestador } from '../types/clinic';
 import { AutorizacaoV2 } from '../types/autorizacao';
 
 type SyncListener = () => void;
+
+const QUOTA_EXHAUSTED_STORAGE_KEY = 'mefisa_firestore_quota_exhausted_date';
 
 class CloudSyncManager {
   private isInitialized = false;
   private listeners: SyncListener[] = [];
   private unsubscribers: Array<() => void> = [];
+  private quotaExceeded = false;
+  private warnedQuotaThisSession = false;
+
+  constructor() {
+    this.checkInitialQuotaState();
+  }
+
+  private getHojeIso(): string {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  private checkInitialQuotaState(): void {
+    if (typeof window !== 'undefined') {
+      try {
+        const storedDate = localStorage.getItem(QUOTA_EXHAUSTED_STORAGE_KEY);
+        if (storedDate === this.getHojeIso()) {
+          this.quotaExceeded = true;
+        }
+      } catch {}
+    }
+  }
+
+  public isQuotaExceeded(): boolean {
+    if (this.quotaExceeded) return true;
+    if (typeof window !== 'undefined') {
+      try {
+        const storedDate = localStorage.getItem(QUOTA_EXHAUSTED_STORAGE_KEY);
+        if (storedDate === this.getHojeIso()) {
+          this.quotaExceeded = true;
+          return true;
+        }
+      } catch {}
+    }
+    return false;
+  }
+
+  private handleFirestoreError(error: any): boolean {
+    const code = String(error?.code || '');
+    const msg = String(error?.message || error || '');
+    if (
+      code.includes('resource-exhausted') ||
+      msg.includes('resource-exhausted') ||
+      msg.includes('Quota limit exceeded')
+    ) {
+      this.quotaExceeded = true;
+      try {
+        localStorage.setItem(QUOTA_EXHAUSTED_STORAGE_KEY, this.getHojeIso());
+      } catch {}
+
+      if (!this.warnedQuotaThisSession) {
+        this.warnedQuotaThisSession = true;
+        console.warn(
+          'Sincronização em nuvem pausada: Cota diária gratuita do Firestore esgotada. O sistema opera normalmente através do armazenamento local.'
+        );
+      }
+      this.unsubscribeAll();
+      return true;
+    }
+    return false;
+  }
+
+  public unsubscribeAll(): void {
+    this.unsubscribers.forEach((unsub) => {
+      try {
+        unsub();
+      } catch {}
+    });
+    this.unsubscribers = [];
+  }
 
   public subscribe(listener: SyncListener): () => void {
     this.listeners.push(listener);
@@ -46,6 +118,16 @@ class CloudSyncManager {
     if (this.isInitialized) return;
     this.isInitialized = true;
 
+    if (this.isQuotaExceeded()) {
+      if (!this.warnedQuotaThisSession) {
+        this.warnedQuotaThisSession = true;
+        console.info(
+          'Sincronização em nuvem Firestore em pausa devido à cota diária do projeto. Os dados locais continuam ativos.'
+        );
+      }
+      return;
+    }
+
     try {
       // 1. Sincronização de Pacientes
       const pacientesCol = collection(db, 'pacientes');
@@ -65,7 +147,6 @@ class CloudSyncManager {
               const localRaw = localStorage.getItem('mefisa_pacientes_v2');
               const localList: Paciente[] = localRaw ? JSON.parse(localRaw) : [];
 
-              // Mescla inteligente: adiciona ou atualiza os remotos
               const map = new Map<string, Paciente>();
               localList.forEach((p) => map.set(p.id, p));
               remotos.forEach((p) => map.set(p.id, p));
@@ -77,6 +158,7 @@ class CloudSyncManager {
           }
         },
         (error) => {
+          if (this.handleFirestoreError(error)) return;
           console.warn('Sync de Pacientes aguardando conectividade:', error.message);
         }
       );
@@ -111,6 +193,7 @@ class CloudSyncManager {
           }
         },
         (error) => {
+          if (this.handleFirestoreError(error)) return;
           console.warn('Sync de Prestadores aguardando conectividade:', error.message);
         }
       );
@@ -145,15 +228,18 @@ class CloudSyncManager {
           }
         },
         (error) => {
+          if (this.handleFirestoreError(error)) return;
           console.warn('Sync de Autorizações aguardando conectividade:', error.message);
         }
       );
       this.unsubscribers.push(unsubAutorizacoes);
 
-      // Carga inicial dos dados locais para a nuvem caso a nuvem esteja vazia
+      // Carga inicial leve apenas se a nuvem estiver vazia e quota permitir
       this.uploadDadosLocaisParaNuvemSeNecessario();
     } catch (e) {
-      console.error('Falha ao iniciar sincronização Firebase:', e);
+      if (!this.handleFirestoreError(e)) {
+        console.error('Falha ao iniciar sincronização Firebase:', e);
+      }
     }
   }
 
@@ -161,11 +247,12 @@ class CloudSyncManager {
    * Sincroniza um paciente individualmente na nuvem
    */
   public async salvarPacienteNuvem(paciente: Paciente): Promise<void> {
+    if (this.isQuotaExceeded() || !paciente?.id) return;
     try {
-      if (!paciente.id) return;
       const ref = doc(db, 'pacientes', paciente.id);
       await setDoc(ref, paciente, { merge: true });
-    } catch (e) {
+    } catch (e: any) {
+      if (this.handleFirestoreError(e)) return;
       console.warn('Erro ao salvar paciente no Firestore:', e);
     }
   }
@@ -174,11 +261,12 @@ class CloudSyncManager {
    * Deleta paciente da nuvem
    */
   public async removerPacienteNuvem(pacienteId: string): Promise<void> {
+    if (this.isQuotaExceeded() || !pacienteId) return;
     try {
-      if (!pacienteId) return;
       const ref = doc(db, 'pacientes', pacienteId);
       await deleteDoc(ref);
-    } catch (e) {
+    } catch (e: any) {
+      if (this.handleFirestoreError(e)) return;
       console.warn('Erro ao deletar paciente do Firestore:', e);
     }
   }
@@ -187,11 +275,12 @@ class CloudSyncManager {
    * Sincroniza autorização individualmente na nuvem
    */
   public async salvarAutorizacaoNuvem(autorizacao: AutorizacaoV2): Promise<void> {
+    if (this.isQuotaExceeded() || !autorizacao?.id) return;
     try {
-      if (!autorizacao.id) return;
       const ref = doc(db, 'autorizacoes', autorizacao.id);
       await setDoc(ref, autorizacao, { merge: true });
-    } catch (e) {
+    } catch (e: any) {
+      if (this.handleFirestoreError(e)) return;
       console.warn('Erro ao salvar autorização no Firestore:', e);
     }
   }
@@ -200,20 +289,22 @@ class CloudSyncManager {
    * Sincroniza prestador na nuvem
    */
   public async salvarPrestadorNuvem(prestador: Prestador): Promise<void> {
+    if (this.isQuotaExceeded() || !prestador?.id) return;
     try {
-      if (!prestador.id) return;
       const ref = doc(db, 'prestadores', prestador.id);
       await setDoc(ref, prestador, { merge: true });
-    } catch (e) {
+    } catch (e: any) {
+      if (this.handleFirestoreError(e)) return;
       console.warn('Erro ao salvar prestador no Firestore:', e);
     }
   }
 
   /**
    * Se este navegador já possui dados cadastrados no LocalStorage e a nuvem estiver vazia,
-   * sobe os dados locais automaticamente para a nuvem.
+   * sobe os dados locais automaticamente para a nuvem de forma controlada.
    */
   public async uploadDadosLocaisParaNuvemSeNecessario(): Promise<void> {
+    if (this.isQuotaExceeded()) return;
     try {
       // 1. Pacientes
       const pacSnap = await getDocs(collection(db, 'pacientes'));
@@ -222,12 +313,15 @@ class CloudSyncManager {
         if (localPacRaw) {
           const pacientes: Paciente[] = JSON.parse(localPacRaw);
           for (const p of pacientes) {
+            if (this.isQuotaExceeded()) break;
             if (p.id) {
               await setDoc(doc(db, 'pacientes', p.id), p, { merge: true });
             }
           }
         }
       }
+
+      if (this.isQuotaExceeded()) return;
 
       // 2. Prestadores
       const prestSnap = await getDocs(collection(db, 'prestadores'));
@@ -236,12 +330,15 @@ class CloudSyncManager {
         if (localPrestRaw) {
           const prestadores: Prestador[] = JSON.parse(localPrestRaw);
           for (const pr of prestadores) {
+            if (this.isQuotaExceeded()) break;
             if (pr.id) {
               await setDoc(doc(db, 'prestadores', pr.id), pr, { merge: true });
             }
           }
         }
       }
+
+      if (this.isQuotaExceeded()) return;
 
       // 3. Autorizações
       const autSnap = await getDocs(collection(db, 'autorizacoes'));
@@ -250,14 +347,17 @@ class CloudSyncManager {
         if (localAutRaw) {
           const autorizacoes: AutorizacaoV2[] = JSON.parse(localAutRaw);
           for (const a of autorizacoes) {
+            if (this.isQuotaExceeded()) break;
             if (a.id) {
               await setDoc(doc(db, 'autorizacoes', a.id), a, { merge: true });
             }
           }
         }
       }
-    } catch (err) {
-      console.warn('Seed inicial de dados locais para Firestore:', err);
+    } catch (err: any) {
+      if (!this.handleFirestoreError(err)) {
+        console.warn('Seed inicial de dados locais para Firestore:', err);
+      }
     }
   }
 }

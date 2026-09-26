@@ -329,11 +329,6 @@ export class PacientesService {
         setTimeout(() => {
           window.dispatchEvent(new Event('storage'));
         }, 0);
-
-        // Sincroniza em nuvem em segundo plano
-        sanitizados.forEach((p) => {
-          CloudSyncService.salvarPacienteNuvem(p).catch(() => {});
-        });
       } catch (err) {
         console.warn('Alerta de cota excedida do localStorage. Aplicando limpeza dos anexos para manter sincronia:', err);
         try {
@@ -548,6 +543,7 @@ export class PacientesService {
 
     lista.unshift(pacienteCriado);
     this.persistirPacientes(lista);
+    CloudSyncService.salvarPacienteNuvem(pacienteCriado).catch(() => {});
 
     // Registra evento de auditoria
     const evento: EventoAuditoria = {
@@ -633,6 +629,7 @@ export class PacientesService {
     }
 
     this.persistirPacientes(lista);
+    CloudSyncService.salvarPacienteNuvem(pacienteAtualizado).catch(() => {});
 
     // Gera auditoria para cada campo relevante alterado
     const eventos: EventoAuditoria[] = [];
@@ -750,6 +747,9 @@ export class PacientesService {
     });
 
     this.persistirPacientes(paraManter);
+    idsParaDeletar.forEach((id) => {
+      CloudSyncService.removerPacienteNuvem(id).catch(() => {});
+    });
     return { deletadosCount };
   }
 
@@ -820,6 +820,7 @@ export class PacientesService {
 
     lista[indice] = paciente;
     this.persistirPacientes(lista);
+    CloudSyncService.salvarPacienteNuvem(paciente).catch(() => {});
 
     const evento: EventoAuditoria = {
       id: `aud-${Date.now()}-cart-${Math.random().toString(36).substring(2, 9)}`,

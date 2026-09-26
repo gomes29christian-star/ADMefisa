@@ -327,7 +327,7 @@ export const salvarGuiasStorage = (guias: GuiaDigitacao[]) => {
   }
 };
 
-export const salvarAutorizacoesStorage = (autorizacoes: AutorizacaoV2[]) => {
+export const salvarAutorizacoesStorage = (autorizacoes: AutorizacaoV2[], autorizacaoModificada?: AutorizacaoV2) => {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       localStorage.setItem(STORAGE_KEY_AUTORIZACOES, JSON.stringify(autorizacoes));
@@ -335,10 +335,10 @@ export const salvarAutorizacoesStorage = (autorizacoes: AutorizacaoV2[]) => {
         window.dispatchEvent(new Event('storage'));
       }, 0);
 
-      // Sincroniza em nuvem em segundo plano
-      autorizacoes.forEach((a) => {
-        CloudSyncService.salvarAutorizacaoNuvem(a).catch(() => {});
-      });
+      // Sincroniza apenas a autorização modificada pontualmente se fornecida
+      if (autorizacaoModificada) {
+        CloudSyncService.salvarAutorizacaoNuvem(autorizacaoModificada).catch(() => {});
+      }
     }
   } catch (e) {
     console.error('Erro ao salvar autorizações no localStorage', e);
