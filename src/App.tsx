@@ -21,6 +21,7 @@ import { AuditTrailDrawer } from './components/common/AuditTrailDrawer';
 import { ArchitectureDocModal } from './components/documentation/ArchitectureDocModal';
 import { SecretAchievementsModal } from './components/common/SecretAchievementsModal';
 import { FeriadoVesperaModal } from './components/common/FeriadoVesperaModal';
+import { BackupSyncModal } from './components/common/BackupSyncModal';
 import { HolidayService } from './services/holidaysService';
 import { MOCK_USUARIOS, MOCK_AUDITORIA, MOCK_PENDENCIAS } from './data/mockClinicData';
 import { Usuario, FeriadoConfig } from './types/clinic';
@@ -77,6 +78,7 @@ function MainApp() {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
   const [isArchDocOpen, setIsArchDocOpen] = useState(false);
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
 
   const [isFeriadoVesperaOpen, setIsFeriadoVesperaOpen] = useState(false);
   const [feriadoVesperaAtual, setFeriadoVesperaAtual] = useState<FeriadoConfig | null>(null);
@@ -140,6 +142,7 @@ function MainApp() {
         <Header
           activeUsuario={activeUsuario}
           onSelectUsuario={(usr) => setActiveUsuario(usr)}
+          onOpenBackup={() => setIsBackupOpen(true)}
         />
 
         <main className="flex-1 p-3 sm:p-5 lg:p-6 w-full max-w-[1920px] mx-auto transition-all">
@@ -316,6 +319,15 @@ function MainApp() {
       />
 
       <SecretAchievementsModal />
+
+      <BackupSyncModal
+        isOpen={isBackupOpen}
+        onClose={() => setIsBackupOpen(false)}
+        onDataRestored={() => {
+          setAllUsers(carregarUsuariosIniciais());
+          setAutorizacoesApp(carregarAutorizacoesIniciais());
+        }}
+      />
     </div>
     </>
   );

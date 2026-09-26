@@ -7,6 +7,7 @@ import {
   Trash2,
   X,
   Lock,
+  Database,
 } from 'lucide-react';
 import { Usuario } from '../../types/clinic';
 import { AccessibilityBar } from '../common/AccessibilityBar';
@@ -22,6 +23,7 @@ interface HeaderProps {
   onSelectUsuario: (usuario: Usuario) => void;
   onOpenCalculator?: () => void;
   onOpenArchitectureDocs?: () => void;
+  onOpenBackup?: () => void;
 }
 
 const getInitials = (name: string) => {
@@ -35,6 +37,7 @@ const getInitials = (name: string) => {
 
 export const Header: React.FC<HeaderProps> = ({
   activeUsuario,
+  onOpenBackup,
 }) => {
   const [notificacoes, setNotificacoes] = useState<NotificacaoAcessoDeletado[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -189,6 +192,17 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
         )}
+
+        {/* Botão de Backup e Sincronização de Dados */}
+        <button
+          type="button"
+          onClick={onOpenBackup}
+          className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/80 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-all flex items-center gap-1.5 cursor-pointer text-xs font-bold shadow-2xs"
+          title="Backup e Sincronização de Dados (Studio ↔ GitHub Pages)"
+        >
+          <Database className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span className="hidden sm:inline">Backup & Dados</span>
+        </button>
 
         {/* Barra de Acessibilidade */}
         <AccessibilityBar />

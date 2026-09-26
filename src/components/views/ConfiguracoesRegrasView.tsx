@@ -18,6 +18,10 @@ import {
   Users,
   Sliders,
   Sparkles,
+  Database,
+  Download,
+  Upload,
+  Copy,
 } from 'lucide-react';
 import { HolidayService } from '../../services/holidaysService';
 import {
@@ -38,6 +42,8 @@ import { GerenciarProcedimentosModal } from '../procedimentos/GerenciarProcedime
 import { useTheme } from '../../context/ThemeContext';
 import { UsuariosConfigView } from './UsuariosConfigView';
 import { RegistrosDeletadosView } from './RegistrosDeletadosView';
+import { BackupConfigView } from './BackupConfigView';
+import { BackupSyncService } from '../../services/backupSyncService';
 
 interface ConfiguracoesRegrasViewProps {
   activeUsuario: Usuario;
@@ -51,7 +57,7 @@ export const ConfiguracoesRegrasView: React.FC<ConfiguracoesRegrasViewProps> = (
   onTestarNotificacaoFeriado,
 }) => {
   const { showMonthInitials } = useTheme();
-  const [activeSubTab, setActiveSubTab] = useState<'regras' | 'usuarios' | 'deletados'>('regras');
+  const [activeSubTab, setActiveSubTab] = useState<'regras' | 'usuarios' | 'deletados' | 'backup'>('regras');
   const [feriados, setFeriados] = useState<FeriadoConfig[]>(HolidayService.obterFeriados());
   const [notificacoesGestao, setNotificacoesGestao] = useState<NotificacaoAnomaliaGestao[]>(
     obterNotificacoesAnomalia()
@@ -166,6 +172,18 @@ export const ConfiguracoesRegrasView: React.FC<ConfiguracoesRegrasViewProps> = (
           <Trash2 className="w-4 h-4 text-rose-400" />
           <span>Registros Deletados (Lixeira Anual)</span>
         </button>
+
+        <button
+          onClick={() => setActiveSubTab('backup')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeSubTab === 'backup'
+              ? 'bg-[#002172] text-white shadow-xs'
+              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+          }`}
+        >
+          <Database className="w-4 h-4 text-blue-400" />
+          <span>Backup & Migração de Dados</span>
+        </button>
       </div>
 
       {activeSubTab === 'usuarios' ? (
@@ -175,6 +193,8 @@ export const ConfiguracoesRegrasView: React.FC<ConfiguracoesRegrasViewProps> = (
         />
       ) : activeSubTab === 'deletados' ? (
         <RegistrosDeletadosView activeUsuario={activeUsuario} />
+      ) : activeSubTab === 'backup' ? (
+        <BackupConfigView />
       ) : (
         <div className="space-y-6">
 
