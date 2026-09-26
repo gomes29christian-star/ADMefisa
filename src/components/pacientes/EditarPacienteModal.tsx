@@ -106,11 +106,16 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
   });
 
   const toggleDiaSemana = (dia: string) => {
+    let novosDias: string[];
     if (diasDaSemana.includes(dia)) {
       if (diasDaSemana.length === 1) return;
-      setDiasDaSemana(diasDaSemana.filter((d) => d !== dia));
+      novosDias = diasDaSemana.filter((d) => d !== dia);
     } else {
-      setDiasDaSemana([...diasDaSemana, dia]);
+      novosDias = [...diasDaSemana, dia];
+    }
+    setDiasDaSemana(novosDias);
+    if (novosDias.length > 0) {
+      setSessoesPorSemana(novosDias.length);
     }
   };
 

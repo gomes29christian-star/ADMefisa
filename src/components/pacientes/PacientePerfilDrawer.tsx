@@ -370,7 +370,14 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
   ) || todosProcedimentos[0];
 
   const codigoProcedimentoApenasNumeros = (procEncontrado?.codigo || '66600480').replace(/\D/g, '');
-  const sessoesPorSemana = paciente.sessoesPorSemana || paciente.quantidadeSemana || procEncontrado?.sessoesPorSemanaPadrao || 1;
+  const sessoesPorSemana =
+    (paciente.sessoesPorSemana && paciente.sessoesPorSemana > 0)
+      ? paciente.sessoesPorSemana
+      : (paciente.quantidadeSemana && paciente.quantidadeSemana > 0)
+      ? paciente.quantidadeSemana
+      : (paciente.diasDaSemana && paciente.diasDaSemana.length > 0)
+      ? paciente.diasDaSemana.length
+      : (procEncontrado?.sessoesPorSemanaPadrao || 1);
 
   const converterDiaNomeParaIndice = (nome: string): number => {
     const n = (nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');

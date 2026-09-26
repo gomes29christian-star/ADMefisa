@@ -306,6 +306,8 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         }
         if (!operadoraEncontrada) operadoraEncontrada = p.convenioPrincipalNome || p.convenioNome || '';
         if (!prestadorEncontrado) prestadorEncontrado = p.prestadorNome || '';
+        const sQtd = p.sessoesPorSemana || p.quantidadeSemana || (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0 ? p.diasDaSemana.length : undefined);
+        if (sQtd) sessoesEncontradas = sQtd;
       }
     });
 
@@ -320,6 +322,8 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         }
         if (!operadoraEncontrada) operadoraEncontrada = p.convenioPrincipalNome || p.convenioNome || '';
         if (!prestadorEncontrado) prestadorEncontrado = p.prestadorNome || '';
+        const sQtd = p.sessoesPorSemana || p.quantidadeSemana || (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0 ? p.diasDaSemana.length : undefined);
+        if (sQtd) sessoesEncontradas = sQtd;
       }
     });
 
@@ -329,7 +333,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         if (a.procedimento) procsSet.add(a.procedimento.trim());
         if (!operadoraEncontrada && a.operadora) operadoraEncontrada = a.operadora;
         if (!prestadorEncontrado && a.prestador) prestadorEncontrado = a.prestador;
-        if (a.sessoesPorSemana) sessoesEncontradas = a.sessoesPorSemana;
+        if (!sessoesEncontradas && a.sessoesPorSemana) sessoesEncontradas = a.sessoesPorSemana;
       }
     });
 
@@ -374,7 +378,15 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       setPesquisaPrestador(prestadorNome);
     }
 
-    const sessoes = autAnteriorProc?.sessoesPorSemana || dados.sessoesPorSemana || pac.sessoesPorSemana || 3;
+    // Prioridade máxima para a frequência cadastrada no perfil do paciente
+    const sessoes =
+      (pac.sessoesPorSemana && pac.sessoesPorSemana > 0 ? pac.sessoesPorSemana : undefined) ||
+      (pac.quantidadeSemana && pac.quantidadeSemana > 0 ? pac.quantidadeSemana : undefined) ||
+      (Array.isArray(pac.diasDaSemana) && pac.diasDaSemana.length > 0 ? pac.diasDaSemana.length : undefined) ||
+      (dados.sessoesPorSemana && dados.sessoesPorSemana > 0 ? dados.sessoesPorSemana : undefined) ||
+      (autAnteriorProc?.sessoesPorSemana && autAnteriorProc.sessoesPorSemana > 0 ? autAnteriorProc.sessoesPorSemana : undefined) ||
+      1;
+
     setNovoSessoesPorSemana(sessoes);
   };
 
@@ -2317,22 +2329,31 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                 )}
               </div>
 
-              {/* Resumo Automático de Sessões do Paciente (Card Organizado e Claro) */}
+              {/* Resumo Automático de Sessões do Paciente (Card Organizado e Claro com ajuste editável) */}
               <div className="p-3.5 bg-blue-50/60 dark:bg-slate-800/80 border border-blue-100 dark:border-slate-700/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
-                <div className="space-y-1">
+                <div className="space-y-1.5 flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Frequência Cadastrada do Paciente
+                      Frequência Semanal do Paciente
                     </span>
                   </div>
-                  <div className="text-xs font-medium text-slate-700 dark:text-slate-200 flex items-center gap-2 flex-wrap">
-                    <span className="font-mono font-bold text-blue-700 dark:text-blue-400 text-sm">
-                      {novoSessoesPorSemana} {novoSessoesPorSemana === 1 ? 'sessão/semana' : 'sessões/semana'}
-                    </span>
-                    <span className="text-slate-300 dark:text-slate-600">•</span>
-                    <span>
-                      {semanasAteFimDoMes} {semanasAteFimDoMes === 1 ? 'semana' : 'semanas'} no ciclo até o fim do mês
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-1">
+                      <input
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={novoSessoesPorSemana || ''}
+                        onChange={(e) => setNovoSessoesPorSemana(e.target.value === '' ? 1 : Math.max(1, parseInt(e.target.value, 10)))}
+                        className="w-12 text-center font-mono font-black text-blue-700 dark:text-blue-400 text-sm bg-transparent border-0 focus:outline-none"
+                      />
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                        {novoSessoesPorSemana === 1 ? 'sessão/sem' : 'sessões/sem'}
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      • {semanasAteFimDoMes} {semanasAteFimDoMes === 1 ? 'semana' : 'semanas'} no ciclo
                     </span>
                   </div>
                 </div>

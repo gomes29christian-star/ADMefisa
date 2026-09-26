@@ -715,11 +715,16 @@ export const NovoPacienteModal: React.FC<NovoPacienteModalProps> = ({
                           key={dia}
                           type="button"
                           onClick={() => {
+                            let novosDias: string[];
                             if (ativo) {
                               if (diasDaSemana.length === 1) return;
-                              setDiasDaSemana(diasDaSemana.filter((d) => d !== dia));
+                              novosDias = diasDaSemana.filter((d) => d !== dia);
                             } else {
-                              setDiasDaSemana([...diasDaSemana, dia]);
+                              novosDias = [...diasDaSemana, dia];
+                            }
+                            setDiasDaSemana(novosDias);
+                            if (novosDias.length > 0) {
+                              setSessoesPorSemana(novosDias.length);
                             }
                           }}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
