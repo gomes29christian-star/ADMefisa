@@ -84,6 +84,7 @@ export const carregarUsuariosIniciais = (): Usuario[] => {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
         let modified = false;
+
         const normalized = parsed.map((u: Usuario) => {
           if (!u.systemPassword) {
             modified = true;
