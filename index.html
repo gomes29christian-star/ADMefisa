@@ -19,10 +19,40 @@
       if (!window.process.env) window.process.env = {};
       window.API_KEY = window.API_KEY || '';
       window.GEMINI_API_KEY = window.GEMINI_API_KEY || '';
+
+      // Polyfill Promise.withResolvers (vital para compatibilidade com navegadores Safari/iOS/antigos)
+      if (typeof Promise.withResolvers === 'undefined') {
+        Promise.withResolvers = function () {
+          var resolve, reject;
+          var promise = new Promise(function (res, rej) {
+            resolve = res;
+            reject = rej;
+          });
+          return { promise: promise, resolve: resolve, reject: reject };
+        };
+      }
     </script>
   </head>
   <body class="bg-[#F4F7FB] text-slate-800 antialiased">
-    <div id="root"></div>
+    <div id="root">
+      <div id="initial-loading-fallback" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F4F7FB;font-family:'Quicksand',sans-serif;color:#002172;">
+        <div style="text-align:center;">
+          <div style="width:40px;height:40px;border:3px solid #cbd5e1;border-top-color:#002172;border-radius:50%;animation:mefisa-spin 0.8s linear infinite;margin:0 auto 14px auto;"></div>
+          <p style="font-weight:700;font-size:13px;color:#002172;">Iniciando Sistema Clínica Mefisa...</p>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes mefisa-spin { to { transform: rotate(360deg); } }
+    </style>
+    <script>
+      window.addEventListener('error', function (e) {
+        var loader = document.getElementById('initial-loading-fallback');
+        if (loader) {
+          loader.innerHTML = '<div style="max-width:440px;margin:20px;padding:24px;background:#ffffff;border-radius:18px;box-shadow:0 12px 30px rgba(0,0,0,0.08);text-align:center;border:1px solid #fde68a;"><div style="font-size:28px;margin-bottom:8px;">⚠️</div><h2 style="font-size:15px;font-weight:800;color:#92400e;margin-bottom:6px;">Falha de Inicialização</h2><p style="font-size:12px;color:#64748b;line-height:1.5;margin-bottom:14px;">O navegador encontrou uma restrição ao iniciar os scripts da aplicação.</p><div style="font-family:monospace;font-size:11px;color:#b91c1c;background:#fef2f2;padding:8px;border-radius:8px;margin-bottom:14px;word-break:break-all;">' + (e && e.message ? e.message : 'Erro desconhecido') + '</div><button onclick="window.location.reload()" style="background:#002172;color:#ffffff;border:none;border-radius:10px;padding:9px 18px;font-weight:700;font-size:12px;cursor:pointer;">Recarregar Sistema</button></div>';
+        }
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

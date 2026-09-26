@@ -1,16 +1,7 @@
-import * as pdfjsLib from 'pdfjs-dist';
-// Importa o worker empacotado localmente pelo Vite sem depender de CDNs externas
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-
-try {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-} catch (e) {
-  console.warn('Erro ao configurar worker do PDF.js:', e);
-}
-
 /**
  * Converte um arquivo (PDF ou Imagem) em um array de DataURLs de imagens (PNG/JPEG)
  * que qualquer navegador consegue renderizar nativamente em tags <img> sem plugins ou iframes.
+ * Carregamento do PDF.js 100% dinâmico/lazy para não sobrecarregar ou quebrar o bundle inicial.
  */
 export async function converterArquivoParaImagens(file: File): Promise<string[]> {
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
@@ -28,8 +19,19 @@ export async function converterArquivoParaImagens(file: File): Promise<string[]>
     });
   }
 
-  // É um PDF: converte cada página em imagem PNG de alta resolução
+  // É um PDF: carrega dinamicamente a biblioteca e converte cada página em imagem PNG
   try {
+    const [pdfjsLib, workerModule] = await Promise.all([
+      import('pdfjs-dist'),
+      import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+    ]);
+
+    try {
+      if (pdfjsLib.GlobalWorkerOptions) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = workerModule.default;
+      }
+    } catch {}
+
     const arrayBuffer = await file.arrayBuffer();
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     const pdfDoc = await loadingTask.promise;
