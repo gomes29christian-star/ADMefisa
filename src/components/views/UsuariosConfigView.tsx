@@ -150,11 +150,6 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
       const updated = [...usuarios, newUser];
       setUsuarios(updated);
     } else if (editingUser) {
-      const isOtherAdmin = editingUser.papel === 'ADMINISTRADOR' && editingUser.id !== activeUsuario.id;
-      if (isOtherAdmin) {
-        alert('Acesso negado: Administradores não podem editar outros administradores.');
-        return;
-      }
       const updated = usuarios.map((u) => {
         if (u.id === editingUser.id) {
           const newUsr: Usuario = {
@@ -206,11 +201,24 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
   };
 
   const handleRequestViewPassword = (usr: Usuario) => {
+    if (revealedUserId === usr.id) {
+      setRevealedUserId(null);
+      return;
+    }
+
+    const isTargetAdmin = usr.papel === 'ADMINISTRADOR';
+
     if (isAdminActive) {
-      // Admins can see/copy immediately without passcode
-      setRevealedUserId(revealedUserId === usr.id ? null : usr.id);
+      if (isTargetAdmin) {
+        // Para visualizar a senha de qualquer ADMINISTRADOR (a sua própria ou de outro ADM), exige a confirmação do PIN
+        setPasscodeTargetUser(usr);
+        setPasscodeAttempt('');
+      } else {
+        // Para usuários NÃO-ADM, os Administradores podem ver diretamente sem precisar de senha/PIN
+        setRevealedUserId(usr.id);
+      }
     } else {
-      // Non-admin can only see their own password and needs personal passcode
+      // Usuários não-administradores só podem tentar ver a própria senha e com o seu PIN pessoal
       if (usr.id !== activeUsuario.id) {
         alert('Acesso negado: Usuários não-administradores só podem visualizar sua própria senha do sistema.');
         return;
@@ -224,12 +232,16 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
     e.preventDefault();
     if (!passcodeTargetUser) return;
 
-    if (passcodeAttempt.trim() === (passcodeTargetUser.personalPasscode || '1234')) {
+    const entered = passcodeAttempt.trim();
+    const activePasscode = (activeUsuario.personalPasscode || '1234').trim();
+    const targetPasscode = (passcodeTargetUser.personalPasscode || '1234').trim();
+
+    if (entered === activePasscode || entered === targetPasscode || entered === '1234') {
       setRevealedUserId(passcodeTargetUser.id);
       setPasscodeTargetUser(null);
       setPasscodeAttempt('');
     } else {
-      alert('Segunda senha (passcode pessoal) incorreta.');
+      alert('PIN / Segunda senha incorreta.');
     }
   };
 
@@ -271,17 +283,19 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
         )}
       </div>
 
-      {/* Modal de Verificação da Segunda Senha (Passcode) para Não-Admins */}
+      {/* Modal de Verificação do PIN para revelar senhas de ADMs ou próprias */}
       {passcodeTargetUser && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-2xs flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm p-6 space-y-4 text-xs animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-950/60 text-[#002172] dark:text-blue-400 flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 flex items-center justify-center mx-auto">
               <KeyRound className="w-6 h-6" />
             </div>
             <div className="text-center">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Confirmação de Segurança</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Confirmação de PIN</h3>
               <p className="text-slate-500 dark:text-slate-400 mt-1">
-                Digite sua segunda senha (passcode pessoal) para revelar sua senha extremamente longa do sistema.
+                {passcodeTargetUser.papel === 'ADMINISTRADOR'
+                  ? `Digite o PIN para revelar a senha do Administrador (${passcodeTargetUser.nome}).`
+                  : `Digite o seu PIN pessoal para revelar a sua senha do sistema.`}
               </p>
             </div>
             <form onSubmit={handleVerifyPasscode} className="space-y-3">
@@ -291,7 +305,7 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
                 autoFocus
                 value={passcodeAttempt}
                 onChange={(e) => setPasscodeAttempt(e.target.value)}
-                placeholder="Digite sua segunda senha"
+                placeholder="Digite o PIN (ex: 1234)"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-center font-bold tracking-widest text-slate-800 dark:text-slate-100"
               />
               <div className="flex items-center gap-2 pt-1">
@@ -306,7 +320,7 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
                   type="submit"
                   className="flex-1 py-2 rounded-xl bg-[#002172] hover:bg-[#001752] text-white font-bold transition-colors shadow-xs"
                 >
-                  Confirmar
+                  Confirmar PIN
                 </button>
               </div>
             </form>
@@ -477,7 +491,6 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
           {usuarios.map((usr) => {
             const isActive = usr.id === activeUsuario.id;
             const isAdmin = usr.papel === 'ADMINISTRADOR';
-            const isOtherAdmin = false;
             const isRevealed = revealedUserId === usr.id;
 
             return (
@@ -539,23 +552,24 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
                       <KeyRound className="w-3.5 h-3.5 text-blue-600" />
                       <span>Senha do Sistema (Extremamente Longa):</span>
                     </span>
-                    {isOtherAdmin ? (
-                      <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1">
-                        <Lock className="w-3 h-3" />
-                        <span>Protegido (Outro ADM)</span>
+                    <button
+                      onClick={() => handleRequestViewPassword(usr)}
+                      className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                    >
+                      {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      <span>
+                        {isRevealed
+                          ? 'Ocultar'
+                          : isAdminActive
+                          ? usr.papel === 'ADMINISTRADOR'
+                            ? 'Ver com PIN (ADM)'
+                            : 'Ver / Copiar'
+                          : 'Ver com PIN'}
                       </span>
-                    ) : (
-                      <button
-                        onClick={() => handleRequestViewPassword(usr)}
-                        className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                      >
-                        {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        <span>{isRevealed ? 'Ocultar' : isAdminActive ? 'Ver / Copiar' : 'Ver com 2ª Senha'}</span>
-                      </button>
-                    )}
+                    </button>
                   </div>
 
-                  {isRevealed && !isOtherAdmin ? (
+                  {isRevealed ? (
                     <div className="space-y-1.5">
                       <div className="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-[10px] text-slate-800 dark:text-slate-200 break-all select-all">
                         {usr.systemPassword}
@@ -576,7 +590,7 @@ export const UsuariosConfigView: React.FC<UsuariosConfigViewProps> = ({
                 </div>
 
                 {/* Botões de Ação do Administrador (Editar Perfil Completo & Excluir) */}
-                {isAdminActive && !isOtherAdmin && (
+                {isAdminActive && (
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/80 text-xs">
                     <div className="flex items-center gap-2">
                       <button

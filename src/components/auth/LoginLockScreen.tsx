@@ -31,13 +31,12 @@ export const LoginLockScreen: React.FC<LoginLockScreenProps> = ({
       return;
     }
 
-    // 1. Procurar usuário ativo correspondente à senha do sistema ou passcode
+    // 1. Procurar usuário ativo correspondente EXCLUSIVAMENTE à senha do sistema
     const matchedUser = usuarios.find(
       (u) =>
         u.ativo !== false &&
-        ((u.systemPassword && u.systemPassword.trim() === trimmed) ||
-          (u.personalPasscode && u.personalPasscode.trim() === trimmed) ||
-          (trimmed === '1234' && u.id === (usuarios[0]?.id || 'usr-admin')))
+        u.systemPassword &&
+        u.systemPassword.trim() === trimmed
     );
     if (matchedUser) {
       sessionStorage.setItem('mefisa_session_active', 'true');
@@ -116,7 +115,7 @@ export const LoginLockScreen: React.FC<LoginLockScreenProps> = ({
         <form onSubmit={handleLoginSubmit} className="p-8 pt-0 space-y-4">
           <div className="space-y-1.5 text-left">
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-              Senha Extremamente Longa do Sistema ou PIN (1234)
+              Senha Extremamente Longa do Sistema
             </label>
             <textarea
               rows={3}
@@ -129,7 +128,7 @@ export const LoginLockScreen: React.FC<LoginLockScreenProps> = ({
                   setIsDeletedAlert(false);
                 }
               }}
-              placeholder="Cole aqui a sua senha gerada pelo sistema (ex: mefisa_sys_sec_...) ou o PIN de admin (1234)"
+              placeholder="Cole aqui a sua senha gerada pelo sistema (ex: mefisa_sys_sec_...)"
               className={`w-full px-3 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-mono text-slate-800 dark:text-slate-100 focus:ring-2 resize-none ${
                 isDeletedAlert
                   ? 'border-rose-500 focus:ring-rose-500 bg-rose-50/20 dark:bg-rose-950/20'
