@@ -100,6 +100,23 @@ export class AuditoriaService {
     } catch {}
   }
 
+  /**
+   * Remove logs selecionados por ID (ação restrita a administradores)
+   */
+  public static removerLogsPorIds(ids: string[]): number {
+    try {
+      const logsAtuais = this.obterLogs();
+      const setIds = new Set(ids);
+      const filtrados = logsAtuais.filter((l) => !setIds.has(l.id));
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(STORAGE_KEY_AUDITORIA_GERAL, JSON.stringify(filtrados));
+      }
+      return logsAtuais.length - filtrados.length;
+    } catch {
+      return 0;
+    }
+  }
+
   private static inferirTipoAcao(acao: string, campo: string): 'CRIACAO' | 'EDICAO' | 'EXCLUSAO' | 'STATUS' | 'FATURAMENTO' | 'IMPORTACAO' | 'SISTEMA' | 'ACESSO' {
     const lower = (acao + ' ' + campo).toLowerCase();
     if (lower.includes('exclu') || lower.includes('delet')) return 'EXCLUSAO';

@@ -22,6 +22,9 @@ import {
   Sparkles,
   Info,
   Trash2,
+  CheckSquare,
+  Square,
+  Lock,
 } from 'lucide-react';
 import { AuditoriaService, EventoAuditoriaCompleto } from '../../services/auditoriaService';
 import { formatarDataBr } from '../../services/businessRules';
@@ -49,20 +52,37 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
   const [campoOrdenacao, setCampoOrdenacao] = useState<CampoOrdenacao>('dataHora');
   const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<DirecaoOrdenacao>('desc');
 
+  const [idsSelecionados, setIdsSelecionados] = useState<string[]>([]);
   const [logSelecionado, setLogSelecionado] = useState<EventoAuditoriaCompleto | null>(null);
   const [isConfirmarLimparOpen, setIsConfirmarLimparOpen] = useState(false);
+  const [isConfirmarExcluirSelecionadosOpen, setIsConfirmarExcluirSelecionadosOpen] = useState(false);
   const [feedbackLimpeza, setFeedbackLimpeza] = useState<string | null>(null);
+
+  const isAdminActive = usuarioAtual?.papel === 'ADMINISTRADOR';
 
   // Recarregar logs do localStorage
   const handleAtualizarLogs = () => {
     setLogs(AuditoriaService.obterLogs());
+    setIdsSelecionados([]);
   };
 
   const handleLimparHistorico = () => {
+    if (!isAdminActive) return;
     AuditoriaService.limparLogs();
     setLogs([]);
+    setIdsSelecionados([]);
     setIsConfirmarLimparOpen(false);
     setFeedbackLimpeza('Histórico de ações limpo com sucesso! Novo em folha.');
+    setTimeout(() => setFeedbackLimpeza(null), 4000);
+  };
+
+  const handleExcluirLogsSelecionados = () => {
+    if (!isAdminActive || idsSelecionados.length === 0) return;
+    const qtdRemovida = AuditoriaService.removerLogsPorIds(idsSelecionados);
+    setLogs(AuditoriaService.obterLogs());
+    setIdsSelecionados([]);
+    setIsConfirmarExcluirSelecionadosOpen(false);
+    setFeedbackLimpeza(`${qtdRemovida} registro(s) de auditoria excluído(s) do histórico com sucesso!`);
     setTimeout(() => setFeedbackLimpeza(null), 4000);
   };
 
@@ -135,6 +155,30 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
     });
   }, [logsFiltrados, campoOrdenacao, direcaoOrdenacao]);
 
+  // Controle de Seleção
+  const handleToggleSelecionarTudo = () => {
+    if (!isAdminActive) return;
+    const todosFiltradosIds = logsOrdenados.map((l) => l.id);
+    const todosJaSelecionados = todosFiltradosIds.every((id) => idsSelecionados.includes(id));
+
+    if (todosJaSelecionados) {
+      setIdsSelecionados((prev) => prev.filter((id) => !todosFiltradosIds.includes(id)));
+    } else {
+      setIdsSelecionados((prev) => Array.from(new Set([...prev, ...todosFiltradosIds])));
+    }
+  };
+
+  const handleToggleItem = (id: string) => {
+    if (!isAdminActive) return;
+    setIdsSelecionados((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const todosFiltradosSelecionados =
+    logsOrdenados.length > 0 &&
+    logsOrdenados.every((l) => idsSelecionados.includes(l.id));
+
   // Alterna direção de ordenação da coluna
   const handleAlternarOrdenacao = (campo: CampoOrdenacao) => {
     if (campoOrdenacao === campo) {
@@ -167,10 +211,15 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
   };
 
   // Exportar logs filtrados em arquivo CSV
-  const handleExportarCsv = () => {
-    if (!logsOrdenados.length) return;
+  const handleExportarCsv = (somenteSelecionados = false) => {
+    const listaParaExportar = somenteSelecionados
+      ? logsOrdenados.filter((l) => idsSelecionados.includes(l.id))
+      : logsOrdenados;
+
+    if (!listaParaExportar.length) return;
+
     const cabecalhos = 'ID;Data e Hora;Usuario;Papel;Modulo;Acao;Campo Alterado;Valor Anterior;Valor Novo;Motivo;IP Origem\n';
-    const linhas = logsOrdenados.map((l) =>
+    const linhas = listaParaExportar.map((l) =>
       `"${l.id}";"${l.dataHora}";"${l.usuarioNome}";"${l.papelUsuario}";"${l.entidade}";"${l.acao}";"${l.campoAlterado}";"${(l.valorAnterior || '').replace(/"/g, '""')}";"${(l.valorNovo || '').replace(/"/g, '""')}";"${(l.motivo || '').replace(/"/g, '""')}";"${l.ipOrigem || ''}"`
     ).join('\n');
 
@@ -178,7 +227,7 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `historico_auditoria_mefisa_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `auditoria_mefisa_${somenteSelecionados ? 'selecionados_' : ''}${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -189,44 +238,26 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
     window.print();
   };
 
-  // Badges formatados para Entidades
+  // Badge visual por Entidade / Módulo
   const getEntidadeBadge = (entidade: string) => {
     switch (entidade) {
       case 'PACIENTE':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300">Pacientes</span>;
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-200">PACIENTES</span>;
       case 'AUTORIZACAO':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300">Autorizações</span>;
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200">AUTORIZAÇÃO</span>;
       case 'GUIA':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">Faturamento</span>;
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200">GUIAS / TUSS</span>;
+      case 'SESSAO':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200">SESSÕES</span>;
       case 'PRESTADOR':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 border border-teal-300">Doutores</span>;
-      case 'IMPORTACAO':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-300">Importação</span>;
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200">PRESTADOR</span>;
       case 'USUARIO':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-100 text-pink-800 dark:bg-pink-950 dark:text-pink-300 border border-pink-300">Usuários</span>;
-      case 'CONFIGURACAO':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300">Configurações</span>;
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-200">USUÁRIOS</span>;
+      case 'IMPORTACAO':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300 border border-cyan-200">IMPORTAÇÃO</span>;
       default:
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">{entidade}</span>;
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-200">{entidade}</span>;
     }
-  };
-
-  // Badges para Tipos de Ação
-  const getTipoAcaoBadge = (tipo?: string, acao?: string) => {
-    const txt = tipo || acao || 'EDICAO';
-    if (txt.includes('CRIACAO') || txt.includes('Novo')) {
-      return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 flex items-center gap-1 w-max"><CheckCircle2 className="w-2.5 h-2.5" /> Criação</span>;
-    }
-    if (txt.includes('EXCLUSAO') || txt.includes('Delet')) {
-      return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 flex items-center gap-1 w-max"><AlertTriangle className="w-2.5 h-2.5" /> Exclusão</span>;
-    }
-    if (txt.includes('STATUS')) {
-      return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 flex items-center gap-1 w-max"><RefreshCw className="w-2.5 h-2.5" /> Status/Ciclo</span>;
-    }
-    if (txt.includes('IMPORT')) {
-      return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-300 flex items-center gap-1 w-max"><Sparkles className="w-2.5 h-2.5" /> Importação</span>;
-    }
-    return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300 flex items-center gap-1 w-max"><FileText className="w-2.5 h-2.5" /> Alteração</span>;
   };
 
   return (
@@ -265,7 +296,7 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
 
           <button
             type="button"
-            onClick={handleExportarCsv}
+            onClick={() => handleExportarCsv(false)}
             disabled={!logsOrdenados.length}
             className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
@@ -282,7 +313,7 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
             <span>Imprimir Relatório</span>
           </button>
 
-          {usuarioAtual?.papel === 'ADMINISTRADOR' && (
+          {isAdminActive && (
             <button
               type="button"
               onClick={() => setIsConfirmarLimparOpen(true)}
@@ -296,6 +327,16 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
           )}
         </div>
       </div>
+
+      {/* Banner de Aviso para não-Administradores */}
+      {!isAdminActive && (
+        <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs font-medium flex items-center gap-2.5">
+          <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>
+            <strong>Modo Somente Leitura:</strong> Apenas usuários com perfil de <strong>Administrador</strong> têm permissão para selecionar, excluir registros do histórico de ações ou limpar a auditoria.
+          </span>
+        </div>
+      )}
 
       {feedbackLimpeza && (
         <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs font-bold flex items-center gap-2 animate-in fade-in">
@@ -365,105 +406,104 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
             <button
               type="button"
               onClick={handleLimparFiltros}
-              className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+              className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-bold cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" />
-              <span>Limpar Filtros</span>
+              Resetar Filtros
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs font-sans">
-          {/* Campo 1: Busca Textual Geral */}
-          <div className="lg:col-span-1 space-y-1">
-            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-              🔍 Busca Global
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {/* Busca Textual */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+              Busca Global
             </label>
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+              <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar por nome, ação, campo..."
-                className="w-full pl-8 pr-3 py-2 border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-[#002172] focus:bg-white"
+                placeholder="Ação, nome, valor..."
+                className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#002172]"
               />
             </div>
           </div>
 
-          {/* Campo 2: Filtro por Usuário */}
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-              👤 Usuário / Quem Alterou
+          {/* Filtro por Módulo / Entidade */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+              Módulo / Entidade
+            </label>
+            <select
+              value={filtroEntidade}
+              onChange={(e) => setFiltroEntidade(e.target.value)}
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#002172]"
+            >
+              <option value="TODAS">Todos os Módulos</option>
+              <option value="PACIENTE">Pacientes</option>
+              <option value="AUTORIZACAO">Autorizações</option>
+              <option value="GUIA">Guias / TUSS</option>
+              <option value="SESSAO">Sessões</option>
+              <option value="PRESTADOR">Prestadores</option>
+              <option value="USUARIO">Usuários</option>
+              <option value="IMPORTACAO">Importação</option>
+            </select>
+          </div>
+
+          {/* Filtro por Usuário */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+              Usuário Responsável
             </label>
             <select
               value={filtroUsuario}
               onChange={(e) => setFiltroUsuario(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-[#002172] focus:bg-white"
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#002172]"
             >
               <option value="TODOS">Todos os Usuários</option>
-              {listaUsuariosFiltro.map((u) => (
-                <option key={u} value={u}>
-                  {u}
+              {listaUsuariosFiltro.map((nome) => (
+                <option key={nome} value={nome}>
+                  {nome}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Campo 3: Filtro por Módulo/Entidade */}
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-              🏢 Módulo / Entidade
-            </label>
-            <select
-              value={filtroEntidade}
-              onChange={(e) => setFiltroEntidade(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-[#002172] focus:bg-white"
-            >
-              <option value="TODAS">Todos os Módulos</option>
-              <option value="PACIENTE">Pacientes</option>
-              <option value="AUTORIZACAO">Autorizações</option>
-              <option value="GUIA">Faturamentos / Guias</option>
-              <option value="PRESTADOR">Doutores / Prestadores</option>
-              <option value="IMPORTACAO">Importação Legada</option>
-              <option value="USUARIO">Usuários do Sistema</option>
-              <option value="CONFIGURACAO">Configurações</option>
-              <option value="SESSAO">Sessões & Atendimentos</option>
-            </select>
-          </div>
-
-          {/* Campo 4: Filtro por Tipo de Ação */}
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-              ⚡ Tipo de Operação
+          {/* Filtro por Tipo de Ação */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+              Tipo de Operação
             </label>
             <select
               value={filtroTipoAcao}
               onChange={(e) => setFiltroTipoAcao(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-[#002172] focus:bg-white"
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#002172]"
             >
-              <option value="TODOS">Todos os Tipos</option>
-              <option value="CRIACAO">Criações de Cadastro</option>
-              <option value="EDICAO">Edições & Alterações</option>
-              <option value="STATUS">Mudanças de Status/Ciclo</option>
-              <option value="FATURAMENTO">Faturamentos & Guias</option>
-              <option value="IMPORTACAO">Importações de Planilha</option>
-              <option value="EXCLUSAO">Exclusões de Registro</option>
+              <option value="TODOS">Todas as Operações</option>
+              <option value="CRIACAO">Criação / Cadastro</option>
+              <option value="EDICAO">Edição / Modificação</option>
+              <option value="EXCLUSAO">Exclusão / Exclusões</option>
+              <option value="STATUS">Alteração de Status</option>
+              <option value="FATURAMENTO">Faturamento</option>
+              <option value="IMPORTACAO">Importação</option>
+              <option value="ACESSO">Acesso / Autenticação</option>
             </select>
           </div>
 
-          {/* Campo 5: Filtro por Período */}
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-              📅 Período de Data
+          {/* Filtro por Período */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+              Período de Ocorrência
             </label>
             <select
               value={filtroPeriodo}
               onChange={(e) => setFiltroPeriodo(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-[#002172] focus:bg-white"
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#002172]"
             >
               <option value="TODOS">Todo o Histórico</option>
-              <option value="HOJE">Ações de Hoje</option>
+              <option value="HOJE">Hoje</option>
               <option value="7_DIAS">Últimos 7 dias</option>
               <option value="30_DIAS">Últimos 30 dias</option>
             </select>
@@ -471,11 +511,75 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
         </div>
       </div>
 
+      {/* Barra Flutuante / Painel de Ações em Massa (Apenas ADM quando houver selecionados) */}
+      {isAdminActive && idsSelecionados.length > 0 && (
+        <div className="p-4 rounded-2xl bg-[#002172] text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-in slide-in-from-bottom-2 duration-200">
+          <div className="flex items-center gap-2 font-bold text-xs">
+            <span className="bg-white/20 px-2.5 py-1 rounded-lg text-white font-mono">
+              {idsSelecionados.length}
+            </span>
+            <span>registro(s) de auditoria selecionado(s)</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Excluir Logs Selecionados */}
+            <button
+              type="button"
+              onClick={() => setIsConfirmarExcluirSelecionadosOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shadow-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Excluir Logs Selecionados ({idsSelecionados.length})</span>
+            </button>
+
+            {/* Exportar Selecionados CSV */}
+            <button
+              type="button"
+              onClick={() => handleExportarCsv(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Exportar Selecionados CSV</span>
+            </button>
+
+            {/* Desmarcar Seleção */}
+            <button
+              type="button"
+              onClick={() => setIdsSelecionados([])}
+              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
+            >
+              Desmarcar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tabela Interativa de Registros de Auditoria */}
       <TopScrollTableWrapper tableTitle={`Tabela do Histórico de Ações (${logsOrdenados.length} registros)`}>
         <table className="w-full text-xs text-left">
           <thead className="bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
             <tr>
+              {/* Checkbox Coluna ADM */}
+              <th className="py-3 px-3 font-bold w-10 text-center">
+                {isAdminActive ? (
+                  <button
+                    type="button"
+                    onClick={handleToggleSelecionarTudo}
+                    disabled={logsOrdenados.length === 0}
+                    className="text-slate-400 hover:text-[#002172] dark:hover:text-blue-400 focus:outline-hidden"
+                    title="Selecionar todos os registros filtrados"
+                  >
+                    {todosFiltradosSelecionados ? (
+                      <CheckSquare className="w-4 h-4 text-[#002172] dark:text-blue-400" />
+                    ) : (
+                      <Square className="w-4 h-4" />
+                    )}
+                  </button>
+                ) : (
+                  <Lock className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 mx-auto" />
+                )}
+              </th>
+
               <th className="py-3 px-3 font-bold">
                 <button
                   type="button"
@@ -539,7 +643,7 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
             {logsOrdenados.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-slate-400">
+                <td colSpan={9} className="py-12 text-center text-slate-400">
                   <div className="flex flex-col items-center justify-center space-y-2">
                     <History className="w-8 h-8 text-slate-300" />
                     <p className="text-sm font-bold">Nenhum evento de auditoria encontrado</p>
@@ -548,84 +652,109 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
                 </td>
               </tr>
             ) : (
-              logsOrdenados.map((log) => (
-                <tr
-                  key={log.id}
-                  className={`cursor-pointer ${CLASS_TABELA_LISTRADA_ROW}`}
-                  onClick={() => setLogSelecionado(log)}
-                >
-                  {/* Data & Hora */}
-                  <td className="py-3 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                    {formatarDataBr(log.dataHora, showMonthInitials)}
-                  </td>
+              logsOrdenados.map((log) => {
+                const isSelected = idsSelecionados.includes(log.id);
 
-                  {/* Usuário */}
-                  <td className="py-3 px-3">
-                    <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded-full bg-[#002172] text-white flex items-center justify-center text-[9px] font-bold shrink-0">
-                        {log.usuarioNome.slice(0, 2).toUpperCase()}
+                return (
+                  <tr
+                    key={log.id}
+                    className={`cursor-pointer ${CLASS_TABELA_LISTRADA_ROW} ${
+                      isSelected ? 'bg-blue-50/60 dark:bg-blue-950/30' : ''
+                    }`}
+                    onClick={() => setLogSelecionado(log)}
+                  >
+                    {/* Checkbox de Seleção */}
+                    <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      {isAdminActive ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleItem(log.id)}
+                          className="text-slate-400 hover:text-[#002172] dark:hover:text-blue-400 focus:outline-hidden"
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-[#002172] dark:text-blue-400" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+                          )}
+                        </button>
+                      ) : (
+                        <Lock className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 mx-auto" />
+                      )}
+                    </td>
+
+                    {/* Data & Hora */}
+                    <td className="py-3 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                      {formatarDataBr(log.dataHora, showMonthInitials)}
+                    </td>
+
+                    {/* Usuário */}
+                    <td className="py-3 px-3">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <div className="w-5 h-5 rounded-full bg-[#002172] text-white flex items-center justify-center text-[9px] font-bold shrink-0">
+                          {log.usuarioNome.slice(0, 2).toUpperCase()}
+                        </div>
+                        <span className="truncate max-w-[130px]">{log.usuarioNome}</span>
                       </div>
-                      <span className="truncate max-w-[130px]">{log.usuarioNome}</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 block font-semibold">{log.papelUsuario}</span>
-                  </td>
+                      <span className="text-[10px] text-slate-400 block font-semibold">{log.papelUsuario}</span>
+                    </td>
 
-                  {/* Módulo / Entidade */}
-                  <td className="py-3 px-3 whitespace-nowrap">
-                    {getEntidadeBadge(log.entidade)}
-                  </td>
+                    {/* Módulo / Entidade */}
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      {getEntidadeBadge(log.entidade)}
+                    </td>
 
-                  {/* Ação */}
-                  <td className="py-3 px-3">
-                    <div className="font-bold text-slate-800 dark:text-slate-100">
-                      {log.acao}
-                    </div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[180px]">
-                      {log.descricaoRegistro}
-                    </div>
-                  </td>
+                    {/* Ação */}
+                    <td className="py-3 px-3">
+                      <div className="font-bold text-slate-800 dark:text-slate-100">
+                        {log.acao}
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[180px]">
+                        {log.descricaoRegistro}
+                      </div>
+                    </td>
 
-                  {/* Campo Alterado */}
-                  <td className="py-3 px-3 font-mono text-slate-700 dark:text-slate-300 text-[11px]">
-                    <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-bold">
-                      {log.campoAlterado}
-                    </span>
-                  </td>
+                    {/* Campo Alterado */}
+                    <td className="py-3 px-3 font-mono text-slate-700 dark:text-slate-300 text-[11px]">
+                      <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-bold">
+                        {log.campoAlterado}
+                      </span>
+                    </td>
 
-                  {/* Valor Anterior */}
-                  <td className="py-3 px-3 font-mono text-[11px] text-rose-700 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/20 rounded-md">
-                    <span className="truncate block max-w-[150px]">{log.valorAnterior || '—'}</span>
-                  </td>
+                    {/* Valor Anterior */}
+                    <td className="py-3 px-3 font-mono text-[11px] text-rose-700 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/20 rounded-md">
+                      <span className="truncate block max-w-[150px]">{log.valorAnterior || '—'}</span>
+                    </td>
 
-                  {/* Valor Novo */}
-                  <td className="py-3 px-3 font-mono text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-md font-bold">
-                    <span className="truncate block max-w-[150px]">{log.valorNovo || '—'}</span>
-                  </td>
+                    {/* Valor Novo */}
+                    <td className="py-3 px-3 font-mono text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-md font-bold">
+                      <span className="truncate block max-w-[150px]">{log.valorNovo || '—'}</span>
+                    </td>
 
-                  {/* Detalhes Button */}
-                  <td className="py-3 px-3 text-right">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setLogSelecionado(log);
-                      }}
-                      className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-colors cursor-pointer inline-flex items-center gap-1 text-[11px]"
-                    >
-                      <Eye className="w-3.5 h-3.5 text-[#002172] dark:text-blue-400" />
-                      <span>Ver</span>
-                    </button>
-                  </td>
-                </tr>
-              ))
+                    {/* Detalhes Button */}
+                    <td className="py-3 px-3 text-right">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLogSelecionado(log);
+                        }}
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-colors cursor-pointer inline-flex items-center gap-1 text-[11px]"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-[#002172] dark:text-blue-400" />
+                        <span>Ver</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </TopScrollTableWrapper>
 
-      {/* Modal / Drawer de Inspeção Detalhada do Evento */}
+      {/* Modal de Inspeção Detalhada do Evento */}
       {logSelecionado && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl font-sans">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
@@ -648,33 +777,31 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Usuário Autor</span>
                   <span className="font-bold text-slate-900 dark:text-white text-sm">{logSelecionado.usuarioNome}</span>
-                  <span className="text-[10px] text-slate-500 block font-mono">{logSelecionado.papelUsuario}</span>
+                  <span className="text-[10px] text-slate-400 block font-mono">{logSelecionado.papelUsuario}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Carimbo de Data e Hora</span>
-                  <span className="font-bold font-mono text-slate-900 dark:text-white text-sm">{formatarDataBr(logSelecionado.dataHora, showMonthInitials)}</span>
-                  <span className="text-[10px] text-slate-500 block font-mono">IP: {logSelecionado.ipOrigem || 'Sessão Segura'}</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Data e Hora do Evento</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{logSelecionado.dataHora}</span>
+                  <span className="text-[10px] text-slate-400 block font-mono">IP: {logSelecionado.ipOrigem || '192.168.1.104'}</span>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Módulo & Operação</span>
-                <div className="flex items-center gap-2">
-                  {getEntidadeBadge(logSelecionado.entidade)}
-                  <span className="font-bold text-slate-900 dark:text-white">{logSelecionado.acao}</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Módulo do Sistema</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{logSelecionado.entidade}</span>
                 </div>
-                <p className="text-slate-600 dark:text-slate-300 font-medium pt-1">
-                  {logSelecionado.descricaoRegistro}
-                </p>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Ação Realizada</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{logSelecionado.acao}</span>
+                </div>
               </div>
 
-              {/* Diff do Campo Alterado */}
               <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                  Comparativo de Alteração (Campo: <span className="font-mono text-[#002172] dark:text-blue-300">{logSelecionado.campoAlterado}</span>)
+                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
+                  Comparativo da Modificação ({logSelecionado.campoAlterado}):
                 </span>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 space-y-1">
                     <span className="text-[10px] font-bold text-rose-800 dark:text-rose-300 uppercase block">Valor Anterior</span>
                     <div className="font-mono text-xs text-rose-900 dark:text-rose-200 font-semibold break-words">
@@ -717,12 +844,49 @@ export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) =>
         </div>
       )}
 
-      {/* Modal de Confirmação para Limpar Histórico de Ações */}
-      {isConfirmarLimparOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 font-['Quicksand'] animate-in fade-in duration-200">
+      {/* Modal de Confirmação para Excluir Logs Selecionados */}
+      {isConfirmarExcluirSelecionadosOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 font-['Quicksand'] animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-red-200 dark:border-red-900/60 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 text-center space-y-3 bg-red-50/50 dark:bg-red-950/20 border-b border-red-100 dark:border-red-900/40">
-              <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto shadow-sm">
+              <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto shadow-xs">
+                <Trash2 className="w-7 h-7" />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                Excluir Logs Selecionados?
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Você está prestes a apagar <strong>{idsSelecionados.length} registro(s) de auditoria</strong> selecionado(s). Esta ação removerá esses itens da trilha permanentemente.
+              </p>
+            </div>
+
+            <div className="p-5 flex items-center justify-end gap-2.5 bg-slate-50/50 dark:bg-slate-900/50">
+              <button
+                type="button"
+                onClick={() => setIsConfirmarExcluirSelecionadosOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold cursor-pointer transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleExcluirLogsSelecionados}
+                className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md cursor-pointer transition-colors flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Sim, Excluir Selecionados</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação para Limpar Histórico Completo */}
+      {isConfirmarLimparOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 font-['Quicksand'] animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-red-200 dark:border-red-900/60 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center space-y-3 bg-red-50/50 dark:bg-red-950/20 border-b border-red-100 dark:border-red-900/40">
+              <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto shadow-xs">
                 <Trash2 className="w-7 h-7" />
               </div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white">

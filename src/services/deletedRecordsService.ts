@@ -160,5 +160,22 @@ export const DeletedRecordsService = {
     const filtrado = atual.filter((r) => r.id !== id);
     DeletedRecordsService.salvarRegistrosDeletados(filtrado);
     return item;
+  },
+
+  removerMúltiplosDaLixeira: (ids: string[]): DeletedRecord[] => {
+    const atual = DeletedRecordsService.obterRegistrosDeletados();
+    const setIds = new Set(ids);
+    const removidos = atual.filter((r) => setIds.has(r.id));
+    const mantidos = atual.filter((r) => !setIds.has(r.id));
+    DeletedRecordsService.salvarRegistrosDeletados(mantidos);
+    return removidos;
+  },
+
+  excluirPermanentementeMúltiplos: (ids: string[]): number => {
+    const atual = DeletedRecordsService.obterRegistrosDeletados();
+    const setIds = new Set(ids);
+    const filtrados = atual.filter((r) => !setIds.has(r.id));
+    DeletedRecordsService.salvarRegistrosDeletados(filtrados);
+    return atual.length - filtrados.length;
   }
 };
