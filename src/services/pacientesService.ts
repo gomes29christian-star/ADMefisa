@@ -294,7 +294,7 @@ export class PacientesService {
               diasDaSemana: diasArray,
             };
           }
-          if (diasArray.length > 0 && pAjustado.sessoesPorSemana !== diasArray.length && !pAjustado.frequenciasPorProcedimento) {
+          if (diasArray.length > 0 && (!pAjustado.sessoesPorSemana || pAjustado.sessoesPorSemana <= 0) && !pAjustado.frequenciasPorProcedimento) {
             houveCorrecao = true;
             pAjustado = {
               ...pAjustado,

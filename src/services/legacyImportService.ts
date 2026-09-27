@@ -39,6 +39,41 @@ export interface ResultadoAtendimentoInteligente {
 
 export class LegacyImportService {
   /**
+   * Helper para extrair número de sessões de qualquer valor bruto
+   */
+  public static extrairNumeroSessoes(valRaw: any): number {
+    if (typeof valRaw === 'number' && !isNaN(valRaw) && valRaw > 0) {
+      return Math.round(valRaw);
+    }
+    if (!valRaw) return 0;
+    const str = String(valRaw).toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // Dígito numérico isolado ou com sufixos comuns (ex: "4", "4x", "4/sem", "4 sessoes", "4x/semana")
+    const matchNum = str.match(/\b(\d+)\b/);
+    if (matchNum && matchNum[1]) {
+      const num = parseInt(matchNum[1], 10);
+      if (num > 0 && num <= 21) return num;
+    }
+
+    const matchQualquer = str.match(/\d+/);
+    if (matchQualquer && matchQualquer[0]) {
+      const num = parseInt(matchQualquer[0], 10);
+      if (num > 0 && num <= 21) return num;
+    }
+
+    // Palavras por extenso em português
+    if (/\b(uma|um|1x|1-x)\b/.test(str)) return 1;
+    if (/\b(duas|dois|2x|2-x)\b/.test(str)) return 2;
+    if (/\b(tres|3x|3-x)\b/.test(str)) return 3;
+    if (/\b(quatro|4x|4-x)\b/.test(str)) return 4;
+    if (/\b(cinco|5x|5-x)\b/.test(str)) return 5;
+    if (/\b(seis|6x|6-x)\b/.test(str)) return 6;
+    if (/\b(sete|7x|7-x)\b/.test(str)) return 7;
+
+    return 0;
+  }
+
+  /**
    * Parser inteligente de dias da semana e quantidade de sessões
    * Suporta formatos como:
    * - "seg, ter, qua", "segunda, terça e quinta", "2ª e 4ª feira"
@@ -50,23 +85,24 @@ export class LegacyImportService {
     textoRaw?: string,
     qtdInformadaRaw?: number | string
   ): ResultadoAtendimentoInteligente {
-    let qtdInformada = 0;
-    if (typeof qtdInformadaRaw === 'number' && !isNaN(qtdInformadaRaw) && qtdInformadaRaw > 0) {
-      qtdInformada = qtdInformadaRaw;
-    } else if (typeof qtdInformadaRaw === 'string') {
-      const match = (qtdInformadaRaw as string).match(/\d+/);
-      if (match) {
-        qtdInformada = parseInt(match[0], 10);
+    const qtdExplicit = LegacyImportService.extrairNumeroSessoes(qtdInformadaRaw);
+
+    let qtdDoTexto = 0;
+    if (textoRaw && typeof textoRaw === 'string') {
+      const matchQtdInTexto = textoRaw.match(/\b(\d+)\s*(x|vezes|sessoes|sessao|\/sem|\/semana|vez|vzs)\b/i);
+      if (matchQtdInTexto && matchQtdInTexto[1]) {
+        qtdDoTexto = parseInt(matchQtdInTexto[1], 10);
       }
     }
 
-    if (!textoRaw || typeof textoRaw !== 'string') {
-      const defaultDias = ['seg.', 'ter.', 'qua.', 'sex.'];
-      const qtd = qtdInformada && qtdInformada > 0 ? qtdInformada : defaultDias.length;
+    if (!textoRaw || typeof textoRaw !== 'string' || !textoRaw.trim()) {
+      const finalQtd = qtdExplicit || qtdDoTexto || 2;
+      const poolBase = ['seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
+      const diasSel = poolBase.slice(0, Math.min(finalQtd, 6));
       return {
-        dias: defaultDias.slice(0, Math.min(qtd, 6)),
-        diaDaSemanaStr: defaultDias.slice(0, Math.min(qtd, 6)).join(', '),
-        quantidadeSemana: qtd,
+        dias: diasSel,
+        diaDaSemanaStr: diasSel.join(', '),
+        quantidadeSemana: finalQtd,
       };
     }
 
@@ -80,7 +116,8 @@ export class LegacyImportService {
       t.includes('seg a sab')
     ) {
       const dias = ['seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
-      return { dias, diaDaSemanaStr: dias.join(', '), quantidadeSemana: 6 };
+      const finalQtd = Math.max(qtdExplicit, 6);
+      return { dias, diaDaSemanaStr: dias.join(', '), quantidadeSemana: finalQtd };
     }
 
     if (
@@ -90,7 +127,8 @@ export class LegacyImportService {
       t.includes('seg-sex')
     ) {
       const dias = ['seg.', 'ter.', 'qua.', 'qui.', 'sex.'];
-      return { dias, diaDaSemanaStr: dias.join(', '), quantidadeSemana: 5 };
+      const finalQtd = Math.max(qtdExplicit, 5);
+      return { dias, diaDaSemanaStr: dias.join(', '), quantidadeSemana: finalQtd };
     }
 
     const diasDetectados: string[] = [];
@@ -103,6 +141,7 @@ export class LegacyImportService {
       { sigla: 'qui.', regex: /\b(qui|quinta|5a|5ª|thu|thursday)\b/i },
       { sigla: 'sex.', regex: /\b(sex|sexta|6a|6ª|fri|friday)\b/i },
       { sigla: 'sáb.', regex: /\b(sab|sabado|7a|7ª|sat|saturday)\b/i },
+      { sigla: 'dom.', regex: /\b(dom|domingo|8a|8ª|sun|sunday)\b/i },
     ];
 
     regrasDias.forEach(({ sigla, regex }) => {
@@ -113,48 +152,53 @@ export class LegacyImportService {
       }
     });
 
-    // Tentar extrair quantidade numérica do texto se explicitado tipo "3x", "2x/semana", "4 vezes"
-    let qtdExtraida = qtdInformada && qtdInformada > 0 ? qtdInformada : 0;
-    if (!qtdExtraida) {
-      const matchQtd = t.match(/\b(\d+)\s*(x|vezes|sessoes|sessao)\b/i);
-      if (matchQtd && matchQtd[1]) {
-        qtdExtraida = parseInt(matchQtd[1], 10);
-      }
-    }
-
     // Se o formato de entrada contiver a nomenclatura legada antiga S1..S5
     if (diasDetectados.length === 0) {
       const matchSemanas = t.match(/s[1-5]/gi);
       if (matchSemanas && matchSemanas.length > 0) {
         const qtdSemanas = matchSemanas.length;
+        const targetQ = qtdExplicit || qtdDoTexto || qtdSemanas;
         const diasBase = ['seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
-        const diasInferidos = diasBase.slice(0, Math.min(qtdSemanas, 6));
+        const diasInferidos = diasBase.slice(0, Math.min(targetQ, 6));
         return {
           dias: diasInferidos,
           diaDaSemanaStr: diasInferidos.join(', '),
-          quantidadeSemana: qtdExtraida || qtdSemanas,
+          quantidadeSemana: targetQ,
         };
       }
     }
 
-    if (diasDetectados.length > 0) {
-      const finalQtd = qtdExtraida || diasDetectados.length;
-      return {
-        dias: diasDetectados,
-        diaDaSemanaStr: diasDetectados.join(', '),
-        quantidadeSemana: finalQtd,
-      };
+    // Determina a quantidade final de sessões
+    let targetQtd = 0;
+    if (qtdExplicit > 0) {
+      targetQtd = qtdExplicit;
+    } else if (qtdDoTexto > 0) {
+      targetQtd = qtdDoTexto;
+    } else if (diasDetectados.length > 0) {
+      targetQtd = diasDetectados.length;
+    } else {
+      targetQtd = 2;
     }
 
-    // Fallback: se nenhum dia foi detectado pelo texto
-    const finalQtd = qtdExtraida || 2;
-    const diasBase = ['seg.', 'ter.', 'qua.', 'qui.', 'sex.'];
-    const diasInferidos = diasBase.slice(0, Math.min(finalQtd, 5));
+    // Garante que a lista de dias acompanhe targetQtd
+    const pool = ['seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.', 'dom.'];
+    let finalDias = [...diasDetectados];
+
+    if (finalDias.length === 0) {
+      finalDias = pool.slice(0, Math.min(targetQtd, 6));
+    } else if (finalDias.length < targetQtd) {
+      for (const dPool of pool) {
+        if (finalDias.length >= targetQtd) break;
+        if (!finalDias.includes(dPool)) {
+          finalDias.push(dPool);
+        }
+      }
+    }
 
     return {
-      dias: diasInferidos,
-      diaDaSemanaStr: diasInferidos.join(', '),
-      quantidadeSemana: finalQtd,
+      dias: finalDias,
+      diaDaSemanaStr: finalDias.join(', '),
+      quantidadeSemana: Math.max(targetQtd, finalDias.length),
     };
   }
   /**
@@ -226,6 +270,23 @@ export class LegacyImportService {
         colNorm.includes('solicitante') ||
         (colNorm.includes('medico') && !colNorm.includes('mefisa'));
 
+      // 2. Checa se é coluna de Quantidade de Sessões / Frequência (Analisar ANTES de 'semana' genérico)
+      const eQuantidadeSemana =
+        colNorm.includes('qtd') ||
+        colNorm.includes('quant') ||
+        colNorm.includes('sess') ||
+        colNorm.includes('vezes') ||
+        colNorm.includes('frequenc') ||
+        colNorm.includes('freq') ||
+        colNorm.includes('num_sess') ||
+        colNorm.includes('n_sess') ||
+        colNorm.includes('nº_sess') ||
+        colNorm.includes('no_sess') ||
+        colNorm.includes('x/sem') ||
+        colNorm.includes('x/semana') ||
+        colNorm.includes('x sem') ||
+        colNorm.includes('x semana');
+
       if (eDoutorMefisa) {
         mapeamento[coluna] = 'doutorMefisa';
       } else if (ePrestadorSolicitante) {
@@ -244,10 +305,10 @@ export class LegacyImportService {
         mapeamento[coluna] = 'dataSolicitacao';
       } else if (colNorm.includes('procedimento') || colNorm.includes('tratamento') || colNorm.includes('especialidade') || colNorm.includes('servico')) {
         mapeamento[coluna] = 'procedimento';
-      } else if (colNorm.includes('passa') || colNorm.includes('dias') || colNorm.includes('dia') || colNorm.includes('escala') || colNorm.includes('semana')) {
-        mapeamento[coluna] = 'diaDaSemana';
-      } else if (colNorm.includes('qtd') || colNorm.includes('quant') || colNorm.includes('sess') || colNorm.includes('vezes') || colNorm.includes('frequencia') || colNorm.includes('x/sem') || colNorm.includes('x/semana')) {
+      } else if (eQuantidadeSemana) {
         mapeamento[coluna] = 'quantidadeSemana';
+      } else if (colNorm.includes('passa') || colNorm.includes('dias') || colNorm.includes('dia') || colNorm.includes('escala') || colNorm.includes('semana') || colNorm.includes('rotina')) {
+        mapeamento[coluna] = 'diaDaSemana';
       } else if (colNorm.includes('ultim') || colNorm.includes('ult') || colNorm.includes('anterior')) {
         mapeamento[coluna] = 'ultimaAutorizacao';
       } else if (colNorm.includes('prox') || colNorm.includes('autorizacao')) {
@@ -258,8 +319,6 @@ export class LegacyImportService {
         mapeamento[coluna] = 'polo';
       } else if (colNorm.includes('cpf')) {
         mapeamento[coluna] = 'cpf';
-      } else if (colNorm.includes('dia')) {
-        mapeamento[coluna] = 'diaDaSemana';
       } else if (colNorm.includes('pasta')) {
         mapeamento[coluna] = 'pastaDoutoraMefisa';
       } else if (colNorm.includes('convenio') || colNorm.includes('plano') || colNorm.includes('operadora')) {
@@ -291,34 +350,43 @@ export class LegacyImportService {
       let acertosDoutorMefisa = 0;
       let acertosSemanas = 0;
       let acertosProcedimento = 0;
+      let acertosQtdSessao = 0;
 
       for (let i = 0; i < amostraMax; i++) {
         const val = (amostraLinhas[i]?.[coluna] || '').trim();
         if (!val) continue;
 
-        // 1. Checa se o conteúdo da célula coincide com alguma Doutora Mefisa cadastrada
+        // 1. Checa se o conteúdo é frequência numérica pura ou com sufixos ("1", "2x", "3x/sem", "4 sessoes")
+        const numExtr = LegacyImportService.extrairNumeroSessoes(val);
+        if (numExtr > 0 && numExtr <= 14 && (val.length <= 15 || /\d+\s*(x|sess|vez|sem)/i.test(val))) {
+          acertosQtdSessao++;
+        }
+
+        // 2. Checa se o conteúdo da célula coincide com alguma Doutora Mefisa cadastrada
         const { prestador: pEnc, pontuacaoConfianca } = this.encontrarPrestadorPorPrimeiroNome(val, prestadores);
         if (pEnc && pontuacaoConfianca >= 60) {
           acertosDoutorMefisa++;
         }
 
-        // 2. Checa se o conteúdo da célula indica Dias do Atendimento usando parser inteligente
+        // 3. Checa se o conteúdo da célula indica Dias do Atendimento usando parser inteligente
         const resAtim = this.extrairDiasAtendimentoInteligente(val);
         if (resAtim.dias.length > 0 && val.length >= 2) {
           acertosSemanas++;
         }
 
-        // 3. Checa se coincide com procedimentos
+        // 4. Checa se coincide com procedimentos
         const { procedimento: procEnc } = this.encontrarProcedimentoPorTermo(val, procedimentos);
         if (procEnc) {
           acertosProcedimento++;
         }
       }
 
-      // Se a célula contiver o nome de uma Doutora Mefisa cadastrada, mapeia automaticamente para 'doutorMefisa'!
+      // Se a célula contiver o nome de uma Doutora Mefisa cadastrada, mapeia para 'doutorMefisa'!
       if (acertosDoutorMefisa >= Math.max(1, Math.floor(amostraMax * 0.2))) {
         mapeamento[coluna] = 'doutorMefisa';
-      } else if (acertosSemanas >= Math.max(1, Math.floor(amostraMax * 0.2))) {
+      } else if (acertosQtdSessao >= Math.max(1, Math.floor(amostraMax * 0.25)) && !mapeamento[coluna]) {
+        mapeamento[coluna] = 'quantidadeSemana';
+      } else if (acertosSemanas >= Math.max(1, Math.floor(amostraMax * 0.2)) && !mapeamento[coluna]) {
         mapeamento[coluna] = 'diaDaSemana';
       } else if (acertosProcedimento >= Math.max(1, Math.floor(amostraMax * 0.3)) && !mapeamento[coluna]) {
         mapeamento[coluna] = 'procedimento';
@@ -912,13 +980,22 @@ export class LegacyImportService {
           dadosMapeados.quantidadeSemana
         );
 
+        const procNome = dadosMapeados.procedimento || 'Psicologia ABA';
+
         // Criar novo paciente com Próxima Autorização histórica e flag de irregularidade
         const novoPacienteData = {
           nome: dadosMapeados.nome,
           carteirinha: dadosMapeados.carteirinha || 'PART-LEGADO-00',
           convenioId: 'conv-1',
           convenioNome: dadosMapeados.convenio || 'Convênio Legado',
-          procedimentoPrincipal: dadosMapeados.procedimento || 'Psicologia ABA',
+          procedimentoPrincipal: procNome,
+          procedimentos: [procNome],
+          frequenciasPorProcedimento: {
+            [procNome]: atimResPac.quantidadeSemana,
+          },
+          diasPorProcedimento: {
+            [procNome]: atimResPac.dias,
+          },
           prestadorId: prestadorEncontrado?.id || dadosMapeados.prestadorId || 'prest-1',
           prestadorNome: prestadorEncontrado?.nome || dadosMapeados.prestador || 'Dra. Ana Beatriz Albuquerque',
           doutoresAtendentesIds: doutorMefisaEncontrado ? [doutorMefisaEncontrado.id] : ['prest-1'],
