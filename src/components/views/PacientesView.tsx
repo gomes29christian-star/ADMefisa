@@ -877,18 +877,6 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
                 Autorizações Atrasadas
               </span>
             </label>
-
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={filtros.formularioVencidoApenas}
-                onChange={(e) => handleAtualizarFiltro({ formularioVencidoApenas: e.target.checked })}
-                className="rounded text-red-600 focus:ring-red-600"
-              />
-              <span className={filtros.formularioVencidoApenas ? 'font-bold text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-300'}>
-                Apenas formulários vencidos (180 dias)
-              </span>
-            </label>
           </div>
 
           <div className="text-[11px] text-slate-400 dark:text-slate-400">
@@ -1331,11 +1319,31 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
                             );
                           }
                           if (ehAutorizacaoAtrasada) {
+                            const rawData =
+                              dataEfetivaProc && dataEfetivaProc !== 'AUTORIZAÇÃO ATRASADA'
+                                ? dataEfetivaProc
+                                : pac.proximaAutorizacaoData && pac.proximaAutorizacaoData !== 'AUTORIZAÇÃO ATRASADA'
+                                ? pac.proximaAutorizacaoData
+                                : pac.ultimaAutorizacaoData;
+
+                            const dataBrFormatted = rawData ? formatarDataBr(rawData, showMonthInitials) : null;
+
                             return (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800 shadow-2xs font-mono" title="Alerta: Autorização Atrasada">
-                                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                                <span>AUTORIZAÇÃO ATRASADA</span>
-                              </span>
+                              <div className="flex flex-col gap-1 items-start font-mono">
+                                <span
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800 shadow-2xs"
+                                  title="Alerta: Autorização Atrasada"
+                                >
+                                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                  <span>AUTORIZAÇÃO ATRASADA</span>
+                                </span>
+                                {dataBrFormatted && (
+                                  <span className="text-[11px] font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1 pl-0.5">
+                                    <Calendar className="w-3 h-3 text-amber-600 shrink-0" />
+                                    <span>Vencida em: {dataBrFormatted}</span>
+                                  </span>
+                                )}
+                              </div>
                             );
                           }
                           if (pac.status === 'ENCERRADO' || pac.status === 'INATIVO' || !dataEfetivaProc) {

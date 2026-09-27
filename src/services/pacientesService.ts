@@ -1114,21 +1114,25 @@ export class PacientesService {
         return false;
       }
 
-      // 5. Busca rápida por: Nome, Carteirinha, CPF ou Responsável
+      // 5. Busca rápida por: Nome, Carteirinha, CPF, Prontuário, Responsável, Convênio, Procedimento, Prestador
       if (!t) return true;
 
+      const tDigits = t.replace(/\D/g, '');
+
       const nomeMatch = normalizarTexto(pac.nome || '').includes(t);
-      const carteirinhaMatch = (pac.carteirinhaAtual || pac.carteirinha || '')
-        .toLowerCase()
-        .includes(t);
-      const prontuarioMatch = (pac.codigoProntuario || '').toLowerCase().includes(t);
-      const cpfMatch = (pac.cpf || '').replace(/\D/g, '').includes(t.replace(/\D/g, ''));
+      const carteirinhaMatch = normalizarTexto(pac.carteirinhaAtual || pac.carteirinha || '').includes(t);
+      const prontuarioMatch = normalizarTexto(pac.codigoProntuario || '').includes(t);
+      const cpfMatch = tDigits.length >= 3 && (pac.cpf || '').replace(/\D/g, '').includes(tDigits);
 
       const respMatch = (pac.responsaveis || []).some((r) =>
-        normalizarTexto(r.nome).includes(t)
-      ) || normalizarTexto(pac.responsavelNome || '').includes(t);
+        normalizarTexto(r.nome || '').includes(t)
+      ) || normalizarTexto(pac.responsavelNome || pac.responsavelPrincipalNome || '').includes(t);
 
-      return nomeMatch || carteirinhaMatch || prontuarioMatch || cpfMatch || respMatch;
+      const convenioMatch = normalizarTexto(pac.convenioPrincipalNome || pac.convenioNome || '').includes(t);
+      const procedimentoMatch = normalizarTexto(pac.procedimentoPrincipal || '').includes(t);
+      const prestadorMatch = normalizarTexto(pac.prestadorNome || '').includes(t);
+
+      return nomeMatch || carteirinhaMatch || prontuarioMatch || cpfMatch || respMatch || convenioMatch || procedimentoMatch || prestadorMatch;
     });
   }
 

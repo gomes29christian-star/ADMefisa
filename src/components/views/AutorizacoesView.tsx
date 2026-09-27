@@ -33,7 +33,7 @@ import { DiaSemanaIndice, Prestador, Usuario } from '../../types/clinic';
 import { formatarDataBr, calcularAlinhamentoProximaAutorizacao, sanitizarCbo, contarOcorrenciasDiasNoMes, contarOcorrenciasDiasRestantesNoMes, calcularDatasSessoesAlinhadas } from '../../services/businessRules';
 import { useTheme } from '../../context/ThemeContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
-import { PacientesService } from '../../services/pacientesService';
+import { PacientesService, converterDataParaIso } from '../../services/pacientesService';
 import { ProcedimentosService, ProcedimentoCompleto } from '../../services/procedimentosService';
 import { identificarSessoesPorSemanaDoProcedimento } from '../../services/procedimentosPacienteService';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
@@ -494,9 +494,10 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         (typeof d === 'number' ? d : parseDiaSemanaNomeParaIndice(d)) as DiaSemanaIndice
       );
 
+      const pacProximaIso = converterDataParaIso(pac?.proximaAutorizacaoData);
       const autCalc = calcularAlinhamentoProximaAutorizacao({
         diaSemanaHabitual: diasArray,
-        dataInicioCicloStr: novaDataAutorizacaoCriacao || novaDataEmAnaliseDesde || new Date().toISOString().split('T')[0],
+        dataInicioCicloStr: novaDataAutorizacaoCriacao || novaDataEmAnaliseDesde || pacProximaIso || new Date().toISOString().split('T')[0],
         sessoesPorSemana: novoSessoesPorSemana || 1,
         quantidadeTotalSessoes: novoQuantidade || 4,
       });

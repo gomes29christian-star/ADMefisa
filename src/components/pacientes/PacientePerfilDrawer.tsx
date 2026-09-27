@@ -40,6 +40,7 @@ import {
   mascararCpf,
   mascararCarteirinha,
   calcularVencimentoFormulario,
+  converterDataParaIso,
 } from '../../services/pacientesService';
 import { EditarPacienteModal } from './EditarPacienteModal';
 import { TrocarCarteirinhaModal } from './TrocarCarteirinhaModal';
@@ -391,8 +392,10 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
     : [paciente.diaDaSemana || 'Segunda-feira'];
   const diasIndices = diasArrayNomes.map(converterDiaNomeParaIndice);
 
-  // A data de início do ciclo é exatamente a data do dia do atendimento
-  const dataInicioCiclo = dataAtendimentoIso;
+  // A data de início do ciclo se baseia na data da Próxima Autorização do paciente (quando definida e válida),
+  // e apenas se não houver data definida usa a data de hoje/atendimento como fallback.
+  const dataProximaPacIso = converterDataParaIso(paciente.proximaAutorizacaoData);
+  const dataInicioCiclo = dataProximaPacIso || dataAtendimentoIso;
 
   const alinhamentoCalc = calcularAlinhamentoProximaAutorizacao({
     diaSemanaHabitual: diasIndices as any,
@@ -1546,13 +1549,18 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
                   </div>
                 ) : paciente.autorizacaoAtrasada || paciente.proximaAutorizacaoData === 'AUTORIZAÇÃO ATRASADA' ? (
                   <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 shadow-2xs">
-                    <span className="text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300 block flex items-center gap-1">
+                    <span className="text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300 flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
                       Próxima Autorização
                     </span>
                     <span className="text-xs font-extrabold text-amber-900 dark:text-amber-100 block mt-1 uppercase">
                       AUTORIZAÇÃO ATRASADA
                     </span>
+                    {paciente.proximaAutorizacaoData && paciente.proximaAutorizacaoData !== 'AUTORIZAÇÃO ATRASADA' && (
+                      <span className="text-xs font-bold text-amber-900 dark:text-amber-200 block mt-1 font-mono">
+                        Vencida em: {formatarDataBr(paciente.proximaAutorizacaoData, showMonthInitials)}
+                      </span>
+                    )}
                     <span className="text-[10px] text-amber-700 dark:text-amber-400 block mt-0.5">
                       Autorização pendente/atrasada
                     </span>
