@@ -647,17 +647,17 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
       );
     });
 
+    if (pacienteEncontrado?.diasDaSemana && pacienteEncontrado.diasDaSemana.length > 0) {
+      return pacienteEncontrado.diasDaSemana.length;
+    }
     if (pacienteEncontrado?.sessoesPorSemana && pacienteEncontrado.sessoesPorSemana > 0) {
       return pacienteEncontrado.sessoesPorSemana;
     }
     if (pacienteEncontrado?.quantidadeSemana && pacienteEncontrado.quantidadeSemana > 0) {
       return pacienteEncontrado.quantidadeSemana;
     }
-    if (pacienteEncontrado?.diasDaSemana && pacienteEncontrado.diasDaSemana.length > 0) {
-      return pacienteEncontrado.diasDaSemana.length;
-    }
 
-    const sessoesSemana = obterSessoesPorSemanaPaciente(aut);
+    const sessoesSemana = 1;
     const datasSessoes = (aut.datasSessoesCustomizadas && aut.datasSessoesCustomizadas.length > 0)
       ? aut.datasSessoesCustomizadas
       : calcularDatasSessoes(

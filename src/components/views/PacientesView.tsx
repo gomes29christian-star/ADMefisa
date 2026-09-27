@@ -209,7 +209,7 @@ import { PacientePerfilDrawer } from '../pacientes/PacientePerfilDrawer';
 import { useTheme } from '../../context/ThemeContext';
 import { useSecretAchievements } from '../../context/SecretAchievementsContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
-import { formatarDataBr } from '../../services/businessRules';
+import { formatarDataBr, normalizarDiaSemana, normalizarEDeduplicarDiasSemana } from '../../services/businessRules';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
 
 import { obterBadgeColorProcedimento, CLASS_TABELA_LISTRADA_ROW } from '../../utils/procedureStyles';
@@ -219,17 +219,13 @@ const obterBadgeProcedimento = (proc: string) => obterBadgeColorProcedimento(pro
 const OPCOES_DIAS_ATENDIMENTO = ['seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
 
 const parseDiasAtendimento = (raw?: string, rawArray?: string[]): string[] => {
-  if (rawArray && rawArray.length > 0) {
-    return rawArray.map((s) => s.trim());
-  }
-  if (!raw) return ['seg.', 'ter.', 'qua.', 'qui.', 'sex.'];
-  const splitted = raw.split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
-  return splitted;
+  const { diasArray } = normalizarEDeduplicarDiasSemana(rawArray && rawArray.length > 0 ? rawArray : raw);
+  return diasArray.length > 0 ? diasArray : ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira'];
 };
 
 const isDiaAtivo = (dia: string, ativas: string[]): boolean => {
-  const diaNorm = dia.toLowerCase().replace('.', '');
-  return ativas.some((a) => a.toLowerCase().replace('.', '') === diaNorm);
+  const diaCanonico = normalizarDiaSemana(dia);
+  return ativas.some((a) => normalizarDiaSemana(a) === diaCanonico);
 };
 
 interface PacientesViewProps {
@@ -358,11 +354,10 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
 
             if (autCorrespondente) {
               if (autCorrespondente.status === 'CONCLUIDO' && autCorrespondente.proximaAutorizacao) {
-                return autCorrespondente.proximaAutorizacao;
+                return pac.proximaAutorizacaoData || autCorrespondente.proximaAutorizacao;
               }
-              // Se a autorização para este procedimento ainda não foi concluída (está EM_ANALISE ou RECUSADO), não exibe a data de outro procedimento concluído!
               if (autCorrespondente.status !== 'CONCLUIDO') {
-                return undefined;
+                return pac.proximaAutorizacaoData;
               }
             }
           }

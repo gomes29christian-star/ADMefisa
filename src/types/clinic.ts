@@ -102,6 +102,8 @@ export interface Paciente {
   diasDaSemana?: string[];
   quantidadeSemana?: number;
   sessoesPorSemana?: number;
+  frequenciasPorProcedimento?: Record<string, number>;
+  diasPorProcedimento?: Record<string, string[]>;
   doutoresAtendentesIds?: string[];
   doutoresAtendentesNomes?: string[];
   pastaDoutoraMefisa?: string;

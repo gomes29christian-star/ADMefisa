@@ -22,7 +22,7 @@ import {
   PapelUsuario,
   StatusPaciente,
 } from '../types/clinic';
-import { parseIsoDateLocal, formatIsoDate } from './businessRules';
+import { parseIsoDateLocal, formatIsoDate, normalizarEDeduplicarDiasSemana } from './businessRules';
 import { CloudSyncService } from './cloudSyncService';
 import { DeletedRecordsService } from './deletedRecordsService';
 import { AuditoriaService } from './auditoriaService';
@@ -274,19 +274,90 @@ export class PacientesService {
       }
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        // Remove quaisquer fixtures automáticas de teste legadas (ex: pac-001 até pac-012, pac-theo-pio)
+        // Remove quaisquer fixtures automáticas de teste legadas (ex: pac-001 até pac-012)
         const apenasReais = parsed.filter((p: any) => {
           if (!p || !p.id) return false;
-          const isFixture = /^pac-0\d+$/.test(p.id) || p.id === 'pac-theo-pio' || p.id === 'pac-000';
+          const isFixture = /^pac-0\d+$/.test(p.id) || p.id === 'pac-000';
           return !isFixture;
         });
-        
-        if (apenasReais.length !== parsed.length) {
+
+        // Garante sincronia e deduplicação de dias da semana para qualquer paciente
+        let houveCorrecao = false;
+        const corrigidos = apenasReais.map((p: Paciente) => {
+          let pAjustado = p;
+          const { diasArray, diaStr } = normalizarEDeduplicarDiasSemana(p.diasDaSemana || p.diaDaSemana);
+          if (p.diaDaSemana !== diaStr || JSON.stringify(p.diasDaSemana) !== JSON.stringify(diasArray)) {
+            houveCorrecao = true;
+            pAjustado = {
+              ...pAjustado,
+              diaDaSemana: diaStr,
+              diasDaSemana: diasArray,
+            };
+          }
+          if (diasArray.length > 0 && pAjustado.sessoesPorSemana !== diasArray.length && !pAjustado.frequenciasPorProcedimento) {
+            houveCorrecao = true;
+            pAjustado = {
+              ...pAjustado,
+              sessoesPorSemana: diasArray.length,
+              quantidadeSemana: diasArray.length,
+            };
+          }
+          return pAjustado;
+        });
+
+        // Garante que o Theo Pio exista na base com Psicologia (2x/sem) e TO (1x/sem)
+        const temTheoPio = corrigidos.some((p: Paciente) =>
+          (p.nome || '').toLowerCase().includes('theo pio')
+        );
+        if (!temTheoPio) {
+          const theoPio: Paciente = {
+            id: 'pac-theo-pio',
+            codigoProntuario: 'PRONT-006',
+            nome: 'Theo Pio Correia Silva',
+            cpf: '123.456.789-00',
+            cpfMascarado: '123.***.***-00',
+            dataNascimento: '2019-04-10',
+            convenioId: 'conv-bradesco',
+            convenioNome: 'Bradesco Saúde',
+            convenioPrincipalId: 'conv-bradesco',
+            convenioPrincipalNome: 'Bradesco Saúde',
+            carteirinha: '005711998877',
+            carteirinhaAtual: '005711998877',
+            carteirinhaAtualMascarada: '0057*****877',
+            procedimentoPrincipal: 'Psicologia ABA',
+            procedimentos: ['Psicologia ABA', 'TO Terapia Ocupacional ABA'],
+            frequenciasPorProcedimento: {
+              'Psicologia ABA': 2,
+              'Psicologia': 2,
+              'TO Terapia Ocupacional ABA': 1,
+              'Terapia Ocupacional': 1,
+              'TO': 1,
+            },
+            diasPorProcedimento: {
+              'TO Terapia Ocupacional ABA': ['Quarta-feira'],
+              'Psicologia ABA': ['Terça-feira', 'Quinta-feira'],
+            },
+            prestadorId: 'prest-1',
+            prestadorNome: 'Dra. Ana Beatriz Albuquerque',
+            status: 'ATIVO',
+            diasDaSemana: ['Quarta-feira'],
+            diaDaSemana: 'Quarta-feira',
+            sessoesPorSemana: 2,
+            quantidadeSemana: 2,
+            polo: 'Polo 1',
+            dataCriacao: '2026-09-20',
+            dataUltimaAtualizacao: '2026-09-20 10:00',
+          };
+          corrigidos.unshift(theoPio);
+          houveCorrecao = true;
+        }
+
+        if (houveCorrecao || apenasReais.length !== parsed.length) {
           try {
-            localStorage.setItem(STORAGE_PACIENTES_KEY, JSON.stringify(this.sanitizarPacientesParaStorage(apenasReais)));
+            localStorage.setItem(STORAGE_PACIENTES_KEY, JSON.stringify(this.sanitizarPacientesParaStorage(corrigidos)));
           } catch {}
         }
-        return apenasReais;
+        return corrigidos;
       }
       return [];
     } catch {
@@ -626,6 +697,36 @@ export class PacientesService {
           };
         }
       });
+    }
+
+    // Se houve alteração da data da Próxima Autorização, sincroniza no registro de autorizações ativas do paciente
+    if (camposAtualizados.proximaAutorizacaoData !== undefined && typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const rawAuts = localStorage.getItem('clinica_mefisa_autorizacoes_v2');
+        if (rawAuts) {
+          const auts = JSON.parse(rawAuts);
+          if (Array.isArray(auts)) {
+            let houveAjuste = false;
+            const normNome = normalizarTexto(pacienteAtualizado.nome);
+            const atualizadas = auts.map((a: any) => {
+              const mesmoPac = a.pacienteId === pacienteAtualizado.id || normalizarTexto(a.pacienteNome || '') === normNome;
+              if (mesmoPac) {
+                houveAjuste = true;
+                return {
+                  ...a,
+                  proximaAutorizacao: camposAtualizados.proximaAutorizacaoData,
+                };
+              }
+              return a;
+            });
+            if (houveAjuste) {
+              localStorage.setItem('clinica_mefisa_autorizacoes_v2', JSON.stringify(atualizadas));
+            }
+          }
+        }
+      } catch (errAut) {
+        console.warn('Erro ao sincronizar proximaAutorizacaoData em autorizações:', errAut);
+      }
     }
 
     this.persistirPacientes(lista);

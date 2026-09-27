@@ -30,11 +30,12 @@ import { AutorizacaoV2, StatusAutorizacao, HistoricoStatusAutorizacao } from '..
 import { carregarAutorizacoesIniciais, salvarAutorizacoesStorage, calcularDiasCorridos, registrarAuditoriaAutorizacao } from '../../services/autorizacoesService';
 import { MOCK_PACIENTES, MOCK_PRESTADORES, MOCK_CONVENIOS } from '../../data/mockClinicData';
 import { DiaSemanaIndice, Prestador, Usuario } from '../../types/clinic';
-import { formatarDataBr, calcularAlinhamentoProximaAutorizacao, sanitizarCbo } from '../../services/businessRules';
+import { formatarDataBr, calcularAlinhamentoProximaAutorizacao, sanitizarCbo, contarOcorrenciasDiasNoMes, contarOcorrenciasDiasRestantesNoMes, calcularDatasSessoesAlinhadas } from '../../services/businessRules';
 import { useTheme } from '../../context/ThemeContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
 import { PacientesService } from '../../services/pacientesService';
 import { ProcedimentosService, ProcedimentoCompleto } from '../../services/procedimentosService';
+import { identificarSessoesPorSemanaDoProcedimento } from '../../services/procedimentosPacienteService';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
 import { obterBadgeColorProcedimento, CLASS_TABELA_LISTRADA_ROW } from '../../utils/procedureStyles';
 
@@ -49,6 +50,36 @@ function parseDiaSemanaNomeParaIndice(diaNome?: string): DiaSemanaIndice {
   if (norm.includes('sabado')) return 6;
   if (norm.includes('domingo')) return 0;
   return 1;
+}
+
+function formatarDataComDiaSemanaBr(dataBrOuIso?: string | null): string {
+  if (!dataBrOuIso) return 'A definir';
+  try {
+    let d: Date;
+    let dtBr: string;
+    if (dataBrOuIso.includes('/')) {
+      const [dia, mes, ano] = dataBrOuIso.split('/').map(Number);
+      d = new Date(ano, mes - 1, dia);
+      dtBr = dataBrOuIso;
+    } else {
+      const [ano, mes, dia] = dataBrOuIso.split('-').map(Number);
+      d = new Date(ano, mes - 1, dia);
+      dtBr = formatarDataBr(dataBrOuIso);
+    }
+    const DIAS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const diaNome = DIAS[d.getDay()] || '';
+    return `${dtBr} (${diaNome})`;
+  } catch {
+    return dataBrOuIso;
+  }
+}
+
+function formatarDiasAtendimentoTexto(diasBruto?: any): string {
+  if (!diasBruto) return 'Terça-feira (Padrão)';
+  const lista = Array.isArray(diasBruto) ? diasBruto : [diasBruto];
+  if (lista.length === 0) return 'Terça-feira (Padrão)';
+  const DIAS_NOMES = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+  return lista.map((d) => (typeof d === 'number' ? DIAS_NOMES[d] || 'Terça-feira' : String(d))).join(', ');
 }
 
 interface AutorizacoesViewProps {
@@ -220,7 +251,11 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         codigoProntuario: p.codigoProntuario || '',
         cpf: p.cpf || '',
         doutoresAtendentesNomes: p.doutoresAtendentesNomes || [],
-        sessoesPorSemana: p.sessoesPorSemana || 3,
+        sessoesPorSemana:
+          (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0 ? p.diasDaSemana.length : undefined) ||
+          (p.sessoesPorSemana && p.sessoesPorSemana > 0 ? p.sessoesPorSemana : undefined) ||
+          (p.quantidadeSemana && p.quantidadeSemana > 0 ? p.quantidadeSemana : undefined) ||
+          1,
       });
     };
 
@@ -263,7 +298,8 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
   const [novoPrestador, setNovoPrestador] = useState(MOCK_PRESTADORES[0]?.nome || 'Dra. Ana Beatriz');
   const [pesquisaPrestador, setPesquisaPrestador] = useState(MOCK_PRESTADORES[0]?.nome || 'Dra. Ana Beatriz');
   const [prestadorDropdownAberto, setPrestadorDropdownAberto] = useState(false);
-  const [novoSessoesPorSemana, setNovoSessoesPorSemana] = useState(3);
+  const [novoSessoesPorSemana, setNovoSessoesPorSemana] = useState(2);
+  const [modoCiclo, setModoCiclo] = useState<'MES_INTEIRO' | 'RESTANTE'>('MES_INTEIRO');
   const [novoStatusCriacao, setNovoStatusCriacao] = useState<StatusAutorizacao>('EM_ANALISE');
   const [novaDataEmAnaliseDesde, setNovaDataEmAnaliseDesde] = useState(() => new Date().toISOString().split('T')[0]);
   const [novoNumeroGuiaCriacao, setNovoNumeroGuiaCriacao] = useState('');
@@ -272,6 +308,11 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
   const [novaValidadeSenhaCriacao, setNovaValidadeSenhaCriacao] = useState('');
   const [novoMotivoRecusaCriacao, setNovoMotivoRecusaCriacao] = useState('');
   const [novaObservacoes, setNovaObservacoes] = useState('');
+  const [novoProximaAutorizacao, setNovoProximaAutorizacao] = useState('');
+  const [foiEditadoProximaAut, setFoiEditadoProximaAut] = useState(false);
+
+  const [proximaAutorizacaoRes, setProximaAutorizacaoRes] = useState('');
+  const [foiEditadoProximaAutRes, setFoiEditadoProximaAutRes] = useState(false);
 
   // Paciente atualmente selecionado no modal
   const pacienteSelecionadoObj = useMemo(() => {
@@ -280,12 +321,12 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
 
   // Busca e consolidação universal de dados por NOME DO PACIENTE em todas as fontes
   const obterDadosConsolidadosDoPaciente = (nomePac: string, idPac?: string) => {
-    if (!nomePac && !idPac) return { procedimentos: [], operadora: '', prestador: '', sessoesPorSemana: 3 };
+    if (!nomePac && !idPac) return { procedimentos: [], operadora: '', prestador: '', sessoesPorSemana: 1 };
 
     const procsSet = new Set<string>();
     let operadoraEncontrada = '';
     let prestadorEncontrado = '';
-    let sessoesEncontradas = 3;
+    let sessoesEncontradas = 1;
 
     const nomesCoincidem = (n1: string, n2: string) => {
       if (!n1 || !n2) return false;
@@ -306,7 +347,10 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         }
         if (!operadoraEncontrada) operadoraEncontrada = p.convenioPrincipalNome || p.convenioNome || '';
         if (!prestadorEncontrado) prestadorEncontrado = p.prestadorNome || '';
-        const sQtd = p.sessoesPorSemana || p.quantidadeSemana || (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0 ? p.diasDaSemana.length : undefined);
+        const sQtd = (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0)
+          ? p.diasDaSemana.length
+          : (p.sessoesPorSemana && p.sessoesPorSemana > 0 ? p.sessoesPorSemana : undefined) ||
+            (p.quantidadeSemana && p.quantidadeSemana > 0 ? p.quantidadeSemana : undefined);
         if (sQtd) sessoesEncontradas = sQtd;
       }
     });
@@ -322,7 +366,10 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         }
         if (!operadoraEncontrada) operadoraEncontrada = p.convenioPrincipalNome || p.convenioNome || '';
         if (!prestadorEncontrado) prestadorEncontrado = p.prestadorNome || '';
-        const sQtd = p.sessoesPorSemana || p.quantidadeSemana || (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0 ? p.diasDaSemana.length : undefined);
+        const sQtd = (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0)
+          ? p.diasDaSemana.length
+          : (p.sessoesPorSemana && p.sessoesPorSemana > 0 ? p.sessoesPorSemana : undefined) ||
+            (p.quantidadeSemana && p.quantidadeSemana > 0 ? p.quantidadeSemana : undefined);
         if (sQtd) sessoesEncontradas = sQtd;
       }
     });
@@ -333,7 +380,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         if (a.procedimento) procsSet.add(a.procedimento.trim());
         if (!operadoraEncontrada && a.operadora) operadoraEncontrada = a.operadora;
         if (!prestadorEncontrado && a.prestador) prestadorEncontrado = a.prestador;
-        if (!sessoesEncontradas && a.sessoesPorSemana) sessoesEncontradas = a.sessoesPorSemana;
+        if (sessoesEncontradas === 1 && a.sessoesPorSemana) sessoesEncontradas = a.sessoesPorSemana;
       }
     });
 
@@ -378,38 +425,52 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       setPesquisaPrestador(prestadorNome);
     }
 
-    // Prioridade máxima para a frequência cadastrada no perfil do paciente
-    const sessoes =
-      (pac.sessoesPorSemana && pac.sessoesPorSemana > 0 ? pac.sessoesPorSemana : undefined) ||
-      (pac.quantidadeSemana && pac.quantidadeSemana > 0 ? pac.quantidadeSemana : undefined) ||
-      (Array.isArray(pac.diasDaSemana) && pac.diasDaSemana.length > 0 ? pac.diasDaSemana.length : undefined) ||
-      (dados.sessoesPorSemana && dados.sessoesPorSemana > 0 ? dados.sessoesPorSemana : undefined) ||
-      (autAnteriorProc?.sessoesPorSemana && autAnteriorProc.sessoesPorSemana > 0 ? autAnteriorProc.sessoesPorSemana : undefined) ||
-      1;
-
+    const sessoes = identificarSessoesPorSemanaDoProcedimento(pac, procNome, autorizacoes);
     setNovoSessoesPorSemana(sessoes);
   };
 
-  // Semanas calculadas até o fim do mês com base no mês corrente
-  const semanasAteFimDoMes = useMemo(() => {
+  // Cálculo exato de sessões e semanas para Mês Completo (calendário real)
+  const dadosCalculadosMes = useMemo(() => {
     try {
-      const dataBase = new Date();
-      const ano = dataBase.getFullYear();
-      const mes = dataBase.getMonth();
-      const ultimoDiaMes = new Date(ano, mes + 1, 0).getDate();
-      const diaReferencia = Math.min(dataBase.getDate(), ultimoDiaMes);
-      const diasRestantes = Math.max(1, ultimoDiaMes - diaReferencia + 1);
-      const semanas = Math.max(1, Math.ceil(diasRestantes / 7));
-      return semanas || 4;
-    } catch {
-      return 4;
-    }
-  }, []);
+      const dataRef = novaDataAutorizacaoCriacao ? new Date(novaDataAutorizacaoCriacao + 'T12:00:00') : new Date();
+      const ano = dataRef.getFullYear();
+      const mes = dataRef.getMonth();
 
-  // Quantidade total de sessões multiplicada automaticamente pela quantidade de semanas até o fim do mês
+      const diasPac = pacienteSelecionadoObj?.diasPorProcedimento?.[novoProcedimento] ||
+                      pacienteSelecionadoObj?.diasDaSemana ||
+                      [pacienteSelecionadoObj?.diaDaSemana || 'Terça-feira'];
+
+      return contarOcorrenciasDiasNoMes(ano, mes, diasPac, novoSessoesPorSemana || 1);
+    } catch {
+      return { totalSessoes: (novoSessoesPorSemana || 1) * 4, totalSemanas: 4, detalheDias: '' };
+    }
+  }, [novaDataAutorizacaoCriacao, pacienteSelecionadoObj, novoProcedimento, novoSessoesPorSemana]);
+
+  // Cálculo exato de sessões e semanas para Período Restante do Mês (calendário real)
+  const dadosCalculadosRestante = useMemo(() => {
+    try {
+      const dataRefStr = novaDataAutorizacaoCriacao || new Date().toISOString().split('T')[0];
+
+      const diasPac = pacienteSelecionadoObj?.diasPorProcedimento?.[novoProcedimento] ||
+                      pacienteSelecionadoObj?.diasDaSemana ||
+                      [pacienteSelecionadoObj?.diaDaSemana || 'Terça-feira'];
+
+      return contarOcorrenciasDiasRestantesNoMes(dataRefStr, diasPac, novoSessoesPorSemana || 1);
+    } catch {
+      return { totalSessoes: novoSessoesPorSemana || 1, totalSemanas: 1 };
+    }
+  }, [novaDataAutorizacaoCriacao, pacienteSelecionadoObj, novoProcedimento, novoSessoesPorSemana]);
+
+  const semanasCalculadas = modoCiclo === 'MES_INTEIRO' ? dadosCalculadosMes.totalSemanas : dadosCalculadosRestante.totalSemanas;
+  const sessoesExatasNoMesCompleto = dadosCalculadosMes.totalSessoes;
+
+  // Quantidade total de sessões calculada automaticamente para o mês completo (calendário real) ou restante
   const novoQuantidade = useMemo(() => {
-    return Math.max(1, (novoSessoesPorSemana || 1) * (semanasAteFimDoMes || 4));
-  }, [novoSessoesPorSemana, semanasAteFimDoMes]);
+    if (modoCiclo === 'MES_INTEIRO') {
+      return dadosCalculadosMes.totalSessoes;
+    }
+    return dadosCalculadosRestante.totalSessoes;
+  }, [modoCiclo, dadosCalculadosMes, dadosCalculadosRestante]);
 
   // Lista de Procedimentos registrados (excluindo Avaliações e Reavaliações)
   const listaProcedimentos = useMemo(() => {
@@ -422,11 +483,136 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
     });
   }, [isNovoModalAberto]);
 
+  // Recalcula a data da Próxima Autorização automaticamente no modal de criação quando os parâmetros mudam
   useEffect(() => {
-    if (isNovoModalAberto) {
-      setNovaDataEmAnaliseDesde(new Date().toISOString().split('T')[0]);
+    if (!foiEditadoProximaAut && isNovoModalAberto) {
+      const pac = pacienteSelecionadoObj;
+      const diasPac = pac?.diasPorProcedimento?.[novoProcedimento] ||
+                      pac?.diasDaSemana ||
+                      (pac?.diaDaSemana ? [pac.diaDaSemana] : ['Terça-feira']);
+      const diasArray: DiaSemanaIndice[] = (Array.isArray(diasPac) ? diasPac : [diasPac]).map((d) =>
+        (typeof d === 'number' ? d : parseDiaSemanaNomeParaIndice(d)) as DiaSemanaIndice
+      );
+
+      const autCalc = calcularAlinhamentoProximaAutorizacao({
+        diaSemanaHabitual: diasArray,
+        dataInicioCicloStr: novaDataAutorizacaoCriacao || novaDataEmAnaliseDesde || new Date().toISOString().split('T')[0],
+        sessoesPorSemana: novoSessoesPorSemana || 1,
+        quantidadeTotalSessoes: novoQuantidade || 4,
+      });
+
+      setNovoProximaAutorizacao(autCalc.dataProximaAutorizacaoCalculada);
     }
-  }, [isNovoModalAberto]);
+  }, [
+    isNovoModalAberto,
+    foiEditadoProximaAut,
+    pacienteSelecionadoObj,
+    novaDataAutorizacaoCriacao,
+    novaDataEmAnaliseDesde,
+    novoSessoesPorSemana,
+    novoQuantidade,
+    novoProcedimento,
+  ]);
+
+  // Recalcula a data da Próxima Autorização no modal de registrar resultado quando a data da autorização muda
+  useEffect(() => {
+    if (autorizacaoParaResultado && !foiEditadoProximaAutRes) {
+      const pac = listaPacientes.find(
+        (p) => p.id === autorizacaoParaResultado.pacienteId || p.nome.toLowerCase() === autorizacaoParaResultado.pacienteNome.toLowerCase()
+      );
+      const diasPac = pac?.diasPorProcedimento?.[autorizacaoParaResultado.procedimento] ||
+                      pac?.diasDaSemana ||
+                      (pac?.diaDaSemana ? [pac.diaDaSemana] : ['Terça-feira']);
+      const diasArray: DiaSemanaIndice[] = (Array.isArray(diasPac) ? diasPac : [diasPac]).map((d) =>
+        (typeof d === 'number' ? d : parseDiaSemanaNomeParaIndice(d)) as DiaSemanaIndice
+      );
+
+      const alinhamento = calcularAlinhamentoProximaAutorizacao({
+        diaSemanaHabitual: diasArray,
+        dataInicioCicloStr: dataAutRes || autorizacaoParaResultado.dataSolicitacao || new Date().toISOString().split('T')[0],
+        sessoesPorSemana: autorizacaoParaResultado.sessoesPorSemana || 1,
+        quantidadeTotalSessoes: autorizacaoParaResultado.quantidadeSolicitada || 4,
+      });
+
+      setProximaAutorizacaoRes(alinhamento.dataProximaAutorizacaoCalculada);
+    }
+  }, [autorizacaoParaResultado, dataAutRes, foiEditadoProximaAutRes, listaPacientes]);
+
+  // Data da última sessão calculada pelo sistema (Modal de Criação)
+  const dataUltimaSessaoCalculada = useMemo(() => {
+    try {
+      const dataRefStr = novaDataAutorizacaoCriacao || new Date().toISOString().split('T')[0];
+      const diasPac = pacienteSelecionadoObj?.diasPorProcedimento?.[novoProcedimento] ||
+                      pacienteSelecionadoObj?.diasDaSemana ||
+                      [pacienteSelecionadoObj?.diaDaSemana || 'Terça-feira'];
+      const diasArray: DiaSemanaIndice[] = (Array.isArray(diasPac) ? diasPac : [diasPac]).map((d) =>
+        (typeof d === 'number' ? d : parseDiaSemanaNomeParaIndice(d)) as DiaSemanaIndice
+      );
+
+      const sessoesCalc = calcularDatasSessoesAlinhadas({
+        dataInicioStr: dataRefStr,
+        quantidade: novoQuantidade || 4,
+        sessoesPorSemana: novoSessoesPorSemana || 1,
+        diasSemanaHabituais: diasArray,
+      });
+
+      if (sessoesCalc && sessoesCalc.length > 0) {
+        return sessoesCalc[sessoesCalc.length - 1];
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [novaDataAutorizacaoCriacao, pacienteSelecionadoObj, novoProcedimento, novoQuantidade, novoSessoesPorSemana]);
+
+  // Data da última sessão calculada pelo sistema (Modal de Resultado)
+  const dataUltimaSessaoCalculadaRes = useMemo(() => {
+    if (!autorizacaoParaResultado) return null;
+    try {
+      const pac = listaPacientes.find(
+        (p) => p.id === autorizacaoParaResultado.pacienteId || p.nome.toLowerCase() === autorizacaoParaResultado.pacienteNome.toLowerCase()
+      );
+      const diasPac = pac?.diasPorProcedimento?.[autorizacaoParaResultado.procedimento] ||
+                      pac?.diasDaSemana ||
+                      (pac?.diaDaSemana ? [pac.diaDaSemana] : ['Terça-feira']);
+      const diasArray: DiaSemanaIndice[] = (Array.isArray(diasPac) ? diasPac : [diasPac]).map((d) =>
+        (typeof d === 'number' ? d : parseDiaSemanaNomeParaIndice(d)) as DiaSemanaIndice
+      );
+
+      const sessoesCalc = calcularDatasSessoesAlinhadas({
+        dataInicioStr: dataAutRes || autorizacaoParaResultado.dataSolicitacao || new Date().toISOString().split('T')[0],
+        quantidade: autorizacaoParaResultado.quantidadeSolicitada || 4,
+        sessoesPorSemana: autorizacaoParaResultado.sessoesPorSemana || 1,
+        diasSemanaHabituais: diasArray,
+      });
+
+      if (sessoesCalc && sessoesCalc.length > 0) {
+        return sessoesCalc[sessoesCalc.length - 1];
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [autorizacaoParaResultado, dataAutRes, listaPacientes]);
+
+  const diasAtendimentoProcedimentoAtual = useMemo(() => {
+    if (!pacienteSelecionadoObj) return 'Terça-feira (Padrão)';
+    const diasPac = pacienteSelecionadoObj.diasPorProcedimento?.[novoProcedimento] ||
+                    pacienteSelecionadoObj.diasDaSemana ||
+                    (pacienteSelecionadoObj.diaDaSemana ? [pacienteSelecionadoObj.diaDaSemana] : ['Terça-feira']);
+    return formatarDiasAtendimentoTexto(diasPac);
+  }, [pacienteSelecionadoObj, novoProcedimento]);
+
+  const diasAtendimentoProcedimentoRes = useMemo(() => {
+    if (!autorizacaoParaResultado) return 'Terça-feira (Padrão)';
+    const pac = listaPacientes.find(
+      (p) => p.id === autorizacaoParaResultado.pacienteId || p.nome.toLowerCase() === autorizacaoParaResultado.pacienteNome.toLowerCase()
+    );
+    const diasPac = pac?.diasPorProcedimento?.[autorizacaoParaResultado.procedimento] ||
+                    pac?.diasDaSemana ||
+                    (pac?.diaDaSemana ? [pac.diaDaSemana] : ['Terça-feira']);
+    return formatarDiasAtendimentoTexto(diasPac);
+  }, [autorizacaoParaResultado, listaPacientes]);
 
   // Filtro de procedimentos restrito exclusivamente aos procedimentos que o paciente selecionado passa
   const listaProcedimentosFiltrados = useMemo(() => {
@@ -865,10 +1051,11 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       ? pacienteObj.diasSemanaHabituais
       : parseDiaSemanaNomeParaIndice(pacienteObj?.diaDaSemana);
 
-    const proximaAutCalculada = calcularAlinhamentoProximaAutorizacao({
+    const proximaAutCalculada = novoProximaAutorizacao || calcularAlinhamentoProximaAutorizacao({
       diaSemanaHabitual: diaIndice,
       dataInicioCicloStr: isConcluido && dataAutEfetiva ? dataAutEfetiva : dataSol,
-      sessoesPorSemana: novoSessoesPorSemana || 3,
+      sessoesPorSemana: novoSessoesPorSemana || 1,
+      quantidadeTotalSessoes: novoQuantidade || 4,
     }).dataProximaAutorizacaoCalculada;
 
     // Se criada já como Concluída (Autorizada), atualiza a última data de autorização no perfil do paciente sem sobrescrever os outros procedimentos
@@ -997,9 +1184,9 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       }
     }
 
-    // Quando CONFIRMADA (CONCLUIDO), a data da próxima autorização é marcada para o mês seguinte no dia da semana em que o paciente passa
-    let proximaDataAlinhada = autorizacaoParaResultado.proximaAutorizacao;
-    if (novoStatusRes === 'CONCLUIDO') {
+    // Quando CONFIRMADA (CONCLUIDO), a data da próxima autorização usa a data definida pelo usuário no preview ou calcula o alinhamento
+    let proximaDataAlinhada = proximaAutorizacaoRes || autorizacaoParaResultado.proximaAutorizacao;
+    if (novoStatusRes === 'CONCLUIDO' && !proximaAutorizacaoRes) {
       const pacEncontrado = listaPacientes.find(
         (p) => p.id === autorizacaoParaResultado.pacienteId || p.nome.toLowerCase() === autorizacaoParaResultado.pacienteNome.toLowerCase()
       );
@@ -1009,7 +1196,8 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       const alinhamento = calcularAlinhamentoProximaAutorizacao({
         diaSemanaHabitual: diaIndice,
         dataInicioCicloStr: dataAutRes || new Date().toISOString().split('T')[0],
-        sessoesPorSemana: autorizacaoParaResultado.sessoesPorSemana || 3,
+        sessoesPorSemana: autorizacaoParaResultado.sessoesPorSemana || 1,
+        quantidadeTotalSessoes: autorizacaoParaResultado.quantidadeSolicitada || 4,
       });
       proximaDataAlinhada = alinhamento.dataProximaAutorizacaoCalculada;
     }
@@ -1668,6 +1856,55 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                         className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-white"
                         required={novoStatusRes === 'CONCLUIDO'}
                       />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+                        <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <span>Data da Próxima Autorização (Início do Próximo Ciclo)</span>
+                      </label>
+                      <span className="text-[10px] bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full font-semibold">
+                        Preview Editável
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                      <input
+                        type="date"
+                        value={proximaAutorizacaoRes}
+                        onChange={(e) => {
+                          setProximaAutorizacaoRes(e.target.value);
+                          setFoiEditadoProximaAutRes(true);
+                        }}
+                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded-lg font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500"
+                      />
+                      <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                        <span>Data formatada:</span>
+                        <strong className="text-blue-900 dark:text-blue-300 font-bold">
+                          {proximaAutorizacaoRes ? formatarDataComDiaSemanaBr(proximaAutorizacaoRes) : 'A definir'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-blue-200/60 dark:border-blue-800/60 text-[11px] space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5 text-blue-950 dark:text-blue-200 font-medium">
+                        <span className="font-bold text-blue-900 dark:text-blue-300">📅 Dia(s) de atendimento deste procedimento:</span>
+                        <span className="bg-blue-100 dark:bg-blue-900/90 px-2 py-0.5 rounded font-bold text-blue-950 dark:text-blue-100">
+                          {diasAtendimentoProcedimentoRes}
+                        </span>
+                      </div>
+                      {dataUltimaSessaoCalculadaRes && (
+                        <div className="flex flex-wrap items-center gap-1.5 text-blue-950 dark:text-blue-200 font-medium">
+                          <span className="font-bold text-blue-900 dark:text-blue-300">🏁 Última sessão calculada pelo sistema:</span>
+                          <span className="bg-blue-100 dark:bg-blue-900/80 px-2 py-0.5 rounded font-bold font-mono text-blue-950 dark:text-blue-100">
+                            {formatarDataComDiaSemanaBr(dataUltimaSessaoCalculadaRes)}
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-[10.5px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                        💡 <strong>Lembrete:</strong> Data prevista para a próxima solicitação. Você pode alterá-la livremente agora ou editar posteriormente na etapa de <strong>Faturamento</strong>.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -2352,9 +2589,32 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                         {novoSessoesPorSemana === 1 ? 'sessão/sem' : 'sessões/sem'}
                       </span>
                     </div>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      • {semanasAteFimDoMes} {semanasAteFimDoMes === 1 ? 'semana' : 'semanas'} no ciclo
-                    </span>
+
+                    {/* Alternador de Período: Mês Inteiro vs Restante do Mês */}
+                    <div className="flex flex-wrap items-center bg-white dark:bg-slate-900 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setModoCiclo('MES_INTEIRO')}
+                        className={`px-2.5 py-1.5 rounded-lg font-bold transition-all text-center ${
+                          modoCiclo === 'MES_INTEIRO'
+                            ? 'bg-blue-600 text-white shadow-2xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Até a Última Semana do Próximo Mês — ({dadosCalculadosMes.totalSemanas} sem)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModoCiclo('RESTANTE')}
+                        className={`px-2.5 py-1.5 rounded-lg font-bold transition-all text-center ${
+                          modoCiclo === 'RESTANTE'
+                            ? 'bg-blue-600 text-white shadow-2xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Até a última Sessão deste mês — ({dadosCalculadosRestante.totalSemanas} sem)
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -2511,6 +2771,56 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                   />
                 </div>
               )}
+
+              {/* Campo Preview e Edição da Próxima Autorização */}
+              <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>Data da Próxima Autorização (Início do Próximo Ciclo)</span>
+                  </label>
+                  <span className="text-[10px] bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full font-semibold">
+                    Preview Editável
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                  <input
+                    type="date"
+                    value={novoProximaAutorizacao}
+                    onChange={(e) => {
+                      setNovoProximaAutorizacao(e.target.value);
+                      setFoiEditadoProximaAut(true);
+                    }}
+                    className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded-lg font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                    <span>Data formatada:</span>
+                    <strong className="text-blue-900 dark:text-blue-300 font-bold">
+                      {novoProximaAutorizacao ? formatarDataComDiaSemanaBr(novoProximaAutorizacao) : 'A definir'}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-blue-200/60 dark:border-blue-800/60 text-[11px] space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5 text-blue-950 dark:text-blue-200 font-medium">
+                    <span className="font-bold text-blue-900 dark:text-blue-300">📅 Dia(s) de atendimento deste procedimento:</span>
+                    <span className="bg-blue-100 dark:bg-blue-900/90 px-2 py-0.5 rounded font-bold text-blue-950 dark:text-blue-100">
+                      {diasAtendimentoProcedimentoAtual}
+                    </span>
+                  </div>
+                  {dataUltimaSessaoCalculada && (
+                    <div className="flex flex-wrap items-center gap-1.5 text-blue-950 dark:text-blue-200 font-medium">
+                      <span className="font-bold text-blue-900 dark:text-blue-300">🏁 Última sessão calculada pelo sistema:</span>
+                      <span className="bg-blue-100 dark:bg-blue-900/80 px-2 py-0.5 rounded font-bold font-mono text-blue-950 dark:text-blue-100">
+                        {formatarDataComDiaSemanaBr(dataUltimaSessaoCalculada)}
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-[10.5px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                    💡 <strong>Lembrete:</strong> Data prevista para a próxima solicitação. Você pode alterá-la livremente agora ou editar posteriormente na etapa de <strong>Faturamento</strong>.
+                  </p>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">

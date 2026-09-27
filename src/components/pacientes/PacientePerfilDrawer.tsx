@@ -53,8 +53,10 @@ import {
   parseIsoDateLocal,
   identificarDiaSemana,
   formatarDiaSemanaPt,
+  normalizarEDeduplicarDiasSemana,
 } from '../../services/businessRules';
 import { ProcedimentosService } from '../../services/procedimentosService';
+import { identificarSessoesPorSemanaDoProcedimento } from '../../services/procedimentosPacienteService';
 import { VisualizadorFormularioModal } from './VisualizadorFormularioModal';
 import { FormularioStorageService } from '../../services/formularioStorageService';
 import { converterArquivoParaImagens } from '../../services/pdfConverterService';
@@ -370,14 +372,7 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
   ) || todosProcedimentos[0];
 
   const codigoProcedimentoApenasNumeros = (procEncontrado?.codigo || '66600480').replace(/\D/g, '');
-  const sessoesPorSemana =
-    (paciente.sessoesPorSemana && paciente.sessoesPorSemana > 0)
-      ? paciente.sessoesPorSemana
-      : (paciente.quantidadeSemana && paciente.quantidadeSemana > 0)
-      ? paciente.quantidadeSemana
-      : (paciente.diasDaSemana && paciente.diasDaSemana.length > 0)
-      ? paciente.diasDaSemana.length
-      : (procEncontrado?.sessoesPorSemanaPadrao || 1);
+  const sessoesPorSemana = identificarSessoesPorSemanaDoProcedimento(paciente, procDescOuCod);
 
   const converterDiaNomeParaIndice = (nome: string): number => {
     const n = (nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -1522,7 +1517,7 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
                 <div>
                   <span className="text-slate-500 text-[11px]">Dia da Semana & Frequência: </span>
                   <span className="font-semibold text-emerald-800 dark:text-emerald-300">
-                    {paciente.diaDaSemana || 'Segunda-feira'} ({paciente.sessoesPorSemana || paciente.quantidadeSemana || 1}x/sem)
+                    {normalizarEDeduplicarDiasSemana(paciente.diasDaSemana || paciente.diaDaSemana).diaStr || paciente.diaDaSemana || 'Segunda-feira'} ({paciente.sessoesPorSemana || paciente.quantidadeSemana || 1}x/sem)
                   </span>
                 </div>
               </div>
