@@ -1,6 +1,7 @@
 import { Usuario } from '../types/clinic';
 import { MOCK_USUARIOS } from '../data/mockClinicData';
 import { AuditoriaService } from './auditoriaService';
+import { CloudSyncService } from './cloudSyncService';
 
 export interface UsuarioDeletado {
   id: string;
@@ -122,6 +123,11 @@ export const carregarUsuariosIniciais = (): Usuario[] => {
 export const salvarUsuariosStorage = (usuarios: Usuario[]) => {
   try {
     setStorageItem(STORAGE_KEY_USUARIOS, JSON.stringify(usuarios));
+    usuarios.forEach((u) => {
+      try {
+        CloudSyncService.salvarUsuarioNuvem(u);
+      } catch (err) {}
+    });
   } catch (e) {
     console.error('Erro ao salvar usuários:', e);
   }

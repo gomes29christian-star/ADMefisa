@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Lock, ShieldAlert, ArrowRight, AlertTriangle, BellRing } from 'lucide-react';
+import { Lock, ShieldAlert, ArrowRight, AlertTriangle, BellRing, Database, Upload, CheckCircle2, X } from 'lucide-react';
 import { Usuario } from '../../types/clinic';
 import { verificarSenhaUsuarioDeletado, notificarAdmsTentativaAcessoDeletado } from '../../services/userService';
+import { BackupSyncService } from '../../services/backupSyncService';
 
 interface LoginLockScreenProps {
   usuarios: Usuario[];
@@ -15,6 +16,9 @@ export const LoginLockScreen: React.FC<LoginLockScreenProps> = ({
   const [pastedPassword, setPastedPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isDeletedAlert, setIsDeletedAlert] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [backupText, setBackupText] = useState('');
+  const [backupFeedback, setBackupFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +59,41 @@ export const LoginLockScreen: React.FC<LoginLockScreenProps> = ({
     }
 
     // 3. Senha comum incorreta
-    setErrorMessage('Senha incorreta ou não encontrada. Verifique a senha do sistema.');
+    setErrorMessage('Senha incorreta ou não encontrada. Verifique a senha do sistema ou restaure um arquivo de backup.');
+  };
+
+  const handleRestaurarArquivoJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target?.result as string;
+      if (!content) return;
+      const res = BackupSyncService.restaurarBackup(content);
+      if (res.sucesso) {
+        setBackupFeedback({ tipo: 'sucesso', msg: 'Backup restaurado com sucesso neste computador! Recarregando...' });
+        setTimeout(() => {
+          window.location.reload();
+        }, 1200);
+      } else {
+        setBackupFeedback({ tipo: 'erro', msg: res.mensagem });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleRestaurarTextoJson = () => {
+    if (!backupText.trim()) return;
+    const res = BackupSyncService.restaurarBackup(backupText.trim());
+    if (res.sucesso) {
+      setBackupFeedback({ tipo: 'sucesso', msg: 'Backup restaurado com sucesso neste computador! Recarregando...' });
+      setTimeout(() => {
+        window.location.reload();
+      }, 1200);
+    } else {
+      setBackupFeedback({ tipo: 'erro', msg: res.mensagem });
+    }
   };
 
   return (
@@ -70,7 +108,7 @@ export const LoginLockScreen: React.FC<LoginLockScreenProps> = ({
               Sessão Bloqueada
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Cole sua senha extremamente longa do sistema para restaurar o acesso à clínica.
+              Cole sua senha do sistema ou restaure o arquivo de backup para liberar este computador.
             </p>
           </div>
         </div>
@@ -78,7 +116,7 @@ export const LoginLockScreen: React.FC<LoginLockScreenProps> = ({
         <form onSubmit={handleLoginSubmit} className="p-8 pt-0 space-y-4">
           <div className="space-y-1.5 text-left">
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-              Senha Extremamente Longa do Sistema
+              Senha Extremamente Longa do Sistema ou PIN (1234)
             </label>
             <textarea
               rows={3}
@@ -91,7 +129,7 @@ export const LoginLockScreen: React.FC<LoginLockScreenProps> = ({
                   setIsDeletedAlert(false);
                 }
               }}
-              placeholder="Cole aqui a sua senha gerada pelo sistema (ex: mefisa_sys_sec_...)"
+              placeholder="Cole aqui a sua senha gerada pelo sistema (ex: mefisa_sys_sec_...) ou o PIN de admin (1234)"
               className={`w-full px-3 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-mono text-slate-800 dark:text-slate-100 focus:ring-2 resize-none ${
                 isDeletedAlert
                   ? 'border-rose-500 focus:ring-rose-500 bg-rose-50/20 dark:bg-rose-950/20'
@@ -132,8 +170,104 @@ export const LoginLockScreen: React.FC<LoginLockScreenProps> = ({
             <span>Desbloquear e Entrar</span>
             <ArrowRight className="w-4 h-4 text-[#91CA0C]" />
           </button>
+
+          {/* Botão de Restauração de Backup no Novo Computador */}
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
+            <button
+              type="button"
+              onClick={() => setIsBackupModalOpen(true)}
+              className="text-xs text-blue-700 dark:text-blue-400 hover:underline font-bold flex items-center justify-center gap-1.5 mx-auto"
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span>Sincronizar / Restaurar Backup neste PC</span>
+            </button>
+          </div>
         </form>
       </div>
+
+      {/* Modal de Restauração no Login */}
+      {isBackupModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 space-y-4 border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Database className="w-5 h-5 text-[#002172] dark:text-blue-400" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Restaurar Backup neste Computador
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBackupModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Importe o arquivo `.json` gerado no seu computador principal para atualizar instantaneamente todos os usuários e senhas neste navegador.
+            </p>
+
+            {backupFeedback && (
+              <div
+                className={`p-3 rounded-xl border text-xs font-bold flex items-center gap-2 ${
+                  backupFeedback.tipo === 'sucesso'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800'
+                    : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800'
+                }`}
+              >
+                {backupFeedback.tipo === 'sucesso' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{backupFeedback.msg}</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {/* Opção 1: Upload do Arquivo .json */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  1. Enviar Arquivo de Backup (.json)
+                </label>
+                <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100/50 cursor-pointer text-xs font-bold text-blue-900 dark:text-blue-200 transition-colors">
+                  <Upload className="w-4 h-4 text-blue-600" />
+                  <span>Selecionar Arquivo .json</span>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleRestaurarArquivoJson}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {/* Opção 2: Colar código JSON */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  2. Ou Cole o código do Backup (JSON)
+                </label>
+                <textarea
+                  rows={3}
+                  value={backupText}
+                  onChange={(e) => setBackupText(e.target.value)}
+                  placeholder="Cole o código do backup aqui..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-mono text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-[#002172]"
+                />
+                <button
+                  type="button"
+                  onClick={handleRestaurarTextoJson}
+                  className="w-full py-2 rounded-xl bg-[#002172] hover:bg-[#001752] text-white text-xs font-bold transition-colors"
+                >
+                  Restaurar Texto de Backup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -234,6 +234,41 @@ class CloudSyncManager {
       );
       this.unsubscribers.push(unsubAutorizacoes);
 
+      // 4. Sincronização de Usuários e Senhas do Sistema
+      const usuariosCol = collection(db, 'usuarios');
+      const unsubUsuarios = onSnapshot(
+        usuariosCol,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const remotos: any[] = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              if (data && data.id) {
+                remotos.push(data);
+              }
+            });
+
+            if (remotos.length > 0) {
+              const localRaw = localStorage.getItem('clinica_mefisa_usuarios_custom_v1');
+              const localList: any[] = localRaw ? JSON.parse(localRaw) : [];
+
+              const map = new Map<string, any>();
+              localList.forEach((u) => map.set(u.id, u));
+              remotos.forEach((u) => map.set(u.id, u));
+
+              const merged = Array.from(map.values());
+              localStorage.setItem('clinica_mefisa_usuarios_custom_v1', JSON.stringify(merged));
+              this.notify();
+            }
+          }
+        },
+        (error) => {
+          if (this.handleFirestoreError(error)) return;
+          console.warn('Sync de Usuários aguardando conectividade:', error.message);
+        }
+      );
+      this.unsubscribers.push(unsubUsuarios);
+
       // Carga inicial leve apenas se a nuvem estiver vazia e quota permitir
       this.uploadDadosLocaisParaNuvemSeNecessario();
     } catch (e) {
@@ -296,6 +331,20 @@ class CloudSyncManager {
     } catch (e: any) {
       if (this.handleFirestoreError(e)) return;
       console.warn('Erro ao salvar prestador no Firestore:', e);
+    }
+  }
+
+  /**
+   * Sincroniza usuário e senha na nuvem
+   */
+  public async salvarUsuarioNuvem(usuario: any): Promise<void> {
+    if (this.isQuotaExceeded() || !usuario?.id) return;
+    try {
+      const ref = doc(db, 'usuarios', usuario.id);
+      await setDoc(ref, usuario, { merge: true });
+    } catch (e: any) {
+      if (this.handleFirestoreError(e)) return;
+      console.warn('Erro ao salvar usuário no Firestore:', e);
     }
   }
 
