@@ -305,59 +305,24 @@ export class PacientesService {
           return pAjustado;
         });
 
-        // Garante que o Theo Pio exista na base com Psicologia (2x/sem) e TO (1x/sem)
-        const temTheoPio = corrigidos.some((p: Paciente) =>
-          (p.nome || '').toLowerCase().includes('theo pio')
+        // Filtra pacientes enviados para os Registros Deletados (Lixeira)
+        const deletedRegs = DeletedRecordsService.obterRegistrosDeletados();
+        const idsExcluidos = new Set(
+          deletedRegs
+            .filter((r) => r.tipo === 'paciente' && r.dadosOriginais?.id)
+            .map((r) => r.dadosOriginais.id)
         );
-        if (!temTheoPio) {
-          const theoPio: Paciente = {
-            id: 'pac-theo-pio',
-            codigoProntuario: 'PRONT-006',
-            nome: 'Theo Pio Correia Silva',
-            cpf: '123.456.789-00',
-            cpfMascarado: '123.***.***-00',
-            dataNascimento: '2019-04-10',
-            convenioId: 'conv-bradesco',
-            convenioNome: 'Bradesco Saúde',
-            convenioPrincipalId: 'conv-bradesco',
-            convenioPrincipalNome: 'Bradesco Saúde',
-            carteirinha: '005711998877',
-            carteirinhaAtual: '005711998877',
-            carteirinhaAtualMascarada: '0057*****877',
-            procedimentoPrincipal: 'Psicologia ABA',
-            procedimentos: ['Psicologia ABA', 'TO Terapia Ocupacional ABA'],
-            frequenciasPorProcedimento: {
-              'Psicologia ABA': 2,
-              'Psicologia': 2,
-              'TO Terapia Ocupacional ABA': 1,
-              'Terapia Ocupacional': 1,
-              'TO': 1,
-            },
-            diasPorProcedimento: {
-              'TO Terapia Ocupacional ABA': ['Quarta-feira'],
-              'Psicologia ABA': ['Terça-feira', 'Quinta-feira'],
-            },
-            prestadorId: 'prest-1',
-            prestadorNome: 'Dra. Ana Beatriz Albuquerque',
-            status: 'ATIVO',
-            diasDaSemana: ['Quarta-feira'],
-            diaDaSemana: 'Quarta-feira',
-            sessoesPorSemana: 2,
-            quantidadeSemana: 2,
-            polo: 'Polo 1',
-            dataCriacao: '2026-09-20',
-            dataUltimaAtualizacao: '2026-09-20 10:00',
-          };
-          corrigidos.unshift(theoPio);
-          houveCorrecao = true;
-        }
 
-        if (houveCorrecao || apenasReais.length !== parsed.length) {
+        const naoDeletados = corrigidos.filter(
+          (p: Paciente) => !idsExcluidos.has(p.id) && (p as any).status !== 'EXCLUIDO' && !(p as any).deletado
+        );
+
+        if (houveCorrecao || naoDeletados.length !== parsed.length) {
           try {
-            localStorage.setItem(STORAGE_PACIENTES_KEY, JSON.stringify(this.sanitizarPacientesParaStorage(corrigidos)));
+            localStorage.setItem(STORAGE_PACIENTES_KEY, JSON.stringify(this.sanitizarPacientesParaStorage(naoDeletados)));
           } catch {}
         }
-        return corrigidos;
+        return naoDeletados;
       }
       return [];
     } catch {

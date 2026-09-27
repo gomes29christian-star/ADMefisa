@@ -15,6 +15,7 @@ import {
 import { db } from './firebase';
 import { Paciente, Prestador } from '../types/clinic';
 import { AutorizacaoV2 } from '../types/autorizacao';
+import { DeletedRecordsService } from './deletedRecordsService';
 
 type SyncListener = () => void;
 
@@ -147,9 +148,20 @@ class CloudSyncManager {
               const localRaw = localStorage.getItem('mefisa_pacientes_v2');
               const localList: Paciente[] = localRaw ? JSON.parse(localRaw) : [];
 
+              const deletedRegs = DeletedRecordsService.obterRegistrosDeletados();
+              const idsDeletados = new Set(
+                deletedRegs
+                  .filter((r) => r.tipo === 'paciente' && r.dadosOriginais?.id)
+                  .map((r) => r.dadosOriginais.id)
+              );
+
               const map = new Map<string, Paciente>();
-              localList.forEach((p) => map.set(p.id, p));
-              remotos.forEach((p) => map.set(p.id, p));
+              localList.forEach((p) => {
+                if (p && p.id && !idsDeletados.has(p.id)) map.set(p.id, p);
+              });
+              remotos.forEach((p) => {
+                if (p && p.id && !idsDeletados.has(p.id)) map.set(p.id, p);
+              });
 
               const merged = Array.from(map.values());
               localStorage.setItem('mefisa_pacientes_v2', JSON.stringify(merged));

@@ -1462,6 +1462,10 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
             );
           }}
           onOpenAudit={onOpenAudit}
+          onDeletarPaciente={(id) => {
+            setPacienteSelecionado(null);
+            handleSolicitarExclusao([id]);
+          }}
         />
       )}
 

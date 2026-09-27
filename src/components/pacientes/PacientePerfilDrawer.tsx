@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ExternalLink,
   Edit3,
+  Trash2,
   X,
   Eye,
   EyeOff,
@@ -68,6 +69,7 @@ interface PacientePerfilDrawerProps {
   onFechar: () => void;
   onPacienteAtualizado: (pacienteAtualizado: Paciente) => void;
   onOpenAudit: () => void;
+  onDeletarPaciente?: (pacienteId: string) => void;
 }
 
 export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
@@ -76,6 +78,7 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
   onFechar,
   onPacienteAtualizado,
   onOpenAudit,
+  onDeletarPaciente,
 }) => {
   const [paciente, setPaciente] = useState<Paciente>(pacienteProp);
   const { showMonthInitials } = useTheme();
@@ -493,6 +496,16 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
                 <Edit3 className="w-3.5 h-3.5 text-[#91CA0C]" />
                 <span>Editar Paciente</span>
               </button>
+              {onDeletarPaciente && (
+                <button
+                  onClick={() => onDeletarPaciente(paciente.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600/30 hover:bg-rose-600/50 text-rose-200 border border-rose-500/40 text-xs font-bold transition-colors cursor-pointer"
+                  title="Mover este paciente para a Lixeira (Registros Deletados)"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Excluir Paciente</span>
+                </button>
+              )}
               <button
                 onClick={onFechar}
                 className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
