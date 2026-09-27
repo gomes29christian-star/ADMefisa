@@ -269,6 +269,35 @@ class CloudSyncManager {
       );
       this.unsubscribers.push(unsubUsuarios);
 
+      // 5. Sincronização de Tokens de Backups Inutilizados/Consumidos
+      const consumedCol = collection(db, 'consumed_backups');
+      const unsubConsumed = onSnapshot(
+        consumedCol,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const remotosIds: string[] = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              if (data && data.backupId) {
+                remotosIds.push(data.backupId);
+              }
+            });
+
+            if (remotosIds.length > 0) {
+              const localRaw = localStorage.getItem('mefisa_consumed_backups_v1');
+              const localList: string[] = localRaw ? JSON.parse(localRaw) : [];
+              const setIds = new Set([...localList, ...remotosIds]);
+              localStorage.setItem('mefisa_consumed_backups_v1', JSON.stringify(Array.from(setIds)));
+            }
+          }
+        },
+        (error) => {
+          if (this.handleFirestoreError(error)) return;
+          console.warn('Sync de Backups Consumidos aguardando conectividade:', error.message);
+        }
+      );
+      this.unsubscribers.push(unsubConsumed);
+
       // Carga inicial leve apenas se a nuvem estiver vazia e quota permitir
       this.uploadDadosLocaisParaNuvemSeNecessario();
     } catch (e) {
@@ -345,6 +374,20 @@ class CloudSyncManager {
     } catch (e: any) {
       if (this.handleFirestoreError(e)) return;
       console.warn('Erro ao salvar usuário no Firestore:', e);
+    }
+  }
+
+  /**
+   * Sincroniza token de backup inutilizado na nuvem
+   */
+  public async salvarBackupConsumidoNuvem(backupId: string): Promise<void> {
+    if (this.isQuotaExceeded() || !backupId) return;
+    try {
+      const ref = doc(db, 'consumed_backups', backupId);
+      await setDoc(ref, { backupId, consumedAt: new Date().toISOString() }, { merge: true });
+    } catch (e: any) {
+      if (this.handleFirestoreError(e)) return;
+      console.warn('Erro ao registrar backup consumido no Firestore:', e);
     }
   }
 
