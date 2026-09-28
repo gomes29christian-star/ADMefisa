@@ -29,8 +29,9 @@ import {
   formatIsoDate,
 } from '../../services/businessRules';
 import { HolidayService } from '../../services/holidaysService';
-import { DiaSemanaIndice, ConflitoFeriadoSessao, ModoAbatimentoFaltas } from '../../types/clinic';
+import { DiaSemanaIndice, ConflitoFeriadoSessao, ModoAbatimentoFaltas, Prestador } from '../../types/clinic';
 import { useTheme } from '../../context/ThemeContext';
+import { obterPrestadoresStorage } from '../../data/mockClinicData';
 
 export interface SessaoConvencional {
   numero: number;
@@ -341,12 +342,25 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
   const [abaAtiva, setAbaAtiva] = useState<'ABA' | 'CONVENCIONAL'>('ABA');
 
   // Estados específicos para a Calculadora CONVENCIONAL
+  const prestadoresSistema = React.useMemo(() => obterPrestadoresStorage(), [isOpen]);
+  const [prestadorIdConv, setPrestadorIdConv] = useState<string>(() => prestadoresSistema[0]?.id || 'prest-1');
   const [dataAutorizacaoConv, setDataAutorizacaoConv] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [qtdSessoesConv, setQtdSessoesConv] = useState<number>(4);
   const [duracaoSessaoConv, setDuracaoSessaoConv] = useState<'30MIN' | '1H'>('30MIN');
   const [datasCustomizadasConv, setDatasCustomizadasConv] = useState<Record<number, string>>({});
   const [proximaAutCustomizadaConv, setProximaAutCustomizadaConv] = useState<string>('');
   const [copiedResumoConv, setCopiedResumoConv] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -393,6 +407,18 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
     datasCustomizadasConv,
     proximaAutCustomizadaConv
   );
+
+  // Verificação de 2 ou mais sessões na mesma semana no modelo Convencional
+  const temMultiplasSessoesNaSemana = duracaoSessaoConv === '1H' || qtdSessoesConv === 5;
+  const qtdSessoesSemanaisNum = duracaoSessaoConv === '1H' ? 2 : (qtdSessoesConv === 5 ? 2 : 1);
+  const prestadorConvSel = prestadoresSistema.find((p) => p.id === prestadorIdConv) || prestadoresSistema[0];
+  const orgaoTexto = prestadorConvSel?.orgaoClasse || 'CRP';
+  const conselhoTexto = prestadorConvSel?.crmOuCrp || '';
+  const nomePrestadorUpper = prestadorConvSel?.nome?.toUpperCase() || '';
+
+  const observacaoTecnicaTexto = temMultiplasSessoesNaSemana
+    ? `Paciente realiza ${qtdSessoesSemanaisNum} sessoes semanais de acordo com avaliacao tecnica. Profissional: ${nomePrestadorUpper}. ${orgaoTexto}: ${conselhoTexto}.`
+    : '';
 
   const handleCopyJustificativa = () => {
     navigator.clipboard.writeText(resultadoFormulario.justificativaFormularioGerada);
@@ -1060,7 +1086,7 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                   {/* 1. Data da Autorização */}
                   <div className="bg-white dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
                     <label className="block text-slate-700 dark:text-slate-200 font-bold text-xs mb-1.5">
@@ -1164,6 +1190,27 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
                     </div>
                     <span className="text-[10px] text-slate-400 dark:text-slate-400 mt-1.5 block font-medium">
                       {duracaoSessaoConv === '30MIN' ? '1 sessão por semana' : '2 sessões por semana (proporcional)'}
+                    </span>
+                  </div>
+
+                  {/* 4. Profissional / Doutor Mefisa */}
+                  <div className="bg-white dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                    <label className="block text-slate-700 dark:text-slate-200 font-bold text-xs mb-1.5">
+                      4. Profissional / Doutor Mefisa *
+                    </label>
+                    <select
+                      value={prestadorIdConv}
+                      onChange={(e) => setPrestadorIdConv(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white focus:outline-[#002172] cursor-pointer"
+                    >
+                      {prestadoresSistema.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nome.toUpperCase()} ({p.orgaoClasse || 'CRP'}: {p.crmOuCrp})
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-400 mt-1.5 block font-medium">
+                      Incluso na observação quando &ge; 2 sessões/semana
                     </span>
                   </div>
                 </div>
@@ -1308,40 +1355,41 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
                   </div>
                 </div>
 
-                {/* Resumo Formatado para Cópia Rápida */}
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-slate-800 dark:text-white flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-[#002172] dark:text-blue-400" />
-                      Resumo do Cronograma Convencional para Cópia
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const texto = `CRONOGRAMA CONVENCIONAL (${duracaoSessaoConv})\nData Autorização: ${formatarDataBr(dataAutorizacaoConv)}\nSessões (${qtdSessoesConv}): ${cronogramaConv.sessoes.map((s) => s.dataBr).join(', ')}\nData Próxima Autorização: ${cronogramaConv.proximaAutorizacao.dataBr}`;
-                        navigator.clipboard.writeText(texto);
-                        setCopiedResumoConv(true);
-                        setTimeout(() => setCopiedResumoConv(false), 2000);
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#002172] text-white text-[11px] font-bold hover:bg-[#001752] transition-colors cursor-pointer"
-                    >
-                      {copiedResumoConv ? (
-                        <>
-                          <Check className="w-3 h-3 text-[#91CA0C]" />
-                          <span>Copiado!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" />
-                          <span>Copiar Resumo</span>
-                        </>
-                      )}
-                    </button>
+                {/* Observação Técnica quando houver 2 ou mais sessões na mesma semana */}
+                {temMultiplasSessoesNaSemana && (
+                  <div className="p-3.5 bg-blue-50/90 dark:bg-blue-950/60 rounded-2xl border border-blue-200 dark:border-blue-800 space-y-2 mt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-[#002172] dark:text-blue-300 flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-[#002172] dark:text-blue-400" />
+                        Observação Técnica Exigida para Convênio (&ge; 2 sessões/semana)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(observacaoTecnicaTexto);
+                          setCopiedResumoConv(true);
+                          setTimeout(() => setCopiedResumoConv(false), 2000);
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#002172] text-white text-[11px] font-bold hover:bg-[#001752] transition-colors cursor-pointer"
+                      >
+                        {copiedResumoConv ? (
+                          <>
+                            <Check className="w-3 h-3 text-[#91CA0C]" />
+                            <span>Copiado!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copiar Observação</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl text-xs font-mono font-semibold text-slate-800 dark:text-slate-100 border border-blue-100 dark:border-blue-900 leading-relaxed select-all">
+                      {observacaoTecnicaTexto}
+                    </div>
                   </div>
-                  <div className="font-mono text-[11px] text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
-                    Sessões: {cronogramaConv.sessoes.map((s) => s.dataBr).join(' · ')} | Próxima Autorização: {cronogramaConv.proximaAutorizacao.dataBr}
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           )}
