@@ -25,6 +25,8 @@ import {
   formatarDiaSemanaPt,
   DIAS_SEMANA_NOMES,
   formatarDataBr,
+  parseIsoDateLocal,
+  formatIsoDate,
 } from '../../services/businessRules';
 import { HolidayService } from '../../services/holidaysService';
 import { DiaSemanaIndice, ConflitoFeriadoSessao, ModoAbatimentoFaltas } from '../../types/clinic';
@@ -197,6 +199,25 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
   const [sessoesSemana, setSessoesSemana] = useState<number>(1);
   const [dataInicio, setDataInicio] = useState<string>('2026-10-01');
 
+  const handleDataInicioChange = (novaDataIso: string) => {
+    setDataInicio(novaDataIso);
+    setDatasCustomizadas({}); // Reseta alterações manuais de datas ao mudar início do ciclo
+
+    if (novaDataIso && novaDataIso.trim()) {
+      const dt = parseIsoDateLocal(novaDataIso.trim());
+      const diaSemanaNew = dt.getDay() as DiaSemanaIndice;
+      if (diaSemanaNew !== 0) { // Se não for domingo
+        if (diasSemanaHabituais.length <= 1) {
+          setDiasSemanaHabituais([diaSemanaNew]);
+          setSessoesSemana(1);
+        } else if (!diasSemanaHabituais.includes(diaSemanaNew)) {
+          setDiasSemanaHabituais([diaSemanaNew]);
+          setSessoesSemana(1);
+        }
+      }
+    }
+  };
+
   const toggleDiaSemana = (indice: DiaSemanaIndice) => {
     setDiasSemanaHabituais((prev) => {
       let proximo: DiaSemanaIndice[];
@@ -208,6 +229,21 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
       }
       setSessoesSemana(proximo.length);
       setOverrideQuantidade(null);
+      setDatasCustomizadas({});
+
+      // Se passou a ser 1 único dia habitual, ajusta a dataInicio para alinhar perfeitamente no mesmo dia da semana
+      if (proximo.length === 1 && dataInicio) {
+        const dtCurrent = parseIsoDateLocal(dataInicio);
+        const targetDay = proximo[0];
+        let diff = targetDay - dtCurrent.getDay();
+        if (diff !== 0) {
+          const dtNova = new Date(dtCurrent);
+          dtNova.setDate(dtNova.getDate() + diff);
+          if (dtNova.getDay() === 0) dtNova.setDate(dtNova.getDate() + 1);
+          setDataInicio(formatIsoDate(dtNova));
+        }
+      }
+
       return proximo;
     });
   };
@@ -536,7 +572,7 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
                 <input
                   type="date"
                   value={dataInicio}
-                  onChange={(e) => setDataInicio(e.target.value)}
+                  onChange={(e) => handleDataInicioChange(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white focus:outline-[#002172] dark:focus:outline-blue-400"
                 />
                 <span className="text-[10px] text-slate-400 dark:text-slate-400 mt-1.5 block font-medium">
