@@ -107,7 +107,7 @@ export function calcularCronogramaConvencional(
       }
     }
   } else {
-    // 1H: 2 sessões por semana
+    // 1H: 2 sessões por semana (para 4 sessões) ou 3 sessões na semana 1 + 2 sessões na semana 2 (para 5 sessões)
     let offsetDias = 2;
     if (dayOfWeek === 5 || dayOfWeek === 1) offsetDias = 3;
 
@@ -125,22 +125,45 @@ export function calcularCronogramaConvencional(
       d4.setDate(d4.getDate() + 7 + offsetDias);
       datasCalculadasIso.push(d4.toISOString().split('T')[0]);
     } else {
-      // 5 SESSÕES (1H)
+      // 5 SESSÕES (1H): Primeira semana tem +1 sessão (3 sessões), segunda semana tem 2 sessões
       datasCalculadasIso.push(dtInicio.toISOString().split('T')[0]);
-      const d2 = new Date(dtInicio.getTime());
-      d2.setDate(d2.getDate() + offsetDias);
-      datasCalculadasIso.push(d2.toISOString().split('T')[0]);
 
+      const d2 = new Date(dtInicio.getTime());
       const d3 = new Date(dtInicio.getTime());
-      d3.setDate(d3.getDate() + 7);
+
+      if (dayOfWeek === 1) { // Segunda
+        d2.setDate(d2.getDate() + 2); // Quarta
+        d3.setDate(d3.getDate() + 4); // Sexta
+      } else if (dayOfWeek === 2) { // Terça
+        d2.setDate(d2.getDate() + 2); // Quinta
+        d3.setDate(d3.getDate() + 4); // Sábado
+      } else if (dayOfWeek === 3) { // Quarta
+        d2.setDate(d2.getDate() + 2); // Sexta
+        d3.setDate(d3.getDate() + 3); // Sábado
+      } else if (dayOfWeek === 4) { // Quinta
+        d2.setDate(d2.getDate() + 1); // Sexta
+        d3.setDate(d3.getDate() + 2); // Sábado
+      } else if (dayOfWeek === 5) { // Sexta
+        d2.setDate(d2.getDate() + 1); // Sábado
+        d3.setDate(d3.getDate() + 3); // Segunda seguinte
+      } else if (dayOfWeek === 6) { // Sábado
+        d2.setDate(d2.getDate() + 2); // Segunda
+        d3.setDate(d3.getDate() + 4); // Quarta
+      } else { // Domingo
+        d2.setDate(d2.getDate() + 2); // Terça
+        d3.setDate(d3.getDate() + 4); // Quinta
+      }
+
+      datasCalculadasIso.push(d2.toISOString().split('T')[0]);
       datasCalculadasIso.push(d3.toISOString().split('T')[0]);
 
+      // Semana 2: Sessões 4 e 5 (as mesmas datas da Semana 2 da opção de 4 sessões)
       const d4 = new Date(dtInicio.getTime());
-      d4.setDate(d4.getDate() + 7 + offsetDias);
+      d4.setDate(d4.getDate() + 7);
       datasCalculadasIso.push(d4.toISOString().split('T')[0]);
 
       const d5 = new Date(dtInicio.getTime());
-      d5.setDate(d5.getDate() + 14);
+      d5.setDate(d5.getDate() + 7 + offsetDias);
       datasCalculadasIso.push(d5.toISOString().split('T')[0]);
     }
   }
@@ -190,10 +213,9 @@ export function calcularCronogramaConvencional(
       dtNext.setDate(dtNext.getDate() + 28);
       dataProxIso = dtNext.toISOString().split('T')[0];
     } else {
-      // Para 1H: 4 sessões = 2 semanas (+14 dias), 5 sessões = 3 semanas (+21 dias)
-      const semanas = qtdEfetiva === 5 ? 3 : 2;
+      // Para 1H (4 ou 5 sessões), a autorização subsequente é a 2ª semana (+14 dias)
       const dtNext = new Date(dtInicio.getTime());
-      dtNext.setDate(dtNext.getDate() + (semanas * 7));
+      dtNext.setDate(dtNext.getDate() + 14);
       dataProxIso = dtNext.toISOString().split('T')[0];
     }
   }

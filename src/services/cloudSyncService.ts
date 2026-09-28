@@ -83,6 +83,14 @@ class CloudSyncManager {
       this.unsubscribeAll();
       return true;
     }
+    if (code.includes('unavailable') || msg.includes('unavailable') || msg.includes('offline')) {
+      if (!this.warnedQuotaThisSession) {
+        console.warn(
+          'Sincronização em tempo real aguardando reconectividade com o servidor do Firestore. Operando via cache e armazenamento local.'
+        );
+      }
+      return true;
+    }
     return false;
   }
 

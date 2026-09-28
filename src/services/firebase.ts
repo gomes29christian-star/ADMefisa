@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import firebaseConfigRaw from '../../firebase-applet-config.json';
 
 export const firebaseConfig = {
@@ -27,7 +27,11 @@ export async function testConnection(): Promise<boolean> {
     if (typeof window !== 'undefined' && localStorage.getItem('mefisa_firestore_quota_exhausted_date') === hojeIso) {
       return false;
     }
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    const docRef = doc(db, 'test', 'connection');
+    await Promise.race([
+      getDoc(docRef),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+    ]);
     return true;
   } catch (error: any) {
     const msg = String(error?.message || '');
@@ -39,8 +43,9 @@ export async function testConnection(): Promise<boolean> {
       } catch {}
       return false;
     }
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase client is offline or network is unreachable.');
+    if (code.includes('unavailable') || msg.includes('unavailable') || msg.includes('timeout') || msg.includes('offline')) {
+      console.warn('Firebase client is offline or backend connection is unavailable. Operating in local mode.');
+      return false;
     }
     // Conexão iniciada mesmo que doc não exista
     return true;
