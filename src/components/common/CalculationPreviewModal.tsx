@@ -65,35 +65,91 @@ export function calcularCronogramaConvencional(
   const dtRefIso = dataAutorizacaoIso && dataAutorizacaoIso.trim() ? dataAutorizacaoIso.trim() : new Date().toISOString().split('T')[0];
   const sessoes: SessaoConvencional[] = [];
   const dtInicio = new Date(dtRefIso + 'T12:00:00Z');
+  const dayOfWeek = dtInicio.getDay();
 
+  const qtdEfetiva = quantidade === 5 ? 5 : 4;
   let totalConflitos = 0;
 
-  for (let i = 0; i < quantidade; i++) {
-    let dataIsoCalculada = '';
+  const datasCalculadasIso: string[] = [];
+
+  if (duracao === '30MIN') {
+    if (qtdEfetiva === 4) {
+      for (let i = 0; i < 4; i++) {
+        const d = new Date(dtInicio.getTime());
+        d.setDate(d.getDate() + (i * 7));
+        datasCalculadasIso.push(d.toISOString().split('T')[0]);
+      }
+    } else {
+      // 5 SESSÕES (30MIN): 2ª sessão cai na mesma semana da 1ª sessão
+      datasCalculadasIso.push(dtInicio.toISOString().split('T')[0]);
+
+      const dSessao2 = new Date(dtInicio.getTime());
+      if (dayOfWeek === 6) {
+        // Sábado: pular para a próxima semana
+        dSessao2.setDate(dSessao2.getDate() + 2);
+      } else if (dayOfWeek === 5) {
+        // Sexta-feira: vai para sábado
+        dSessao2.setDate(dSessao2.getDate() + 1);
+      } else if (dayOfWeek === 0) {
+        // Domingo: vai para quarta-feira
+        dSessao2.setDate(dSessao2.getDate() + 3);
+      } else {
+        // Segunda, Terça, Quarta, Quinta: +2 dias na mesma semana
+        dSessao2.setDate(dSessao2.getDate() + 2);
+      }
+      datasCalculadasIso.push(dSessao2.toISOString().split('T')[0]);
+
+      // Sessões 3, 4, 5: seguem exatamente o mesmo cálculo semanal da de 4 sessões (+7, +14, +21 dias)
+      for (let k = 1; k <= 3; k++) {
+        const d = new Date(dtInicio.getTime());
+        d.setDate(d.getDate() + (k * 7));
+        datasCalculadasIso.push(d.toISOString().split('T')[0]);
+      }
+    }
+  } else {
+    // 1H: 2 sessões por semana
+    let offsetDias = 2;
+    if (dayOfWeek === 5 || dayOfWeek === 1) offsetDias = 3;
+
+    if (qtdEfetiva === 4) {
+      datasCalculadasIso.push(dtInicio.toISOString().split('T')[0]);
+      const d2 = new Date(dtInicio.getTime());
+      d2.setDate(d2.getDate() + offsetDias);
+      datasCalculadasIso.push(d2.toISOString().split('T')[0]);
+
+      const d3 = new Date(dtInicio.getTime());
+      d3.setDate(d3.getDate() + 7);
+      datasCalculadasIso.push(d3.toISOString().split('T')[0]);
+
+      const d4 = new Date(dtInicio.getTime());
+      d4.setDate(d4.getDate() + 7 + offsetDias);
+      datasCalculadasIso.push(d4.toISOString().split('T')[0]);
+    } else {
+      // 5 SESSÕES (1H)
+      datasCalculadasIso.push(dtInicio.toISOString().split('T')[0]);
+      const d2 = new Date(dtInicio.getTime());
+      d2.setDate(d2.getDate() + offsetDias);
+      datasCalculadasIso.push(d2.toISOString().split('T')[0]);
+
+      const d3 = new Date(dtInicio.getTime());
+      d3.setDate(d3.getDate() + 7);
+      datasCalculadasIso.push(d3.toISOString().split('T')[0]);
+
+      const d4 = new Date(dtInicio.getTime());
+      d4.setDate(d4.getDate() + 7 + offsetDias);
+      datasCalculadasIso.push(d4.toISOString().split('T')[0]);
+
+      const d5 = new Date(dtInicio.getTime());
+      d5.setDate(d5.getDate() + 14);
+      datasCalculadasIso.push(d5.toISOString().split('T')[0]);
+    }
+  }
+
+  for (let i = 0; i < qtdEfetiva; i++) {
+    let dataIsoCalculada = datasCalculadasIso[i] || dtRefIso;
 
     if (datasCustomizadas[i + 1]) {
       dataIsoCalculada = datasCustomizadas[i + 1];
-    } else if (duracao === '30MIN') {
-      const d = new Date(dtInicio.getTime());
-      d.setDate(d.getDate() + (i * 7));
-      dataIsoCalculada = d.toISOString().split('T')[0];
-    } else {
-      // 1H: 2 sessões por semana
-      const semana = Math.floor(i / 2);
-      const posNaSemana = i % 2;
-      const d = new Date(dtInicio.getTime());
-      d.setDate(d.getDate() + (semana * 7));
-
-      if (posNaSemana === 1) {
-        const diaSemanaStart = dtInicio.getDay();
-        let offsetDias = 2;
-        if (diaSemanaStart === 5 || diaSemanaStart === 1) {
-          offsetDias = 3;
-        }
-        d.setDate(d.getDate() + offsetDias);
-      }
-
-      dataIsoCalculada = d.toISOString().split('T')[0];
     }
 
     const feriado = HolidayService.verificarFeriado(dataIsoCalculada);
@@ -129,12 +185,13 @@ export function calcularCronogramaConvencional(
     dataProxIso = proximaAutCustomizada;
   } else {
     if (duracao === '30MIN') {
+      // Para 30MIN (4 ou 5 sessões), a autorização subsequente é a 4ª semana (+28 dias)
       const dtNext = new Date(dtInicio.getTime());
-      dtNext.setDate(dtNext.getDate() + (quantidade * 7));
+      dtNext.setDate(dtNext.getDate() + 28);
       dataProxIso = dtNext.toISOString().split('T')[0];
     } else {
-      // 1H: A cada 2 sessões de 1H conta 1 semana inteira (4 sessões = 2 semanas)
-      const semanas = Math.ceil(quantidade / 2);
+      // Para 1H: 4 sessões = 2 semanas (+14 dias), 5 sessões = 3 semanas (+21 dias)
+      const semanas = qtdEfetiva === 5 ? 3 : 2;
       const dtNext = new Date(dtInicio.getTime());
       dtNext.setDate(dtNext.getDate() + (semanas * 7));
       dataProxIso = dtNext.toISOString().split('T')[0];
@@ -1002,25 +1059,46 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
                     </span>
                   </div>
 
-                  {/* 2. Quantidade Total de Sessões */}
+                  {/* 2. Quantidade Total de Sessões (Apenas 4 ou 5) */}
                   <div className="bg-white dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
                     <label className="block text-slate-700 dark:text-slate-200 font-bold text-xs mb-1.5">
                       2. Quantidade Total de Sessões *
                     </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="30"
-                      value={qtdSessoesConv}
-                      onChange={(e) => {
-                        setQtdSessoesConv(Math.max(1, Number(e.target.value)));
-                        setDatasCustomizadasConv({});
-                        setProximaAutCustomizadaConv('');
-                      }}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-extrabold text-[#002172] dark:text-blue-300 focus:outline-[#002172]"
-                    />
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQtdSessoesConv(4);
+                          setDatasCustomizadasConv({});
+                          setProximaAutCustomizadaConv('');
+                        }}
+                        className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                          qtdSessoesConv === 4
+                            ? 'bg-[#002172] text-white border-[#002172] shadow-2xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        4 SESSÕES
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQtdSessoesConv(5);
+                          setDatasCustomizadasConv({});
+                          setProximaAutCustomizadaConv('');
+                        }}
+                        className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                          qtdSessoesConv === 5
+                            ? 'bg-[#002172] text-white border-[#002172] shadow-2xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        5 SESSÕES
+                      </button>
+                    </div>
                     <span className="text-[10px] text-slate-400 dark:text-slate-400 mt-1.5 block font-medium">
-                      Padrão: 4 sessões (Editável se necessário)
+                      {qtdSessoesConv === 4 ? 'Padrão: 4 sessões (1 por semana)' : '5ª sessão alocada na mesma semana da autorização'}
                     </span>
                   </div>
 
