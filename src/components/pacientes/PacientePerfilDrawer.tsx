@@ -459,12 +459,18 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
                 </span>
                 <span
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    (paciente.polo || 'M1').includes('2')
+                    (paciente.polo || 'M1').toUpperCase().includes('ON')
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : (paciente.polo || 'M1').includes('2')
                       ? 'bg-indigo-100 text-indigo-900 border-indigo-300'
                       : 'bg-teal-100 text-teal-900 border-teal-300'
                   }`}
                 >
-                  {(paciente.polo || 'M1').includes('2') ? 'M2' : 'M1'}
+                  {(paciente.polo || 'M1').toUpperCase().includes('ON')
+                    ? 'ON'
+                    : (paciente.polo || 'M1').includes('2')
+                    ? 'M2'
+                    : 'M1'}
                 </span>
               </div>
               <h2 className="text-2xl font-bold font-['Quicksand'] text-white">

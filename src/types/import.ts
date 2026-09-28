@@ -43,7 +43,7 @@ export interface LinhaPreviaImportacao {
     ultimaAutorizacao?: string;
     convenio?: string;
     pastaDoutoraMefisa?: string;
-    polo?: 'M1' | 'M2' | 'Polo 1' | 'Polo 2';
+    polo?: 'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON';
     indicadorIrregularidade?: boolean;
   };
   problemas: ProblemaImportacao[];

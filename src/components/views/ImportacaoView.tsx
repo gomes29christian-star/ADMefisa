@@ -24,7 +24,6 @@ import {
 import { LegacyImportService, DADOS_FICTICIOS_EXEMPLO_CSV } from '../../services/legacyImportService';
 import { LinhaPreviaImportacao, ImportBatch, RelatorioImportacao } from '../../types/import';
 import { useTheme } from '../../context/ThemeContext';
-import { useSecretAchievements } from '../../context/SecretAchievementsContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
 import { Usuario } from '../../types/clinic';
 import { obterPrestadoresStorage } from '../../data/mockClinicData';
@@ -42,7 +41,6 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
   usuarioAtual,
 }) => {
   const { getThemeStrokeStyle } = useTheme();
-  const { triggerSecretAction } = useSecretAchievements();
 
   const isAdmin = usuarioAtual?.papel === 'ADMINISTRADOR';
 
@@ -99,6 +97,17 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
           ...l.dadosMapeados,
           [campo]: valor,
         };
+
+        if (campo === 'quantidadeSemana' || campo === 'diaDaSemana' || campo === 'semanasAtendimento') {
+          const resAtim = LegacyImportService.extrairDiasAtendimentoInteligente(
+            dadosMapeadosAtualizados.diaDaSemana || dadosMapeadosAtualizados.semanasAtendimento,
+            dadosMapeadosAtualizados.quantidadeSemana
+          );
+          dadosMapeadosAtualizados.quantidadeSemana = resAtim.quantidadeSemana;
+          dadosMapeadosAtualizados.sessoesPorSemana = resAtim.quantidadeSemana;
+          dadosMapeadosAtualizados.diasDaSemana = resAtim.dias;
+          dadosMapeadosAtualizados.diaDaSemana = resAtim.diaDaSemanaStr;
+        }
 
         const novosProblemas: LinhaPreviaImportacao['problemas'] = [];
         const nomeVal = (dadosMapeadosAtualizados.nome || '').trim();
@@ -181,7 +190,6 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
 
   // Confirmar importação transacional
   const handleConfirmarImportacao = () => {
-    triggerSecretAction('importador_legado');
     const { relatorio } = LegacyImportService.executarImportacaoTransacional(
       linhasPrevias,
       nomeArquivo,
@@ -453,24 +461,33 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
                       )}
                     </td>
 
-                    {/* Polo M1 / M2 */}
+                    {/* Polo M1 / M2 / ON */}
                     <td className="py-2 px-3 text-center">
                       {modoEdicaoDireta ? (
                         <select
-                          value={linha.dadosMapeados.polo === 'M2' || linha.dadosMapeados.polo === 'Polo 2' ? 'M2' : 'M1'}
+                          value={
+                            (linha.dadosMapeados.polo || '').toString().toUpperCase().includes('ON')
+                              ? 'ON'
+                              : (linha.dadosMapeados.polo === 'M2' || linha.dadosMapeados.polo === 'Polo 2' ? 'M2' : 'M1')
+                          }
                           onChange={(e) => handleUpdateCampoLinha(linha.indiceLinha, 'polo', e.target.value)}
                           className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded font-bold text-slate-900 dark:text-white focus:outline-[#002172]"
                         >
                           <option value="M1">M1</option>
                           <option value="M2">M2</option>
+                          <option value="ON">ON</option>
                         </select>
                       ) : (
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                          linha.dadosMapeados.polo === 'M2' || linha.dadosMapeados.polo === 'Polo 2'
+                          (linha.dadosMapeados.polo || '').toString().toUpperCase().includes('ON')
+                            ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-300'
+                            : (linha.dadosMapeados.polo === 'M2' || linha.dadosMapeados.polo === 'Polo 2'
                             ? 'bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-950 dark:text-indigo-300'
-                            : 'bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-950 dark:text-teal-300'
+                            : 'bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-950 dark:text-teal-300')
                         }`}>
-                          {linha.dadosMapeados.polo === 'M2' || linha.dadosMapeados.polo === 'Polo 2' ? 'M2' : 'M1'}
+                          {(linha.dadosMapeados.polo || '').toString().toUpperCase().includes('ON')
+                            ? 'ON'
+                            : (linha.dadosMapeados.polo === 'M2' || linha.dadosMapeados.polo === 'Polo 2' ? 'M2' : 'M1')}
                         </span>
                       )}
                     </td>
@@ -814,9 +831,11 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
                 </label>
                 <select
                   value={
-                    linhaEmEdicaoModal.dadosMapeados.polo === 'M2' || linhaEmEdicaoModal.dadosMapeados.polo === 'Polo 2'
+                    (linhaEmEdicaoModal.dadosMapeados.polo || '').toString().toUpperCase().includes('ON')
+                      ? 'ON'
+                      : (linhaEmEdicaoModal.dadosMapeados.polo === 'M2' || linhaEmEdicaoModal.dadosMapeados.polo === 'Polo 2'
                       ? 'M2'
-                      : 'M1'
+                      : 'M1')
                   }
                   onChange={(e) =>
                     setLinhaEmEdicaoModal({
@@ -828,6 +847,7 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
                 >
                   <option value="M1">M1</option>
                   <option value="M2">M2</option>
+                  <option value="ON">ON</option>
                 </select>
               </div>
 

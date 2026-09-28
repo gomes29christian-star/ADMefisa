@@ -11,7 +11,6 @@ import {
   FileText,
 } from 'lucide-react';
 import { EventoAuditoria } from '../../types/clinic';
-import { useSecretAchievements } from '../../context/SecretAchievementsContext';
 import { formatarDataBr } from '../../services/businessRules';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -29,13 +28,9 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
   filtroEntidade,
 }) => {
   const { showMonthInitials } = useTheme();
-  const { triggerSecretAction } = useSecretAchievements();
   const [termoBusca, setTermoBusca] = useState('');
 
   if (!isOpen) return null;
-
-  // Ao inspecionar os logs de auditoria detalhados, registra a conquista secreta se o cofre estiver ativo
-  triggerSecretAction('rastreabilidade_plena');
 
   const logsFiltrados = logs.filter((log) => {
     if (filtroEntidade && log.entidade !== filtroEntidade) return false;

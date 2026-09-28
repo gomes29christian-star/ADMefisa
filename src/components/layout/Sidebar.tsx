@@ -6,14 +6,12 @@ import {
   FileSpreadsheet,
   Stethoscope,
   Settings,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
   History,
 } from 'lucide-react';
 import { MefisaLogo } from '../common/MefisaLogo';
 import { SpecLogo } from '../common/SpecLogo';
-import { useSecretAchievements } from '../../context/SecretAchievementsContext';
 import { Usuario } from '../../types/clinic';
 
 export type NavItemKey =
@@ -50,7 +48,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   usuarioAtual,
   onOpenArchitectureDocs,
 }) => {
-  const { isSystemUnlocked, setModalAberto } = useSecretAchievements();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const isAdmin = usuarioAtual?.papel === 'ADMINISTRADOR';
@@ -155,42 +152,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
       </div>
-
-      {/* Seção Secreta (APENAS após duplo-clique na logo!) */}
-      {isSystemUnlocked && (
-        <div className={`mx-2 sm:mx-3 mt-2 p-2.5 sm:p-3 bg-gradient-to-br from-slate-900 to-indigo-950 rounded-xl text-white shadow-sm border border-indigo-800/40 ${isCollapsed ? 'text-center' : ''}`}>
-          {!isCollapsed ? (
-            <>
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Conquistas Secretas</span>
-                </div>
-                <span className="text-[10px] bg-amber-400/20 text-amber-200 px-1.5 py-0.2 rounded font-mono">
-                  Ativo
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-tight mb-2">
-                Compartimento secreto revelado por duplo-clique.
-              </p>
-              <button
-                onClick={() => setModalAberto(true)}
-                className="w-full py-1 text-center bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 rounded-lg text-xs font-semibold transition-colors"
-              >
-                Abrir Cofre Secreto
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setModalAberto(true)}
-              className="p-1.5 rounded-lg bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 transition-colors mx-auto flex items-center justify-center"
-              title="Abrir Cofre Secreto"
-            >
-              <Sparkles className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Rodapé: Logotipo SPEC */}
       <div className={`mt-auto p-4 border-t border-slate-100 dark:border-slate-800 bg-transparent ${isCollapsed ? 'hidden' : 'block'}`}>

@@ -11,7 +11,6 @@ import {
 import { MOCK_ANALISES } from '../../data/mockClinicData';
 import { calcularStatusAnaliseDiasCorridos, formatarDataBr } from '../../services/businessRules';
 import { useTheme } from '../../context/ThemeContext';
-import { useSecretAchievements } from '../../context/SecretAchievementsContext';
 
 interface AnalisesViewProps {
   onOpenAudit: () => void;
@@ -19,7 +18,6 @@ interface AnalisesViewProps {
 
 export const AnalisesView: React.FC<AnalisesViewProps> = ({ onOpenAudit }) => {
   const { getThemeStrokeStyle, showMonthInitials } = useTheme();
-  const { triggerSecretAction } = useSecretAchievements();
 
   // Data atual de referência do sistema Mefisa (permite testar a virada de dias corridos)
   const [dataAtualReferencia, setDataAtualReferencia] = useState<string>('2026-10-24');
@@ -57,7 +55,6 @@ export const AnalisesView: React.FC<AnalisesViewProps> = ({ onOpenAudit }) => {
 
           <button
             onClick={() => {
-              triggerSecretAction('sentinela_7_dias');
               alert('Cobrança preventiva e de atraso disparada aos canais de relacionamento das operadoras.');
             }}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors shadow-xs"
@@ -159,7 +156,6 @@ export const AnalisesView: React.FC<AnalisesViewProps> = ({ onOpenAudit }) => {
 
                 <button
                   onClick={() => {
-                    triggerSecretAction('sentinela_7_dias');
                     onOpenAudit();
                   }}
                   className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors"

@@ -207,7 +207,6 @@ import { MOCK_CONVENIOS } from '../../data/mockClinicData';
 import { NovoPacienteModal } from '../pacientes/NovoPacienteModal';
 import { PacientePerfilDrawer } from '../pacientes/PacientePerfilDrawer';
 import { useTheme } from '../../context/ThemeContext';
-import { useSecretAchievements } from '../../context/SecretAchievementsContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
 import { formatarDataBr, normalizarDiaSemana, normalizarEDeduplicarDiasSemana } from '../../services/businessRules';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
@@ -251,10 +250,6 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
   },
 }) => {
   const { getThemeStrokeStyle, showMonthInitials } = useTheme();
-  const { triggerSecretAction } = useSecretAchievements();
-
-  // LGPD Achievement
-  triggerSecretAction('guardiao_lgpd');
 
   // Pacientes em memória/storage
   const [pacientes, setPacientes] = useState<Paciente[]>(() =>

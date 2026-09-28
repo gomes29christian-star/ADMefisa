@@ -26,9 +26,151 @@ import {
   DIAS_SEMANA_NOMES,
   formatarDataBr,
 } from '../../services/businessRules';
+import { HolidayService } from '../../services/holidaysService';
 import { DiaSemanaIndice, ConflitoFeriadoSessao, ModoAbatimentoFaltas } from '../../types/clinic';
 import { useTheme } from '../../context/ThemeContext';
-import { useSecretAchievements } from '../../context/SecretAchievementsContext';
+
+export interface SessaoConvencional {
+  numero: number;
+  dataIso: string;
+  dataBr: string;
+  diaSemanaNome: string;
+  temConflito: boolean;
+  motivoConflito?: string;
+  nomeFeriado?: string;
+}
+
+export interface ResultadoCronogramaConvencional {
+  sessoes: SessaoConvencional[];
+  proximaAutorizacao: {
+    dataIso: string;
+    dataBr: string;
+    diaSemanaNome: string;
+    temConflito: boolean;
+    motivoConflito?: string;
+    nomeFeriado?: string;
+  };
+  totalConflitos: number;
+}
+
+export function calcularCronogramaConvencional(
+  dataAutorizacaoIso: string,
+  quantidade: number,
+  duracao: '30MIN' | '1H',
+  datasCustomizadas: Record<number, string> = {},
+  proximaAutCustomizada?: string
+): ResultadoCronogramaConvencional {
+  const dtRefIso = dataAutorizacaoIso && dataAutorizacaoIso.trim() ? dataAutorizacaoIso.trim() : new Date().toISOString().split('T')[0];
+  const sessoes: SessaoConvencional[] = [];
+  const dtInicio = new Date(dtRefIso + 'T12:00:00Z');
+
+  let totalConflitos = 0;
+
+  for (let i = 0; i < quantidade; i++) {
+    let dataIsoCalculada = '';
+
+    if (datasCustomizadas[i + 1]) {
+      dataIsoCalculada = datasCustomizadas[i + 1];
+    } else if (duracao === '30MIN') {
+      const d = new Date(dtInicio.getTime());
+      d.setDate(d.getDate() + (i * 7));
+      dataIsoCalculada = d.toISOString().split('T')[0];
+    } else {
+      // 1H: 2 sessões por semana
+      const semana = Math.floor(i / 2);
+      const posNaSemana = i % 2;
+      const d = new Date(dtInicio.getTime());
+      d.setDate(d.getDate() + (semana * 7));
+
+      if (posNaSemana === 1) {
+        const diaSemanaStart = dtInicio.getDay();
+        let offsetDias = 2;
+        if (diaSemanaStart === 5 || diaSemanaStart === 1) {
+          offsetDias = 3;
+        }
+        d.setDate(d.getDate() + offsetDias);
+      }
+
+      dataIsoCalculada = d.toISOString().split('T')[0];
+    }
+
+    const feriado = HolidayService.verificarFeriado(dataIsoCalculada);
+    const diaSem = identificarDiaSemana(dataIsoCalculada);
+    const isDomingo = diaSem === 0;
+    const temConflito = isDomingo || !!feriado;
+
+    let motivoConflito: string | undefined = undefined;
+    let nomeFeriado: string | undefined = undefined;
+
+    if (isDomingo) {
+      motivoConflito = 'Domingo — Não há expediente clínico';
+      totalConflitos++;
+    } else if (feriado) {
+      motivoConflito = `Feriado: ${feriado.nome} (${feriado.tipo})`;
+      nomeFeriado = feriado.nome;
+      totalConflitos++;
+    }
+
+    sessoes.push({
+      numero: i + 1,
+      dataIso: dataIsoCalculada,
+      dataBr: formatarDataBr(dataIsoCalculada),
+      diaSemanaNome: formatarDiaSemanaPt(diaSem),
+      temConflito,
+      motivoConflito,
+      nomeFeriado,
+    });
+  }
+
+  let dataProxIso = '';
+  if (proximaAutCustomizada) {
+    dataProxIso = proximaAutCustomizada;
+  } else {
+    if (duracao === '30MIN') {
+      const dtNext = new Date(dtInicio.getTime());
+      dtNext.setDate(dtNext.getDate() + (quantidade * 7));
+      dataProxIso = dtNext.toISOString().split('T')[0];
+    } else {
+      // 1H: A cada 2 sessões de 1H conta 1 semana inteira (4 sessões = 2 semanas)
+      const semanas = Math.ceil(quantidade / 2);
+      const dtNext = new Date(dtInicio.getTime());
+      dtNext.setDate(dtNext.getDate() + (semanas * 7));
+      dataProxIso = dtNext.toISOString().split('T')[0];
+    }
+  }
+
+  const feriadoProx = HolidayService.verificarFeriado(dataProxIso);
+  const diaSemProx = identificarDiaSemana(dataProxIso);
+  const isDomingoProx = diaSemProx === 0;
+  const temConflitoProx = isDomingoProx || !!feriadoProx;
+
+  let motivoConflitoProx: string | undefined = undefined;
+  let nomeFeriadoProx: string | undefined = undefined;
+
+  if (isDomingoProx) {
+    motivoConflitoProx = 'Domingo — Não há expediente clínico';
+    totalConflitos++;
+  } else if (feriadoProx) {
+    motivoConflitoProx = `Feriado: ${feriadoProx.nome} (${feriadoProx.tipo})`;
+    nomeFeriadoProx = feriadoProx.nome;
+    totalConflitos++;
+  }
+
+  const proximaAutorizacao = {
+    dataIso: dataProxIso,
+    dataBr: formatarDataBr(dataProxIso),
+    diaSemanaNome: formatarDiaSemanaPt(diaSemProx),
+    temConflito: temConflitoProx,
+    motivoConflito: motivoConflitoProx,
+    nomeFeriado: nomeFeriadoProx,
+  };
+
+  return {
+    sessoes,
+    proximaAutorizacao,
+    totalConflitos,
+  };
+}
 
 interface CalculationPreviewModalProps {
   isOpen: boolean;
@@ -46,7 +188,6 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
   usuarioAtualPapel = 'FUNCIONARIO_ADMINISTRATIVO',
 }) => {
   const { getThemeStrokeStyle, showMonthInitials } = useTheme();
-  const { triggerSecretAction } = useSecretAchievements();
 
   // Estados dos inputs para o cálculo de autorização
   const [pacienteNome, setPacienteNome] = useState<string>('Maurício Rezende Filho');
@@ -95,6 +236,17 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
   // Mapeamento de substituição manual de datas no cronograma
   const [datasCustomizadas, setDatasCustomizadas] = useState<Record<number, string>>({});
 
+  // Seleção de Aba na Calculadora: ABA (Original) vs CONVENCIONAL
+  const [abaAtiva, setAbaAtiva] = useState<'ABA' | 'CONVENCIONAL'>('ABA');
+
+  // Estados específicos para a Calculadora CONVENCIONAL
+  const [dataAutorizacaoConv, setDataAutorizacaoConv] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [qtdSessoesConv, setQtdSessoesConv] = useState<number>(4);
+  const [duracaoSessaoConv, setDuracaoSessaoConv] = useState<'30MIN' | '1H'>('30MIN');
+  const [datasCustomizadasConv, setDatasCustomizadasConv] = useState<Record<number, string>>({});
+  const [proximaAutCustomizadaConv, setProximaAutCustomizadaConv] = useState<string>('');
+  const [copiedResumoConv, setCopiedResumoConv] = useState<boolean>(false);
+
   if (!isOpen) return null;
 
   // Executa o motor central de alinhamento com a REGRA 1 (Sem corte manual)
@@ -124,12 +276,21 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
       ? overrideQuantidade
       : resultadoFormulario.quantidadeTotalSugerida;
 
-  // Cronograma com auditoria de feriados em Ferraz de Vasconcelos
+  // Cronograma com auditoria de feriados em Ferraz de Vasconcelos (ABA)
   const cronograma = gerarCronogramaComAuditoriaFeriados(
     dataInicio,
     quantidadeEfetiva,
     diasSemanaHabituais,
     sessoesSemana
+  );
+
+  // Cronograma Convencional (CONVENCIONAL)
+  const cronogramaConv = calcularCronogramaConvencional(
+    dataAutorizacaoConv,
+    qtdSessoesConv,
+    duracaoSessaoConv,
+    datasCustomizadasConv,
+    proximaAutCustomizadaConv
   );
 
   const handleCopyJustificativa = () => {
@@ -206,18 +367,27 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
   };
 
   const handleConfirm = () => {
-    triggerSecretAction('mestre_semanas');
-
     if (onConfirmCalculation) {
-      onConfirmCalculation({
-        ...resultadoFormulario,
-        quantidadeConfirmada: quantidadeEfetiva,
-        pacienteNome,
-        procedimentoNome,
-        alinhamento,
-        cronograma,
-        datasCustomizadas,
-      });
+      if (abaAtiva === 'CONVENCIONAL') {
+        onConfirmCalculation({
+          modelo: 'CONVENCIONAL',
+          dataAutorizacao: dataAutorizacaoConv,
+          quantidadeConfirmada: qtdSessoesConv,
+          duracao: duracaoSessaoConv,
+          cronograma: cronogramaConv,
+        });
+      } else {
+        onConfirmCalculation({
+          modelo: 'ABA',
+          ...resultadoFormulario,
+          quantidadeConfirmada: quantidadeEfetiva,
+          pacienteNome,
+          procedimentoNome,
+          alinhamento,
+          cronograma,
+          datasCustomizadas,
+        });
+      }
     }
     onClose();
   };
@@ -271,8 +441,45 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
 
         {/* Content */}
         <div className="p-6 overflow-y-auto space-y-5 text-xs text-slate-700 dark:text-slate-200">
-          {/* Seção 1: Parâmetros do Paciente e Dia Habitual de Atendimento */}
-          <div className="bg-slate-50 dark:bg-slate-800/60 p-4.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 space-y-3.5 shadow-2xs">
+          {/* Navegação entre Abas: ABA vs CONVENCIONAL */}
+          <div className="flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('ABA')}
+              className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                abaAtiva === 'ABA'
+                  ? 'bg-[#002172] text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Calculator className="w-4 h-4 text-[#91CA0C]" />
+              <span>Calculadora ABA</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                Modelo ABA
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('CONVENCIONAL')}
+              className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                abaAtiva === 'CONVENCIONAL'
+                  ? 'bg-[#002172] text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Clock className="w-4 h-4 text-amber-400" />
+              <span>Calculadora CONVENCIONAL</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                Modelo Convencional (30MIN / 1H)
+              </span>
+            </button>
+          </div>
+
+          {abaAtiva === 'ABA' ? (
+            <>
+              {/* Seção 1: Parâmetros do Paciente e Dia Habitual de Atendimento */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 space-y-3.5 shadow-2xs">
             <div className="font-bold text-slate-800 dark:text-slate-100 text-xs flex items-center justify-between">
               <span className="flex items-center gap-1.5 font-bold tracking-tight">
                 <Calendar className="w-4 h-4 text-[#002172] dark:text-blue-400" />
@@ -736,6 +943,286 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
               "{resultadoFormulario.justificativaFormularioGerada}"
             </p>
           </div>
+            </>
+          ) : (
+            /* CONTEÚDO DA CALCULADORA CONVENCIONAL */
+            <div className="space-y-5">
+              {/* Seção 1: Formulário de Parâmetros Convencionais */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 space-y-4 shadow-2xs">
+                <div className="font-bold text-slate-800 dark:text-slate-100 text-xs flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 font-bold tracking-tight">
+                    <Clock className="w-4 h-4 text-amber-500" />
+                    Parâmetros do Cronograma Convencional
+                  </span>
+                  <span className="text-[10px] text-amber-900 dark:text-amber-300 font-bold bg-amber-100 dark:bg-amber-950/80 px-2.5 py-1 rounded-lg border border-amber-200/60 dark:border-amber-800/60">
+                    Modelo Convencional ({duracaoSessaoConv})
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  {/* 1. Data da Autorização */}
+                  <div className="bg-white dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                    <label className="block text-slate-700 dark:text-slate-200 font-bold text-xs mb-1.5">
+                      1. Data da Autorização *
+                    </label>
+                    <input
+                      type="date"
+                      value={dataAutorizacaoConv}
+                      onChange={(e) => {
+                        setDataAutorizacaoConv(e.target.value);
+                        setDatasCustomizadasConv({});
+                        setProximaAutCustomizadaConv('');
+                      }}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white focus:outline-[#002172]"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-400 mt-1.5 block font-medium">
+                      Preenchimento manual do operador (sem automação)
+                    </span>
+                  </div>
+
+                  {/* 2. Quantidade Total de Sessões */}
+                  <div className="bg-white dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                    <label className="block text-slate-700 dark:text-slate-200 font-bold text-xs mb-1.5">
+                      2. Quantidade Total de Sessões *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={qtdSessoesConv}
+                      onChange={(e) => {
+                        setQtdSessoesConv(Math.max(1, Number(e.target.value)));
+                        setDatasCustomizadasConv({});
+                        setProximaAutCustomizadaConv('');
+                      }}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-extrabold text-[#002172] dark:text-blue-300 focus:outline-[#002172]"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-400 mt-1.5 block font-medium">
+                      Padrão: 4 sessões (Editável se necessário)
+                    </span>
+                  </div>
+
+                  {/* 3. Duração das Sessões */}
+                  <div className="bg-white dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                    <label className="block text-slate-700 dark:text-slate-200 font-bold text-xs mb-1.5">
+                      3. Duração das Sessões *
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDuracaoSessaoConv('30MIN');
+                          setDatasCustomizadasConv({});
+                          setProximaAutCustomizadaConv('');
+                        }}
+                        className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                          duracaoSessaoConv === '30MIN'
+                            ? 'bg-[#002172] text-white border-[#002172] shadow-2xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        30 MIN
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDuracaoSessaoConv('1H');
+                          setDatasCustomizadasConv({});
+                          setProximaAutCustomizadaConv('');
+                        }}
+                        className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                          duracaoSessaoConv === '1H'
+                            ? 'bg-[#002172] text-white border-[#002172] shadow-2xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        1 HORA
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-400 mt-1.5 block font-medium">
+                      {duracaoSessaoConv === '30MIN' ? '1 sessão por semana' : '2 sessões por semana (proporcional)'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção 2: Cronograma Calculado & Detector de Conflitos */}
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100 text-xs flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-500" />
+                      Cronograma Convencional Gerado ({duracaoSessaoConv})
+                    </h4>
+                    <p className="text-[10px] text-slate-500">
+                      Primeira sessão iniciada na Data da Autorização. {duracaoSessaoConv === '30MIN' ? 'Pula 1 semana para cada sessão.' : 'Proporcional em 2 sessões por semana.'}
+                    </p>
+                  </div>
+
+                  {cronogramaConv.totalConflitos > 0 ? (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-700 animate-pulse flex items-center gap-1 shrink-0">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                      <span>⚠️ {cronogramaConv.totalConflitos} Data(s) em Feriado/Domingo</span>
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
+                      ✓ Sem conflitos de feriados/domingos
+                    </span>
+                  )}
+                </div>
+
+                {/* Grid das Sessões Convencionais */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
+                  {cronogramaConv.sessoes.map((s) => (
+                    <div
+                      key={s.numero}
+                      className={`p-3 rounded-xl border text-xs flex flex-col justify-between transition-all ${
+                        s.temConflito
+                          ? 'bg-amber-50/90 dark:bg-amber-950/80 border-2 border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100 shadow-amber-500/10 shadow-md'
+                          : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                            Sessão #{s.numero}
+                          </span>
+                          {s.temConflito && (
+                            <span className="text-[9px] font-extrabold bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 px-1.5 py-0.5 rounded flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3 text-amber-700" />
+                              <span>ATENÇÃO</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="font-extrabold text-xs text-slate-900 dark:text-white">
+                          {s.dataBr}
+                        </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                          {s.diaSemanaNome}
+                        </div>
+
+                        {s.temConflito && s.motivoConflito && (
+                          <div className="mt-1.5 p-1.5 rounded-md bg-amber-100/90 dark:bg-amber-900/60 border border-amber-300 dark:border-amber-700 text-[10px] text-amber-900 dark:text-amber-200 font-semibold">
+                            ⚠️ {s.motivoConflito}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-2 pt-2 border-t border-slate-200/80 dark:border-slate-700/80 space-y-1">
+                        <label className="block text-[9px] font-bold text-slate-400">Alterar Data:</label>
+                        <input
+                          type="date"
+                          value={s.dataIso}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              setDatasCustomizadasConv((prev) => ({
+                                ...prev,
+                                [s.numero]: e.target.value,
+                              }));
+                            }
+                          }}
+                          className="w-full px-1.5 py-1 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono font-bold text-slate-800 dark:text-white focus:outline-[#002172]"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Card Especial da Próxima Autorização Posterior */}
+                <div className={`p-4 rounded-2xl border-2 transition-all mt-3 space-y-2.5 ${
+                  cronogramaConv.proximaAutorizacao.temConflito
+                    ? 'bg-amber-50 dark:bg-amber-950/80 border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100 shadow-md'
+                    : 'bg-blue-50/80 dark:bg-blue-950/60 border-blue-300 dark:border-blue-800 text-blue-950 dark:text-blue-100'
+                }`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                        Previsão do Portal do Convênio (Convencional)
+                      </span>
+                      <h4 className="font-bold text-sm flex items-center gap-2 flex-wrap">
+                        <span>📅 Data da Próxima Autorização Posterior:</span>
+                        <strong className="font-mono text-base font-extrabold text-[#002172] dark:text-blue-200">
+                          {cronogramaConv.proximaAutorizacao.dataBr}
+                        </strong>
+                        <span className="text-xs font-normal">({cronogramaConv.proximaAutorizacao.diaSemanaNome})</span>
+                      </h4>
+                    </div>
+
+                    {cronogramaConv.proximaAutorizacao.temConflito && (
+                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-amber-200 text-amber-950 border border-amber-400 flex items-center gap-1 shrink-0">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                        <span>Cai em Domingo/Feriado — Altere abaixo</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {cronogramaConv.proximaAutorizacao.temConflito && cronogramaConv.proximaAutorizacao.motivoConflito && (
+                    <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/60 border border-amber-300 dark:border-amber-700 text-xs font-semibold text-amber-900 dark:text-amber-200">
+                      ⚠️ {cronogramaConv.proximaAutorizacao.motivoConflito}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3 pt-1 flex-wrap">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
+                      Alterar Data da Próxima Autorização:
+                    </label>
+                    <input
+                      type="date"
+                      value={cronogramaConv.proximaAutorizacao.dataIso}
+                      onChange={(e) => setProximaAutCustomizadaConv(e.target.value)}
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-xs font-bold text-slate-900 dark:text-white"
+                    />
+                    {proximaAutCustomizadaConv && (
+                      <button
+                        type="button"
+                        onClick={() => setProximaAutCustomizadaConv('')}
+                        className="text-[11px] font-bold text-blue-700 dark:text-blue-300 hover:underline cursor-pointer"
+                      >
+                        Restaurar Data Padrão
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Resumo Formatado para Cópia Rápida */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-slate-800 dark:text-white flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-[#002172] dark:text-blue-400" />
+                      Resumo do Cronograma Convencional para Cópia
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const texto = `CRONOGRAMA CONVENCIONAL (${duracaoSessaoConv})\nData Autorização: ${formatarDataBr(dataAutorizacaoConv)}\nSessões (${qtdSessoesConv}): ${cronogramaConv.sessoes.map((s) => s.dataBr).join(', ')}\nData Próxima Autorização: ${cronogramaConv.proximaAutorizacao.dataBr}`;
+                        navigator.clipboard.writeText(texto);
+                        setCopiedResumoConv(true);
+                        setTimeout(() => setCopiedResumoConv(false), 2000);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#002172] text-white text-[11px] font-bold hover:bg-[#001752] transition-colors cursor-pointer"
+                    >
+                      {copiedResumoConv ? (
+                        <>
+                          <Check className="w-3 h-3 text-[#91CA0C]" />
+                          <span>Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copiar Resumo</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="font-mono text-[11px] text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                    Sessões: {cronogramaConv.sessoes.map((s) => s.dataBr).join(' · ')} | Próxima Autorização: {cronogramaConv.proximaAutorizacao.dataBr}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
-import { SecretAchievementsProvider } from './context/SecretAchievementsContext';
 import { DateFormatProvider } from './context/DateFormatContext';
 import { Header } from './components/layout/Header';
 import { Sidebar, NavItemKey } from './components/layout/Sidebar';
@@ -19,7 +18,6 @@ import { AuditoriaView } from './components/views/AuditoriaView';
 import { CalculationPreviewModal } from './components/common/CalculationPreviewModal';
 import { AuditTrailDrawer } from './components/common/AuditTrailDrawer';
 import { ArchitectureDocModal } from './components/documentation/ArchitectureDocModal';
-import { SecretAchievementsModal } from './components/common/SecretAchievementsModal';
 import { FeriadoVesperaModal } from './components/common/FeriadoVesperaModal';
 import { BackupSyncModal } from './components/common/BackupSyncModal';
 import { BackupDailyReminderModal } from './components/common/BackupDailyReminderModal';
@@ -379,8 +377,6 @@ function MainApp() {
         dataAmanhaStr={feriadoVesperaDataAmanha}
       />
 
-      <SecretAchievementsModal />
-
       <BackupSyncModal
         isOpen={isBackupOpen}
         onClose={() => setIsBackupOpen(false)}
@@ -404,11 +400,9 @@ function MainApp() {
 export default function App() {
   return (
     <ThemeProvider>
-      <SecretAchievementsProvider>
-        <DateFormatProvider>
-          <MainApp />
-        </DateFormatProvider>
-      </SecretAchievementsProvider>
+      <DateFormatProvider>
+        <MainApp />
+      </DateFormatProvider>
     </ThemeProvider>
   );
 }

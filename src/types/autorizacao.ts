@@ -35,7 +35,7 @@ export interface AutorizacaoV2 {
   observacoes?: string;
   senha?: string;
   dataValidadeSenha?: string;
-  polo?: 'M1' | 'M2' | 'Polo 1' | 'Polo 2';
+  polo?: 'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON';
   dataColocacaoPasta?: string;
   pastaDoutora?: string;
   responsavelColocacaoPasta?: string;

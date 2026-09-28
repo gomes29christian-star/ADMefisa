@@ -29,7 +29,6 @@ import { PacientesService, calcularVencimentoFormulario } from '../../services/p
 import { carregarAutorizacoesIniciais } from '../../services/autorizacoesService';
 import { formatarDataBr, calcularDatasSessoesAlinhadas } from '../../services/businessRules';
 import { useTheme } from '../../context/ThemeContext';
-import { useSecretAchievements } from '../../context/SecretAchievementsContext';
 import { Usuario } from '../../types/clinic';
 
 interface DashboardViewProps {
@@ -46,7 +45,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAudit,
 }) => {
   const { getThemeStrokeStyle, showMonthInitials } = useTheme();
-  const { triggerSecretAction } = useSecretAchievements();
 
   const autorizacoesList = carregarAutorizacoesIniciais();
   const pacientesList = PacientesService.obterPacientes();

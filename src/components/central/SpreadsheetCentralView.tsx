@@ -28,7 +28,6 @@ import {
   MOCK_AUDITORIA,
 } from '../../data/mockClinicData';
 import { useTheme } from '../../context/ThemeContext';
-import { useSecretAchievements } from '../../context/SecretAchievementsContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
 import { GerenciarProcedimentosModal } from '../procedimentos/GerenciarProcedimentosModal';
 import { formatarDataBr } from '../../services/businessRules';
@@ -45,7 +44,6 @@ export const SpreadsheetCentralView: React.FC<SpreadsheetCentralViewProps> = ({
   usuarioAtualNome,
 }) => {
   const { getThemeStrokeStyle, showMonthInitials } = useTheme();
-  const { triggerSecretAction } = useSecretAchievements();
 
   // Filtros locais da sessão do usuário
   const [busca, setBusca] = useState('');

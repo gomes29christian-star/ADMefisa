@@ -1,5 +1,4 @@
 import React from 'react';
-import { useSecretAchievements } from '../../context/SecretAchievementsContext';
 
 interface MefisaLogoProps {
   variant?: 'auto' | 'horizontal' | 'compact';
@@ -12,19 +11,11 @@ interface MefisaLogoProps {
  * Utiliza estritamente os arquivos vetoriais originais fornecidos:
  * - Forma 1 (Horizontal): /assets/logo-colorida-forma-1.svg
  * - Forma 2 (Compacta / Vertical): /assets/logo-colorida-forma-2.svg
- * 
- * Requisitos atendidos:
- * 1. Logotipo oficial da Clínica Mefisa exibido de forma uniforme em alta fidelidade vetorial.
- * 2. Alternância para formato compacto (Forma 2) se o layout for encurtado.
- * 3. Fundo da logo PERMANECE BRANCO mesmo quando o site estiver em MODO ESCURO (keep-white / logo-white-bg).
- * 4. Interação de duplo-clique para o compartimento secreto mantida.
  */
 export const MefisaLogo: React.FC<MefisaLogoProps> = ({
   variant = 'auto',
   className = '',
 }) => {
-  const { unlockWithLogoDoubleClick } = useSecretAchievements();
-
   // Garante que o caminho funcione no GitHub Pages (subdiretório ou raiz) e no Studio
   const baseUrl = import.meta.env.BASE_URL || './';
   const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
@@ -41,8 +32,7 @@ export const MefisaLogo: React.FC<MefisaLogoProps> = ({
 
   return (
     <div
-      onDoubleClick={unlockWithLogoDoubleClick}
-      className={`group select-none cursor-pointer inline-flex items-center justify-center transition-transform active:scale-[0.98] ${className}`}
+      className={`group select-none inline-flex items-center justify-center transition-transform ${className}`}
       title="Clínica Mefisa — Clínica de Especialidades"
     >
       <div className="logo-white-bg keep-white bg-white dark:bg-white text-slate-900 rounded-2xl px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-sm border border-slate-200/90 dark:border-slate-700/80 flex items-center justify-center transition-all w-full max-w-[240px]">

@@ -36,7 +36,6 @@ import {
 import { ValidacaoDuplicidadeGuiaSessao, DiaSemanaIndice, GuiaDigitacao, Usuario, Prestador } from '../../types/clinic';
 import { carregarUsuariosIniciais } from '../../services/userService';
 import { useTheme } from '../../context/ThemeContext';
-import { useSecretAchievements } from '../../context/SecretAchievementsContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
 import {
   ProcedimentosService,
@@ -61,11 +60,13 @@ interface GuiasViewProps {
 const GUIAS_PADRAO_INICIAIS: GuiaDigitacao[] = [
   {
     id: 'guia-demo-1',
+    classificacao: 'ABA',
     numeroGuia: '#SUL-998822-D',
     numeroConta: 'CNT-8821',
     autorizacaoId: 'aut-v2-3',
     pacienteId: 'pac-3',
     pacienteNome: 'Matheus Henrique da Silva',
+    procedimentoNome: 'Psicologia ABA',
     prestadorId: 'prest-1',
     prestadorNome: 'Dra. Ana Beatriz Albuquerque',
     convenioNome: 'Unimed Central',
@@ -85,11 +86,13 @@ const GUIAS_PADRAO_INICIAIS: GuiaDigitacao[] = [
   },
   {
     id: 'guia-demo-2',
+    classificacao: 'CONV.',
     numeroGuia: '#BRAD-773311-A',
     numeroConta: 'CNT-7740',
     autorizacaoId: 'aut-v2-1',
     pacienteId: 'pac-1',
     pacienteNome: 'Lucas Gabriel Mendes',
+    procedimentoNome: 'Fonoaudiologia',
     prestadorId: 'prest-2',
     prestadorNome: 'Dr. Carlos Eduardo Neves',
     convenioNome: 'Bradesco Saúde',
@@ -109,11 +112,13 @@ const GUIAS_PADRAO_INICIAIS: GuiaDigitacao[] = [
   },
   {
     id: 'guia-demo-3',
+    classificacao: 'ABA',
     numeroGuia: '#AMIL-445566-K',
     numeroConta: 'CNT-9912',
     autorizacaoId: 'aut-v2-5',
     pacienteId: 'pac-5',
     pacienteNome: 'Gabriel Costa Silva',
+    procedimentoNome: 'Terapia Ocupacional ABA',
     prestadorId: 'prest-3',
     prestadorNome: 'Dra. Mariana Souza',
     convenioNome: 'Amil Assistência',
@@ -134,15 +139,15 @@ const GUIAS_PADRAO_INICIAIS: GuiaDigitacao[] = [
 ];
 
 export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
-  const { triggerSecretAction } = useSecretAchievements();
   const { showMonthInitials } = useTheme();
   const [busca, setBusca] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('TODOS');
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
   const [filtroDataFim, setFiltroDataFim] = useState('');
 
-  // Filtros programáveis por coluna para as 12 colunas do Faturamento
+  // Filtros programáveis por coluna para as colunas do Faturamento
   const [filtrosColunas, setFiltrosColunas] = useState({
+    classificacao: '',
     numeroGuia: '',
     paciente: '',
     dataAutorizacao: '',
@@ -157,11 +162,35 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
     responsavelColherAssinatura: '',
   });
 
+  // Filtro de Guias Incompletas (Campos em branco)
+  const [apenasIncompletas, setApenasIncompletas] = useState(false);
+
+  const isEmBranco = (val: any) => !val || String(val).trim() === '';
+
+  const temCampoEmBranco = (guia: GuiaDigitacao): boolean => {
+    return (
+      isEmBranco(guia.numeroGuia) ||
+      isEmBranco(guia.numeroConta) ||
+      isEmBranco(guia.dataAutorizacao) ||
+      isEmBranco(guia.dataColocacaoPasta) ||
+      isEmBranco(guia.pastaDoutora) ||
+      isEmBranco(guia.prestadorNome) ||
+      isEmBranco(guia.polo) ||
+      isEmBranco(guia.responsavelColocacaoPasta) ||
+      isEmBranco(guia.dataRetorno) ||
+      isEmBranco(guia.dataDigitacao) ||
+      isEmBranco(guia.responsavelDigitacao) ||
+      isEmBranco(guia.assinada) ||
+      (isEmBranco(guia.responsavelColherAssinatura) && isEmBranco(guia.responsavelColherGuia))
+    );
+  };
+
   const temFiltrosAtivos =
     Boolean(busca.trim()) ||
     statusFiltro !== 'TODOS' ||
     Boolean(filtroDataInicio) ||
     Boolean(filtroDataFim) ||
+    apenasIncompletas ||
     Object.values(filtrosColunas).some((v) => Boolean(v && v.trim()));
 
   const limparFiltros = () => {
@@ -169,7 +198,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
     setStatusFiltro('TODOS');
     setFiltroDataInicio('');
     setFiltroDataFim('');
+    setApenasIncompletas(false);
     setFiltrosColunas({
+      classificacao: '',
       numeroGuia: '',
       paciente: '',
       dataAutorizacao: '',
@@ -235,7 +266,7 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
   const [numeroContaInput, setNumeroContaInput] = useState<string>('');
   const [erroNumeroConta, setErroNumeroConta] = useState<string | null>(null);
   const [pastaDoutoraInput, setPastaDoutoraInput] = useState<string>(MOCK_PRESTADORES[0]?.nome || 'Dra. Ana Beatriz');
-  const [poloInput, setPoloInput] = useState<'M1' | 'M2' | 'Polo 1' | 'Polo 2'>('M1');
+  const [poloInput, setPoloInput] = useState<'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON'>('M1');
   const [responsavelColocacaoPastaInput, setResponsavelColocacaoPastaInput] = useState<string>('Maria Clara Fonseca');
   const [dataColocacaoPastaInput, setDataColocacaoPastaInput] = useState<string>('');
   const [dataRetornoInput, setDataRetornoInput] = useState<string>('');
@@ -246,13 +277,28 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
   // Modal de Procedimentos & Preços ABA
   const [modalProcedimentosAberto, setModalProcedimentosAberto] = useState(false);
 
-  // Modal de Nova Guia / Digitação
+  // Modal de Nova Guia / Digitação Completa
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
-  const [novoPaciente, setNovoPaciente] = useState('Lucas Gabriel Mendes');
+  const [novaClassificacao, setNovaClassificacao] = useState<'ABA' | 'CONV.'>('ABA');
+  const [novoNumeroGuia, setNovoNumeroGuia] = useState('');
+  const [novoNumeroConta, setNovoNumeroConta] = useState('');
+  const [novoPaciente, setNovoPaciente] = useState('');
+  const [novoConvenio, setNovoConvenio] = useState('SulAmérica Saúde');
   const [codigoProcedimentoSelecionado, setCodigoProcedimentoSelecionado] = useState('66600480');
   const [novoProcedimento, setNovoProcedimento] = useState('Psicologia ABA');
-  const [novaDataSessao, setNovaDataSessao] = useState('2026-10-24');
-  const [novoNumeroGuia, setNovoNumeroGuia] = useState('#SUL-998822-D');
+  const [novoPrestador, setNovoPrestador] = useState('Dra. Ana Beatriz Albuquerque');
+  const [novaPastaDoutora, setNovaPastaDoutora] = useState('Pasta Dra. Ana Beatriz Albuquerque');
+  const [novoPolo, setNovoPolo] = useState<'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON'>('M1');
+  const [novaDataAutorizacao, setNovaDataAutorizacao] = useState(() => new Date().toISOString().split('T')[0]);
+  const [novaDataColocacaoPasta, setNovaDataColocacaoPasta] = useState(() => new Date().toISOString().split('T')[0]);
+  const [novoResponsavelColocacaoPasta, setNovoResponsavelColocacaoPasta] = useState('Maria Clara Fonseca');
+  const [novaDataRetorno, setNovaDataRetorno] = useState('');
+  const [novaDataDigitacao, setNovaDataDigitacao] = useState(() => new Date().toISOString().split('T')[0]);
+  const [novoResponsavelDigitacao, setNovoResponsavelDigitacao] = useState('Christian Gomes');
+  const [novaAssinada, setNovaAssinada] = useState<'SIM' | 'PARCIAL' | 'NAO'>('SIM');
+  const [novoResponsavelColherAssinatura, setNovoResponsavelColherAssinatura] = useState('Ana Beatriz Silveira');
+  const [novoStatus, setNovoStatus] = useState<'DIGITADA_FATURADA' | 'AGUARDANDO_RETORNO' | 'AGUARDANDO_DIGITACAO'>('DIGITADA_FATURADA');
+  const [novasObservacoes, setNovasObservacoes] = useState('');
   const [resultadoDuplicidade, setResultadoDuplicidade] = useState<ValidacaoDuplicidadeGuiaSessao | null>(null);
   const [justificativaDuplicidade, setJustificativaDuplicidade] = useState('');
   const [erroBloqueioProcedimento, setErroBloqueioProcedimento] = useState<string | null>(null);
@@ -821,6 +867,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
   const guiasFiltradas = guias.filter((guia) => {
     if (statusFiltro !== 'TODOS' && guia.status !== statusFiltro) return false;
 
+    // Filtro rápido para mostrar apenas guias com campos em branco
+    if (apenasIncompletas && !temCampoEmBranco(guia)) return false;
+
     // Filtro por Data Início / Fim (Período)
     if (filtroDataInicio && (guia.dataColocacaoPasta < filtroDataInicio && (guia.dataDigitacao || '') < filtroDataInicio)) {
       return false;
@@ -845,6 +894,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
       const matchDataDig = matchDateFilter(guia.dataDigitacao, busca);
       const matchDataRet = matchDateFilter(guia.dataRetorno, busca);
 
+      const buscaIncompleto = busca.toLowerCase().includes('branco') || busca.toLowerCase().includes('incomplet');
+      const matchBranco = buscaIncompleto && temCampoEmBranco(guia);
+
       if (
         !matchNum &&
         !matchConta &&
@@ -858,73 +910,119 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
         !matchDataAut &&
         !matchDataPasta &&
         !matchDataDig &&
-        !matchDataRet
+        !matchDataRet &&
+        !matchBranco
       ) {
         return false;
       }
     }
 
-    // Filtros de Coluna Individuais (12 Colunas)
+    // Filtros de Coluna Individuais
+    if (filtrosColunas.classificacao) {
+      if (filtrosColunas.classificacao === 'EM_BRANCO') {
+        if (!isEmBranco(guia.classificacao)) return false;
+      } else if ((guia.classificacao || 'ABA') !== filtrosColunas.classificacao) {
+        return false;
+      }
+    }
+
     if (filtrosColunas.numeroGuia) {
-      const matchNum = matchTextFilter(guia.numeroGuia, filtrosColunas.numeroGuia);
-      const matchConta = matchTextFilter(guia.numeroConta, filtrosColunas.numeroGuia);
-      if (!matchNum && !matchConta) return false;
+      if (filtrosColunas.numeroGuia === 'EM_BRANCO' || filtrosColunas.numeroGuia.toLowerCase().includes('branco')) {
+        if (!isEmBranco(guia.numeroGuia) && !isEmBranco(guia.numeroConta)) return false;
+      } else {
+        const matchNum = matchTextFilter(guia.numeroGuia, filtrosColunas.numeroGuia);
+        const matchConta = matchTextFilter(guia.numeroConta, filtrosColunas.numeroGuia);
+        if (!matchNum && !matchConta) return false;
+      }
     }
 
     if (filtrosColunas.paciente && !matchTextFilter(guia.pacienteNome, filtrosColunas.paciente)) {
       return false;
     }
 
-    if (filtrosColunas.dataAutorizacao && !matchDateFilter(guia.dataAutorizacao, filtrosColunas.dataAutorizacao)) {
-      return false;
+    if (filtrosColunas.dataAutorizacao) {
+      if (filtrosColunas.dataAutorizacao === 'EM_BRANCO' || filtrosColunas.dataAutorizacao.toLowerCase().includes('branco')) {
+        if (!isEmBranco(guia.dataAutorizacao)) return false;
+      } else if (!matchDateFilter(guia.dataAutorizacao, filtrosColunas.dataAutorizacao)) {
+        return false;
+      }
     }
 
-    if (filtrosColunas.dataColocacaoPasta && !matchDateFilter(guia.dataColocacaoPasta, filtrosColunas.dataColocacaoPasta)) {
-      return false;
+    if (filtrosColunas.dataColocacaoPasta) {
+      if (filtrosColunas.dataColocacaoPasta === 'EM_BRANCO' || filtrosColunas.dataColocacaoPasta.toLowerCase().includes('branco')) {
+        if (!isEmBranco(guia.dataColocacaoPasta)) return false;
+      } else if (!matchDateFilter(guia.dataColocacaoPasta, filtrosColunas.dataColocacaoPasta)) {
+        return false;
+      }
     }
 
-    if (filtrosColunas.pastaDoutora && !matchTextFilter(guia.pastaDoutora, filtrosColunas.pastaDoutora)) {
-      return false;
+    if (filtrosColunas.pastaDoutora) {
+      if (filtrosColunas.pastaDoutora === 'EM_BRANCO' || filtrosColunas.pastaDoutora.toLowerCase().includes('branco')) {
+        if (!isEmBranco(guia.pastaDoutora) && !isEmBranco(guia.prestadorNome)) return false;
+      } else if (!matchTextFilter(guia.pastaDoutora, filtrosColunas.pastaDoutora)) {
+        return false;
+      }
     }
 
-    if (filtrosColunas.polo && !matchTextFilter(guia.polo, filtrosColunas.polo)) {
-      return false;
+    if (filtrosColunas.polo) {
+      if (filtrosColunas.polo === 'EM_BRANCO') {
+        if (!isEmBranco(guia.polo)) return false;
+      } else if (!matchTextFilter(guia.polo, filtrosColunas.polo)) {
+        return false;
+      }
     }
 
-    if (
-      filtrosColunas.responsavelColocacaoPasta &&
-      !matchTextFilter(guia.responsavelColocacaoPasta, filtrosColunas.responsavelColocacaoPasta)
-    ) {
-      return false;
+    if (filtrosColunas.responsavelColocacaoPasta) {
+      if (filtrosColunas.responsavelColocacaoPasta === 'EM_BRANCO' || filtrosColunas.responsavelColocacaoPasta.toLowerCase().includes('branco')) {
+        if (!isEmBranco(guia.responsavelColocacaoPasta)) return false;
+      } else if (!matchTextFilter(guia.responsavelColocacaoPasta, filtrosColunas.responsavelColocacaoPasta)) {
+        return false;
+      }
     }
 
-    if (filtrosColunas.dataRetorno && !matchDateFilter(guia.dataRetorno, filtrosColunas.dataRetorno)) {
-      return false;
+    if (filtrosColunas.dataRetorno) {
+      if (filtrosColunas.dataRetorno === 'EM_BRANCO' || filtrosColunas.dataRetorno.toLowerCase().includes('branco')) {
+        if (!isEmBranco(guia.dataRetorno)) return false;
+      } else if (!matchDateFilter(guia.dataRetorno, filtrosColunas.dataRetorno)) {
+        return false;
+      }
     }
 
-    if (filtrosColunas.dataDigitacao && !matchDateFilter(guia.dataDigitacao, filtrosColunas.dataDigitacao)) {
-      return false;
+    if (filtrosColunas.dataDigitacao) {
+      if (filtrosColunas.dataDigitacao === 'EM_BRANCO' || filtrosColunas.dataDigitacao.toLowerCase().includes('branco')) {
+        if (!isEmBranco(guia.dataDigitacao)) return false;
+      } else if (!matchDateFilter(guia.dataDigitacao, filtrosColunas.dataDigitacao)) {
+        return false;
+      }
     }
 
-    if (
-      filtrosColunas.responsavelDigitacao &&
-      !matchTextFilter(guia.responsavelDigitacao, filtrosColunas.responsavelDigitacao)
-    ) {
-      return false;
+    if (filtrosColunas.responsavelDigitacao) {
+      if (filtrosColunas.responsavelDigitacao === 'EM_BRANCO' || filtrosColunas.responsavelDigitacao.toLowerCase().includes('branco')) {
+        if (!isEmBranco(guia.responsavelDigitacao)) return false;
+      } else if (!matchTextFilter(guia.responsavelDigitacao, filtrosColunas.responsavelDigitacao)) {
+        return false;
+      }
     }
 
-    if (filtrosColunas.assinada && guia.assinada !== filtrosColunas.assinada) {
-      return false;
+    if (filtrosColunas.assinada) {
+      if (filtrosColunas.assinada === 'EM_BRANCO') {
+        if (!isEmBranco(guia.assinada)) return false;
+      } else if (guia.assinada !== filtrosColunas.assinada) {
+        return false;
+      }
     }
 
-    if (
-      filtrosColunas.responsavelColherAssinatura &&
-      !matchTextFilter(
-        guia.responsavelColherAssinatura || guia.responsavelColherGuia,
-        filtrosColunas.responsavelColherAssinatura
-      )
-    ) {
-      return false;
+    if (filtrosColunas.responsavelColherAssinatura) {
+      if (filtrosColunas.responsavelColherAssinatura === 'EM_BRANCO') {
+        if (!isEmBranco(guia.responsavelColherAssinatura) && !isEmBranco(guia.responsavelColherGuia)) return false;
+      } else if (
+        !matchTextFilter(
+          guia.responsavelColherAssinatura || guia.responsavelColherGuia,
+          filtrosColunas.responsavelColherAssinatura
+        )
+      ) {
+        return false;
+      }
     }
 
     return true;
@@ -956,64 +1054,113 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
     }
   };
 
+  const handleAbrirModalNovo = () => {
+    const hojeIso = new Date().toISOString().split('T')[0];
+    setNovaClassificacao('ABA');
+    setNovoNumeroGuia('');
+    setNovoNumeroConta('');
+    setNovoPaciente(''); // VAZIO: Único campo de texto obrigatório!
+    setNovoConvenio('');
+    setCodigoProcedimentoSelecionado('');
+    setNovoProcedimento('');
+    setNovoPrestador('');
+    setNovaPastaDoutora('');
+    setNovoPolo('' as any);
+    setNovaDataAutorizacao('');
+    setNovaDataColocacaoPasta('');
+    setNovoResponsavelColocacaoPasta('');
+    setNovaDataRetorno('');
+    setNovaDataDigitacao(hojeIso); // Data do Faturamento é o ÚNICO campo pré-preenchido por padrão!
+    setNovoResponsavelDigitacao('');
+    setNovaAssinada('' as any);
+    setNovoResponsavelColherAssinatura('');
+    setNovoStatus('DIGITADA_FATURADA');
+    setNovasObservacoes('');
+    setResultadoDuplicidade(null);
+    setErroBloqueioProcedimento(null);
+    setJustificativaDuplicidade('');
+    setModalNovoAberto(true);
+  };
+
   const handleValidarERegistrarGuia = () => {
-    const validacaoProc = ProcedimentosService.validarInclusaoEmDigitacao(codigoProcedimentoSelecionado);
-    if (!validacaoProc.permitido) {
-      setErroBloqueioProcedimento(
-        validacaoProc.motivoBloqueio || 'Este procedimento é exclusivo de Autorização prévia e está BLOQUEADO para digitação de guias.'
-      );
+    if (!novoPaciente.trim()) {
+      alert('Por favor, digite o Nome do Paciente manualmente. Este campo é obrigatório.');
       return;
     }
 
-    const baseVerificacao = guias.map((g) => ({
-      id: g.id,
-      pacienteNome: g.pacienteNome,
-      procedimentoNome: novoProcedimento,
-      dataSessao: g.dataDigitacao || g.dataAutorizacao,
-      numeroGuia: g.numeroGuia,
-      status: g.status,
-    }));
+    if (codigoProcedimentoSelecionado) {
+      const validacaoProc = ProcedimentosService.validarInclusaoEmDigitacao(codigoProcedimentoSelecionado);
+      if (!validacaoProc.permitido) {
+        setErroBloqueioProcedimento(
+          validacaoProc.motivoBloqueio || 'Este procedimento é exclusivo de Autorização prévia e está BLOQUEADO para digitação de guias.'
+        );
+        return;
+      }
+    }
 
-    const validacao = validarDuplicidadeGuia(
-      {
-        pacienteNome: novoPaciente,
-        procedimentoNome: novoProcedimento,
-        dataSessao: novaDataSessao,
-        numeroGuia: novoNumeroGuia,
-      },
-      baseVerificacao
-    );
+    if (novoNumeroGuia.trim()) {
+      const baseVerificacao = guias.map((g) => ({
+        id: g.id,
+        pacienteNome: g.pacienteNome,
+        procedimentoNome: g.procedimentoNome || novoProcedimento,
+        dataSessao: g.dataDigitacao || g.dataAutorizacao || '',
+        numeroGuia: g.numeroGuia,
+        status: g.status,
+      }));
 
-    setResultadoDuplicidade(validacao);
+      const validacao = validarDuplicidadeGuia(
+        {
+          pacienteNome: novoPaciente,
+          procedimentoNome: novoProcedimento,
+          dataSessao: novaDataDigitacao || novaDataAutorizacao || '',
+          numeroGuia: novoNumeroGuia,
+        },
+        baseVerificacao
+      );
 
-    if (validacao.duplicada) {
-      return;
+      setResultadoDuplicidade(validacao);
+
+      if (validacao.duplicada && !justificativaDuplicidade.trim()) {
+        return;
+      }
     }
 
     concluirCadastroGuia();
   };
 
   const concluirCadastroGuia = () => {
-    const novaGuia = {
-      id: `guia-${Date.now()}`,
-      numeroGuia: novoNumeroGuia,
-      autorizacaoId: 'aut-novo',
-      pacienteId: 'pac-novo',
-      pacienteNome: novoPaciente,
+    if (!novoPaciente.trim()) {
+      alert('Por favor, informe o Nome do Paciente manualmente.');
+      return;
+    }
+
+    const novaGuia: GuiaDigitacao = {
+      id: `guia-manual-${Date.now()}`,
+      classificacao: novaClassificacao || 'ABA',
+      numeroGuia: novoNumeroGuia.trim(),
+      numeroConta: novoNumeroConta.trim() || undefined,
+      autorizacaoId: `aut-manual-${Date.now()}`,
+      pacienteId: `pac-manual-${Date.now()}`,
+      pacienteNome: novoPaciente.trim(),
+      procedimentoNome: novoProcedimento.trim() || undefined,
       prestadorId: 'prest-1',
-      prestadorNome: 'Dra. Camila Rocha',
-      convenioNome: 'SulAmérica Saúde',
-      dataAutorizacao: novaDataSessao,
-      dataColocacaoPasta: novaDataSessao,
-      pastaDoutora: 'Sala Virtual / Presencial 01',
+      prestadorNome: novoPrestador.trim(),
+      convenioNome: novoConvenio.trim(),
+      dataAutorizacao: novaDataAutorizacao.trim(),
+      dataColocacaoPasta: novaDataColocacaoPasta.trim(),
+      pastaDoutora: novaPastaDoutora.trim(),
       duracaoHoras: 1 as const,
-      responsavelColocacaoPasta: 'Maria Clara Fonseca',
-      dataRetorno: novaDataSessao,
-      responsavelColherGuia: 'Ana Beatriz Silveira',
-      dataDigitacao: novaDataSessao,
-      responsavelDigitacao: 'Ana Beatriz Silveira',
-      status: 'DIGITADA_FATURADA' as const,
+      polo: novoPolo || undefined,
+      responsavelColocacaoPasta: novoResponsavelColocacaoPasta.trim(),
+      dataRetorno: novaDataRetorno.trim() || undefined,
+      responsavelColherGuia: novoResponsavelColherAssinatura.trim() || undefined,
+      responsavelColherAssinatura: novoResponsavelColherAssinatura.trim() || undefined,
+      dataDigitacao: novaDataDigitacao.trim() || undefined,
+      responsavelDigitacao: novoResponsavelDigitacao.trim() || undefined,
+      status: novoStatus || 'DIGITADA_FATURADA',
       duplicidadeDetectada: false,
+      assinada: novaAssinada || undefined,
+      observacoes: novasObservacoes.trim() || undefined,
     };
 
     const listaNova = [novaGuia, ...guias];
@@ -1022,7 +1169,7 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
     setModalNovoAberto(false);
     setResultadoDuplicidade(null);
     setErroBloqueioProcedimento(null);
-    alert(`Guia ${novoNumeroGuia} cadastrada com sucesso!`);
+    alert(`Guia ${novaGuia.numeroGuia} (${novaGuia.classificacao}) registrada em Faturamentos com sucesso!`);
   };
 
   const handleDeletarGuiasSelecionadas = () => {
@@ -1067,10 +1214,7 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
           </button>
 
           <button
-            onClick={() => {
-              setModalNovoAberto(true);
-              setErroBloqueioProcedimento(null);
-            }}
+            onClick={handleAbrirModalNovo}
             className="flex items-center gap-1.5 px-4 py-2 bg-[#002172] hover:bg-[#001752] text-white rounded-xl font-bold text-xs shadow-md transition-colors"
           >
             <Plus className="w-4 h-4 text-[#91CA0C]" />
@@ -1371,9 +1515,50 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
 
       {/* SEÇÃO 2: TABELA PADRÃO DE DIGITAÇÃO DE GUIAS */}
       <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+        {/* Banner Alerta de Guias Incompletas (Campos em Branco) */}
+        {(() => {
+          const guiasIncompletasCount = guias.filter(temCampoEmBranco).length;
+          if (guiasIncompletasCount === 0) return null;
+          return (
+            <div className="p-3.5 bg-red-50 dark:bg-red-950/80 border border-red-300 dark:border-red-800/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-red-900 dark:text-red-200 text-xs shadow-xs animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-900/80 border border-red-300 dark:border-red-700 flex items-center justify-center text-red-600 dark:text-red-300 shrink-0 font-bold">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-xs text-red-900 dark:text-red-100 flex items-center gap-1.5">
+                    <span>Aviso de Inconsistência Operacional</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100 border border-red-300 dark:border-red-700">
+                      {guiasIncompletasCount} guia(s) com dados em branco
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-red-700 dark:text-red-300 mt-0.5">
+                    Campos pendentes estão destacados em células vermelhas na lista abaixo. Clique no campo para preencher.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setApenasIncompletas(!apenasIncompletas)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                  apenasIncompletas
+                    ? 'bg-red-700 hover:bg-red-800 text-white shadow-xs ring-2 ring-red-400'
+                    : 'bg-red-100 dark:bg-red-900/90 text-red-900 dark:text-red-100 hover:bg-red-200 border border-red-300 dark:border-red-700'
+                }`}
+              >
+                {apenasIncompletas ? '✓ Mostrando Apenas Incompletas' : '🔍 Filtrar Apenas Guias Incompletas'}
+              </button>
+            </div>
+          );
+        })()}
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h2 className="font-bold text-sm text-slate-900 dark:text-white font-['Quicksand']">
-            Histórico Operacional de Guias Digitadas & Faturamento ({guiasFiltradas.length})
+          <h2 className="font-bold text-sm text-slate-900 dark:text-white font-['Quicksand'] flex items-center gap-2">
+            <span>Histórico Operacional de Guias Digitadas & Faturamento ({guiasFiltradas.length})</span>
+            {apenasIncompletas && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-600 text-white">
+                Filtro Incompletas Ativo
+              </span>
+            )}
           </h2>
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
@@ -1433,9 +1618,23 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   />
                 </th>
 
-                {/* Coluna 1: Nº da Guia / Conta */}
+                {/* Coluna 1: Classificação (ABA / CONV.) */}
                 <th className="p-3">
-                  <div>1. Nº Guia / Conta</div>
+                  <div>1. Classificação</div>
+                  <select
+                    value={filtrosColunas.classificacao}
+                    onChange={(e) => setFiltrosColunas({ ...filtrosColunas, classificacao: e.target.value })}
+                    className="mt-1 w-full px-1 py-1 text-[10px] font-normal bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-900 dark:text-white focus:outline-blue-600 cursor-pointer"
+                  >
+                    <option value="">Todas</option>
+                    <option value="ABA">ABA</option>
+                    <option value="CONV.">CONV.</option>
+                  </select>
+                </th>
+
+                {/* Coluna 2: Nº da Guia / Conta */}
+                <th className="p-3">
+                  <div>2. Nº Guia / Conta</div>
                   <input
                     type="text"
                     placeholder="Guia ou conta..."
@@ -1445,9 +1644,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   />
                 </th>
 
-                {/* Coluna 2: Paciente */}
+                {/* Coluna 3: Paciente */}
                 <th className="p-3">
-                  <div>2. Paciente</div>
+                  <div>3. Paciente</div>
                   <input
                     type="text"
                     placeholder="Filtrar paciente..."
@@ -1457,9 +1656,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   />
                 </th>
 
-                {/* Coluna 3: Data da Autorização */}
+                {/* Coluna 4: Data da Autorização */}
                 <th className="p-3">
-                  <div>3. Data Autorização</div>
+                  <div>4. Data Autorização</div>
                   <input
                     type="text"
                     placeholder="Data aut..."
@@ -1469,9 +1668,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   />
                 </th>
 
-                {/* Coluna 4: Data de quando subiu na pasta */}
+                {/* Coluna 5: Data de quando subiu na pasta */}
                 <th className="p-3">
-                  <div>4. Subiu na Pasta</div>
+                  <div>5. Subiu na Pasta</div>
                   <input
                     type="text"
                     placeholder="Data pasta..."
@@ -1481,9 +1680,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   />
                 </th>
 
-                {/* Coluna 5: Doutora Mefisa dona da pasta */}
+                {/* Coluna 6: Doutora Mefisa dona da pasta */}
                 <th className="p-3">
-                  <div>5. Doutora Mefisa (Pasta)</div>
+                  <div>6. Doutora Mefisa (Pasta)</div>
                   <input
                     type="text"
                     placeholder="Doutora dona..."
@@ -1493,9 +1692,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   />
                 </th>
 
-                {/* Coluna 6: Polo */}
+                {/* Coluna 7: Polo */}
                 <th className="p-3">
-                  <div>6. Polo</div>
+                  <div>7. Polo</div>
                   <select
                     value={filtrosColunas.polo}
                     onChange={(e) => setFiltrosColunas({ ...filtrosColunas, polo: e.target.value })}
@@ -1504,12 +1703,13 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                     <option value="">Todos</option>
                     <option value="M1">M1</option>
                     <option value="M2">M2</option>
+                    <option value="ON">ON</option>
                   </select>
                 </th>
 
-                {/* Coluna 7: O Responsável por colocar na pasta */}
+                {/* Coluna 8: O Responsável por colocar na pasta */}
                 <th className="p-3">
-                  <div>7. Resp. Colocar Pasta</div>
+                  <div>8. Resp. Colocar Pasta</div>
                   <input
                     type="text"
                     placeholder="Resp. pasta..."
@@ -1521,9 +1721,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   />
                 </th>
 
-                {/* Coluna 8: A data do retorno da guia */}
+                {/* Coluna 9: A data do retorno da guia */}
                 <th className="p-3">
-                  <div>8. Data Retorno Guia</div>
+                  <div>9. Data Retorno Guia</div>
                   <input
                     type="text"
                     placeholder="Data retorno..."
@@ -1533,9 +1733,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   />
                 </th>
 
-                {/* Coluna 9: Data do Faturamento */}
+                {/* Coluna 10: Data do Faturamento */}
                 <th className="p-3">
-                  <div>9. Data Faturamento</div>
+                  <div>10. Data Faturamento</div>
                   <input
                     type="text"
                     placeholder="Data faturamento..."
@@ -1545,9 +1745,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   />
                 </th>
 
-                {/* Coluna 10: O Responsável pelo Faturamento */}
+                {/* Coluna 11: O Responsável pelo Faturamento */}
                 <th className="p-3">
-                  <div>10. Resp. Faturamento</div>
+                  <div>11. Resp. Faturamento</div>
                   <input
                     type="text"
                     placeholder="Resp. faturamento..."
@@ -1557,9 +1757,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   />
                 </th>
 
-                {/* Coluna 11: Se a guia foi assinada pelo responsável */}
+                {/* Coluna 12: Se a guia foi assinada pelo responsável */}
                 <th className="p-3">
-                  <div>11. Guia Assinada?</div>
+                  <div>12. Guia Assinada?</div>
                   <select
                     value={filtrosColunas.assinada}
                     onChange={(e) => setFiltrosColunas({ ...filtrosColunas, assinada: e.target.value })}
@@ -1572,9 +1772,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                   </select>
                 </th>
 
-                {/* Coluna 12: O responsável por colher a assinatura */}
+                {/* Coluna 13: O responsável por colher a assinatura */}
                 <th className="p-3">
-                  <div>12. Resp. Colher Assinatura</div>
+                  <div>13. Resp. Colher Assinatura</div>
                   <select
                     value={filtrosColunas.responsavelColherAssinatura}
                     onChange={(e) =>
@@ -1641,91 +1841,196 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                         />
                       </td>
 
-                      {/* 1. N° da Guia / Conta */}
-                      <td className="p-3 font-mono font-bold text-[#002172] dark:text-blue-400">
-                        <div>{guia.numeroGuia}</div>
-                        {guia.numeroConta && (
+                      {/* 1. Classificação (ABA / CONV.) */}
+                      <td className="p-3">
+                        <select
+                          value={guia.classificacao || 'ABA'}
+                          onChange={(e) => handleUpdateGuiaField(guia.id, 'classificacao', e.target.value)}
+                          className={`font-bold text-[10px] px-2 py-1 rounded-lg border cursor-pointer focus:outline-none ${
+                            (guia.classificacao || 'ABA') === 'ABA'
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-200 border-emerald-300'
+                              : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-900 dark:text-indigo-200 border-indigo-300'
+                          }`}
+                        >
+                          <option value="ABA">ABA</option>
+                          <option value="CONV.">CONV.</option>
+                        </select>
+                      </td>
+
+                      {/* 2. N° da Guia / Conta */}
+                      <td className="p-3 font-mono">
+                        {isEmBranco(guia.numeroGuia) ? (
+                          <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800 text-[10px] font-bold inline-flex items-center gap-1">
+                            ⚠️ Guia em branco
+                          </span>
+                        ) : (
+                          <div className="font-bold text-[#002172] dark:text-blue-400">{guia.numeroGuia}</div>
+                        )}
+                        {isEmBranco(guia.numeroConta) ? (
+                          <div className="text-[10px] text-red-600 dark:text-red-400 font-bold mt-0.5">
+                            ⚠️ Conta em branco
+                          </div>
+                        ) : (
                           <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">
                             Conta: {guia.numeroConta}
                           </div>
                         )}
                       </td>
 
-                      {/* 2. Paciente */}
-                      <td className="p-3 font-bold text-slate-900 dark:text-white">{guia.pacienteNome}</td>
-
-                      {/* 3. Data da Autorização */}
-                      <td className="p-3 font-mono text-[11px]">
-                        {formatarDataBr(guia.dataAutorizacao, showMonthInitials)}
+                      {/* 3. Paciente */}
+                      <td className="p-3 font-bold text-slate-900 dark:text-white">
+                        <div>{guia.pacienteNome}</div>
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          {isEmBranco(guia.procedimentoNome) ? (
+                            <span className="text-red-600 dark:text-red-400 font-bold">⚠️ Proc. em branco</span>
+                          ) : (
+                            guia.procedimentoNome
+                          )}{' '}
+                          ·{' '}
+                          {isEmBranco(guia.convenioNome) ? (
+                            <span className="text-red-600 dark:text-red-400 font-bold">⚠️ Convênio em branco</span>
+                          ) : (
+                            guia.convenioNome
+                          )}
+                        </div>
                       </td>
 
-                      {/* 4. Data de quando subiu na pasta */}
+                      {/* 4. Data da Autorização */}
                       <td className="p-3 font-mono text-[11px]">
-                        {formatarDataBr(guia.dataColocacaoPasta, showMonthInitials)}
+                        {isEmBranco(guia.dataAutorizacao) ? (
+                          <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800 font-bold text-[10px]">
+                            ⚠️ Em branco
+                          </span>
+                        ) : (
+                          formatarDataBr(guia.dataAutorizacao, showMonthInitials)
+                        )}
                       </td>
 
-                      {/* 5. Doutora Mefisa dona da pasta */}
+                      {/* 5. Data de quando subiu na pasta */}
+                      <td className="p-3 font-mono text-[11px]">
+                        {isEmBranco(guia.dataColocacaoPasta) ? (
+                          <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800 font-bold text-[10px]">
+                            ⚠️ Em branco
+                          </span>
+                        ) : (
+                          formatarDataBr(guia.dataColocacaoPasta, showMonthInitials)
+                        )}
+                      </td>
+
+                      {/* 6. Doutora Mefisa dona da pasta */}
                       <td className="p-3">
-                        <div className="font-semibold text-slate-800 dark:text-slate-200">{guia.pastaDoutora}</div>
-                        <div className="text-[10px] text-slate-400">{guia.prestadorNome}</div>
+                        {isEmBranco(guia.pastaDoutora) ? (
+                          <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800 font-bold text-[10px] block w-max mb-0.5">
+                            ⚠️ Pasta em branco
+                          </span>
+                        ) : (
+                          <div className="font-semibold text-slate-800 dark:text-slate-200">{guia.pastaDoutora}</div>
+                        )}
+                        {isEmBranco(guia.prestadorNome) ? (
+                          <div className="text-[10px] text-red-600 dark:text-red-400 font-bold">⚠️ Prestador em branco</div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400">{guia.prestadorNome}</div>
+                        )}
                       </td>
 
-                      {/* 6. Polo */}
+                      {/* 7. Polo */}
                       <td className="p-3 font-bold">
-                        <span className="px-2 py-0.5 rounded text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                          {guia.polo || 'M1'}
-                        </span>
+                        {isEmBranco(guia.polo) ? (
+                          <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800 font-bold text-[10px]">
+                            ⚠️ Em branco
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                            {guia.polo}
+                          </span>
+                        )}
                       </td>
 
-                      {/* 7. O Responsável por colocar na pasta */}
-                      <td className="p-3">{guia.responsavelColocacaoPasta || 'Maria Clara Fonseca'}</td>
+                      {/* 8. O Responsável por colocar na pasta */}
+                      <td className="p-3">
+                        {isEmBranco(guia.responsavelColocacaoPasta) ? (
+                          <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800 font-bold text-[10px]">
+                            ⚠️ Em branco
+                          </span>
+                        ) : (
+                          guia.responsavelColocacaoPasta
+                        )}
+                      </td>
 
-                      {/* 8. A data do retorno da guia (editável manualmente pós faturamento) */}
+                      {/* 9. A data do retorno da guia (editável manualmente pós faturamento) */}
                       <td className="p-3 font-mono">
                         <input
                           type="date"
                           value={guia.dataRetorno || ''}
                           onChange={(e) => handleUpdateGuiaField(guia.id, 'dataRetorno', e.target.value)}
                           title="Data do retorno da guia (colocada manualmente)"
-                          className="px-1.5 py-0.5 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono text-slate-800 dark:text-white"
+                          className={`px-1.5 py-0.5 text-[11px] rounded font-mono border ${
+                            isEmBranco(guia.dataRetorno)
+                              ? 'bg-red-50 dark:bg-red-950/80 border-red-400 text-red-800 dark:text-red-200 font-bold'
+                              : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white'
+                          }`}
                         />
+                        {isEmBranco(guia.dataRetorno) && (
+                          <div className="text-[9px] text-red-600 dark:text-red-400 font-bold mt-0.5">⚠️ Em branco</div>
+                        )}
                       </td>
 
-                      {/* 9. Data do Faturamento */}
+                      {/* 10. Data do Faturamento */}
                       <td className="p-3 font-mono text-[11px]">
-                        {formatarDataBr(guia.dataDigitacao, showMonthInitials)}
+                        {isEmBranco(guia.dataDigitacao) ? (
+                          <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800 font-bold text-[10px]">
+                            ⚠️ Em branco
+                          </span>
+                        ) : (
+                          formatarDataBr(guia.dataDigitacao, showMonthInitials)
+                        )}
                       </td>
 
-                      {/* 10. O Responsável pelo Faturamento */}
-                      <td className="p-3">{guia.responsavelDigitacao || 'Christian Gomes'}</td>
+                      {/* 11. O Responsável pelo Faturamento */}
+                      <td className="p-3">
+                        {isEmBranco(guia.responsavelDigitacao) ? (
+                          <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800 font-bold text-[10px]">
+                            ⚠️ Em branco
+                          </span>
+                        ) : (
+                          guia.responsavelDigitacao
+                        )}
+                      </td>
 
-                      {/* 11. Se a guia foi assinada pelo responsável */}
+                      {/* 12. Se a guia foi assinada pelo responsável */}
                       <td className="p-3">
                         <select
-                          value={guia.assinada || 'NAO'}
+                          value={guia.assinada || ''}
                           onChange={(e) => handleUpdateGuiaField(guia.id, 'assinada', e.target.value)}
                           className={`font-bold text-[10px] px-2 py-1 rounded-lg border cursor-pointer focus:outline-none ${
-                            guia.assinada === 'SIM'
+                            isEmBranco(guia.assinada)
+                              ? 'bg-red-100 dark:bg-red-950/80 text-red-900 dark:text-red-200 border-red-400 font-black'
+                              : guia.assinada === 'SIM'
                               ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-200 border-emerald-300'
-                              : 'bg-red-100 dark:bg-red-950 text-red-900 dark:text-red-200 border-red-300'
+                              : 'bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border-amber-300'
                           }`}
                         >
+                          <option value="">⚠️ Em branco</option>
                           <option value="SIM">Sim</option>
                           <option value="PARCIAL">Parcial</option>
                           <option value="NAO">Não</option>
                         </select>
                       </td>
 
-                      {/* 12. O responsável por colher a assinatura */}
+                      {/* 13. O responsável por colher a assinatura */}
                       <td className="p-3">
                         <select
                           value={guia.responsavelColherAssinatura || guia.responsavelColherGuia || ''}
                           onChange={(e) =>
                             handleUpdateGuiaField(guia.id, 'responsavelColherAssinatura', e.target.value)
                           }
-                          className="w-36 text-[11px] px-2 py-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg font-medium text-slate-800 dark:text-white cursor-pointer"
+                          className={`w-36 text-[11px] px-2 py-1 rounded-lg border font-medium cursor-pointer ${
+                            isEmBranco(guia.responsavelColherAssinatura) && isEmBranco(guia.responsavelColherGuia)
+                              ? 'bg-red-100 dark:bg-red-950/80 text-red-900 dark:text-red-200 border-red-400 font-bold'
+                              : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white'
+                          }`}
                         >
-                          <option value="">Selecione...</option>
+                          <option value="">⚠️ Em branco</option>
                           {funcionarios.map((f) => (
                             <option key={f.id} value={f.nome}>
                               {f.nome}
@@ -2482,114 +2787,440 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
         </div>
       )}
 
-      {/* Modal de Nova Guia / Digitação */}
+      {/* Modal de Nova Guia / Digitação Completa */}
       {modalNovoAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="bg-[#002172] text-white px-6 py-4 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-base font-['Quicksand']">+ Nova Guia / Digitação</h3>
-                <p className="text-xs text-blue-100">Validação estrita de Paciente + Procedimento + Data</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-3 sm:p-5 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh] transition-all">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-[#002172] via-[#001752] to-[#000d33] text-white px-6 py-4 flex items-center justify-between shrink-0 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/10 dark:bg-white/10 border border-white/20 flex items-center justify-center text-[#91CA0C] shadow-inner shrink-0">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-base font-['Quicksand'] tracking-tight">
+                      + Nova Guia / Digitação Completa
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#91CA0C]/20 text-[#91CA0C] border border-[#91CA0C]/30">
+                      Módulo Faturamento
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-100/80 mt-0.5">
+                    Preencha as informações operacionais completas das colunas de faturamento
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setModalNovoAberto(false)} className="text-white/80 hover:text-white">
+              <button
+                onClick={() => setModalNovoAberto(false)}
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                title="Fechar formulário"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4 max-h-[85vh] overflow-y-auto text-xs">
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-5 overflow-y-auto text-xs flex-1 bg-slate-50/50 dark:bg-slate-950/40">
               {erroBloqueioProcedimento && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl font-bold flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                <div className="p-3.5 bg-red-50 dark:bg-red-950/80 border border-red-200 dark:border-red-800/80 text-red-700 dark:text-red-300 rounded-xl font-bold flex items-center gap-2.5 shadow-xs">
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-red-600 dark:text-red-400" />
                   <span>{erroBloqueioProcedimento}</span>
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Selecione o Procedimento (Apenas as 5 ABAS regulares)
-                </label>
-                <select
-                  value={codigoProcedimentoSelecionado}
-                  onChange={(e) => handleSelecionarProcedimento(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl font-medium text-slate-800 dark:text-white"
-                >
-                  {todosProcedimentos.map((p) => (
-                    <option key={p.codigo} value={p.codigo}>
-                      {p.codigo} - {p.descricao} ({p.categoria})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Nome do Paciente
-                </label>
-                <input
-                  type="text"
-                  value={novoPaciente}
-                  onChange={(e) => setNovoPaciente(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl text-slate-800 dark:text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Data da Sessão
-                  </label>
-                  <input
-                    type="date"
-                    value={novaDataSessao}
-                    onChange={(e) => setNovaDataSessao(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl font-mono text-slate-800 dark:text-white"
-                  />
+              {/* Bloco 1: Classificação & Dados da Guia */}
+              <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-4 border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-3.5">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100 text-xs">
+                    <Tag className="w-4 h-4 text-[#002172] dark:text-blue-400" />
+                    <span>1. Classificação & Identificação Principal</span>
+                  </div>
+                  <span className="text-[10px] text-slate-600 dark:text-slate-300 font-mono">Campos Obrigatórios *</span>
                 </div>
+
+                {/* Classificação (ABA vs CONVENCIONAL) em Botoes Segmentados */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Número da Guia
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Classificação da Guia *
+                  </label>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setNovaClassificacao('ABA')}
+                      className={`p-2.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                        novaClassificacao === 'ABA'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/20 font-bold shadow-xs'
+                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full ${novaClassificacao === 'ABA' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                        <span>Pacientes ABA</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200">
+                        ABA
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setNovaClassificacao('CONV.')}
+                      className={`p-2.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                        novaClassificacao === 'CONV.'
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-900 dark:text-indigo-200 ring-2 ring-indigo-500/20 font-bold shadow-xs'
+                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full ${novaClassificacao === 'CONV.' ? 'bg-indigo-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                        <span>Convencional</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-indigo-100 dark:bg-indigo-900/80 text-indigo-800 dark:text-indigo-200">
+                        CONV.
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Nome do Paciente (Digitado Manualmente) */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-800 dark:text-slate-200 mb-1">
+                    2. Nome do Paciente (Digitação Manual Estrita) *
                   </label>
                   <input
                     type="text"
-                    value={novoNumeroGuia}
-                    onChange={(e) => setNovoNumeroGuia(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl font-mono text-slate-800 dark:text-white"
+                    placeholder="Digite o nome do paciente manualmente sem puxar do cadastro..."
+                    value={novoPaciente}
+                    onChange={(e) => setNovoPaciente(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 focus:border-[#002172] dark:focus:border-blue-500 rounded-xl text-slate-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-[#002172]/20 dark:focus:ring-blue-500/20 outline-none transition-all shadow-inner"
+                  />
+                  <p className="text-[10px] text-slate-500 dark:text-slate-300 mt-1 font-medium flex items-center gap-1">
+                    <span>💡</span> Entrada manual direta. Esta guia não altera as datas de autorização da lista de pacientes.
+                  </p>
+                </div>
+
+                {/* Nº Guia & Nº Conta */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Nº da Guia *
+                    </label>
+                    <input
+                      type="text"
+                      value={novoNumeroGuia}
+                      onChange={(e) => setNovoNumeroGuia(e.target.value)}
+                      placeholder="Ex: #SUL-998822-D"
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-slate-900 dark:text-white font-bold focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Nº da Conta / Lote
+                    </label>
+                    <input
+                      type="text"
+                      value={novoNumeroConta}
+                      onChange={(e) => setNovoNumeroConta(e.target.value)}
+                      placeholder="Ex: CNT-8821"
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-slate-900 dark:text-white font-bold focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloco 2: Convênio, Procedimento & Prestadores */}
+              <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-4 border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100 text-xs pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <UserCheck className="w-4 h-4 text-[#002172] dark:text-blue-400" />
+                  <span>2. Convênio, Procedimento & Corpo Clínico</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Convênio / Plano
+                    </label>
+                    <input
+                      type="text"
+                      value={novoConvenio}
+                      onChange={(e) => setNovoConvenio(e.target.value)}
+                      placeholder="Ex: SulAmérica Saúde"
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-medium focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Procedimento
+                    </label>
+                    <select
+                      value={codigoProcedimentoSelecionado}
+                      onChange={(e) => handleSelecionarProcedimento(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl font-medium text-slate-900 dark:text-white focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    >
+                      <option value="">(Deixar em branco / Pendente)</option>
+                      {todosProcedimentos.map((p) => (
+                        <option key={p.codigo} value={p.codigo}>
+                          {p.codigo} - {p.descricao} ({p.categoria})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Prestador Solicitante
+                    </label>
+                    <input
+                      type="text"
+                      value={novoPrestador}
+                      onChange={(e) => setNovoPrestador(e.target.value)}
+                      placeholder="Ex: Dra. Ana Beatriz Albuquerque"
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-medium focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Doutora Mefisa (Pasta)
+                    </label>
+                    <input
+                      type="text"
+                      value={novaPastaDoutora}
+                      onChange={(e) => setNovaPastaDoutora(e.target.value)}
+                      placeholder="Ex: Pasta Dra. Ana Beatriz Albuquerque"
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-medium focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Polo Mefisa
+                    </label>
+                    <select
+                      value={novoPolo}
+                      onChange={(e) => setNovoPolo(e.target.value as any)}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    >
+                      <option value="">(Deixar em branco / Pendente)</option>
+                      <option value="M1">M1</option>
+                      <option value="M2">M2</option>
+                      <option value="ON">ON</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Status da Guia
+                    </label>
+                    <select
+                      value={novoStatus}
+                      onChange={(e) => setNovoStatus(e.target.value as any)}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    >
+                      <option value="DIGITADA_FATURADA">Digitada / Faturada</option>
+                      <option value="AGUARDANDO_RETORNO">Aguardando Retorno</option>
+                      <option value="AGUARDANDO_DIGITACAO">Aguardando Digitação</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloco 3: Histórico de Datas */}
+              <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-4 border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100 text-xs pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <Calendar className="w-4 h-4 text-[#002172] dark:text-blue-400" />
+                  <span>3. Cronograma & Rastreabilidade de Datas</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Data da Autorização
+                    </label>
+                    <input
+                      type="date"
+                      value={novaDataAutorizacao}
+                      onChange={(e) => setNovaDataAutorizacao(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-slate-900 dark:text-white focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Subiu na Pasta
+                    </label>
+                    <input
+                      type="date"
+                      value={novaDataColocacaoPasta}
+                      onChange={(e) => setNovaDataColocacaoPasta(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-slate-900 dark:text-white focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Data Retorno Guia
+                    </label>
+                    <input
+                      type="date"
+                      value={novaDataRetorno}
+                      onChange={(e) => setNovaDataRetorno(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-slate-900 dark:text-white focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Data do Faturamento * (Pré-preenchida)
+                    </label>
+                    <input
+                      type="date"
+                      value={novaDataDigitacao}
+                      onChange={(e) => setNovaDataDigitacao(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-slate-900 dark:text-white focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloco 4: Responsáveis & Assinaturas */}
+              <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-4 border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100 text-xs pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <FolderCheck className="w-4 h-4 text-[#002172] dark:text-blue-400" />
+                  <span>4. Responsáveis Operacionais & Assinaturas</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Resp. Colocar Pasta
+                    </label>
+                    <select
+                      value={novoResponsavelColocacaoPasta}
+                      onChange={(e) => setNovoResponsavelColocacaoPasta(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-medium focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    >
+                      <option value="">(Deixar em branco / Pendente)</option>
+                      {funcionarios.map((f) => (
+                        <option key={f.id} value={f.nome}>
+                          {f.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Resp. Faturamento
+                    </label>
+                    <select
+                      value={novoResponsavelDigitacao}
+                      onChange={(e) => setNovoResponsavelDigitacao(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-medium focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    >
+                      <option value="">(Deixar em branco / Pendente)</option>
+                      {funcionarios.map((f) => (
+                        <option key={f.id} value={f.nome}>
+                          {f.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Guia Assinada?
+                    </label>
+                    <select
+                      value={novaAssinada}
+                      onChange={(e) => setNovaAssinada(e.target.value as any)}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    >
+                      <option value="">(Deixar em branco / Pendente)</option>
+                      <option value="SIM">Sim</option>
+                      <option value="PARCIAL">Parcial</option>
+                      <option value="NAO">Não</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Resp. Colher Assinatura
+                    </label>
+                    <select
+                      value={novoResponsavelColherAssinatura}
+                      onChange={(e) => setNovoResponsavelColherAssinatura(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-medium focus:border-[#002172] dark:focus:border-blue-500 outline-none"
+                    >
+                      <option value="">(Deixar em branco / Pendente)</option>
+                      {funcionarios.map((f) => (
+                        <option key={f.id} value={f.nome}>
+                          {f.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Observações */}
+                <div className="pt-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Observações Gerais da Guia
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={novasObservacoes}
+                    onChange={(e) => setNovasObservacoes(e.target.value)}
+                    placeholder="Observações ou anotações operacionais..."
+                    className="w-full p-3 bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-normal focus:border-[#002172] dark:focus:border-blue-500 outline-none transition-all"
                   />
                 </div>
               </div>
 
               {resultadoDuplicidade?.duplicada && (
-                <div className="p-4 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 rounded-xl space-y-2">
-                  <div className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-600" />
-                    <span>POSSÍVEL DUPLICIDADE DETECTADA (REGRA 01 — OPÇÃO B)</span>
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 rounded-2xl space-y-2 shadow-xs">
+                  <div className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2 text-xs">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>POSSÍVEL DUPLICIDADE DETECTADA</span>
                   </div>
                   <p className="text-[11px] text-amber-800 dark:text-amber-300">
-                    Já existe uma guia para <strong>{novoPaciente}</strong> no procedimento <strong>{novoProcedimento}</strong> na data <strong>{novaDataSessao}</strong>.
+                    Já existe uma guia cadastrada para <strong>{novoPaciente}</strong> no procedimento <strong>{novoProcedimento}</strong>.
                   </p>
                   <input
                     type="text"
                     value={justificativaDuplicidade}
                     onChange={(e) => setJustificativaDuplicidade(e.target.value)}
-                    placeholder="Justificativa operacional obrigatória..."
-                    className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-amber-300 rounded-lg text-xs"
+                    placeholder="Justificativa operacional obrigatória para salvar duplicidade..."
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500/20"
                   />
                 </div>
               )}
+            </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t">
+            {/* Modal Footer */}
+            <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+              <span className="text-[11px] text-slate-600 dark:text-slate-300 font-medium hidden sm:inline">
+                Todos os dados faturados são validados pelo protocolo Mefisa.
+              </span>
+              <div className="flex items-center gap-2.5 ml-auto">
                 <button
+                  type="button"
                   onClick={() => setModalNovoAberto(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
+                  type="button"
                   onClick={handleValidarERegistrarGuia}
                   disabled={Boolean(procedimentoAtual && !procedimentoAtual.permiteDigitacao)}
-                  className="px-5 py-2 bg-[#002172] hover:bg-[#001752] disabled:opacity-40 text-white rounded-xl font-bold text-xs"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[#002172] hover:bg-[#001752] active:scale-[0.98] disabled:opacity-40 text-white rounded-xl font-bold text-xs shadow-md transition-all cursor-pointer"
                 >
-                  Validar e Salvar Guia
+                  <Check className="w-4 h-4 text-[#91CA0C]" />
+                  <span>Validar e Salvar Guia</span>
                 </button>
               </div>
             </div>

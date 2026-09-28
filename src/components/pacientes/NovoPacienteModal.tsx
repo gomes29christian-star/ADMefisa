@@ -89,7 +89,7 @@ export const NovoPacienteModal: React.FC<NovoPacienteModalProps> = ({
   const [doutoresAtendentesIds, setDoutoresAtendentesIds] = useState<string[]>(
     prestadoresSistema.length > 0 ? [prestadoresSistema[0].id] : []
   );
-  const [polo, setPolo] = useState<'M1' | 'M2' | 'Polo 1' | 'Polo 2'>('M1');
+  const [polo, setPolo] = useState<'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON'>('M1');
   const [pesquisaPrestadorInput, setPesquisaPrestadorInput] = useState('');
   const [pesquisaDoutoresInput, setPesquisaDoutoresInput] = useState('');
   const [dropdownPrestadorAberto, setDropdownPrestadorAberto] = useState(false);
@@ -671,32 +671,44 @@ export const NovoPacienteModal: React.FC<NovoPacienteModalProps> = ({
                       <Shield className="w-3.5 h-3.5 text-blue-600" />
                       <span>M *</span>
                     </span>
-                    <span className="text-[10px] text-blue-600 font-bold">Unidade M1 / M2</span>
+                    <span className="text-[10px] text-blue-600 font-bold">Unidade M1 / M2 / ON</span>
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => setPolo('M1')}
-                      className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      className={`p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         polo === 'M1' || polo === 'Polo 1'
                           ? 'bg-teal-50 border-teal-600 text-teal-900 dark:bg-teal-950 dark:text-teal-200 dark:border-teal-700 shadow-2xs'
                           : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                       }`}
                     >
-                      <span className="w-2.5 h-2.5 rounded-full bg-teal-500"></span>
+                      <span className="w-2 h-2 rounded-full bg-teal-500"></span>
                       <span>M1</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setPolo('M2')}
-                      className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      className={`p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         polo === 'M2' || polo === 'Polo 2'
                           ? 'bg-indigo-50 border-indigo-600 text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200 dark:border-indigo-700 shadow-2xs'
                           : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                       }`}
                     >
-                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                      <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
                       <span>M2</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPolo('ON')}
+                      className={`p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        polo === 'ON' || polo === 'Polo ON'
+                          ? 'bg-amber-50 border-amber-600 text-amber-900 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-700 shadow-2xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                      <span>ON</span>
                     </button>
                   </div>
                 </div>

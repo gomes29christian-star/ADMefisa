@@ -863,7 +863,8 @@ export class LegacyImportService {
       }
 
       const poloStr = (dadosMapeados.polo || '').toString().toLowerCase().trim();
-      const poloNormalizado: 'M1' | 'M2' =
+      const poloNormalizado: 'M1' | 'M2' | 'ON' =
+        poloStr.includes('on') || poloStr.includes('online') ? 'ON' :
         poloStr.includes('2') || poloStr.includes('polo 2') || poloStr.includes('p2') || poloStr.includes('m2') ? 'M2' : 'M1';
 
       const temErroCritico = problemas.some((p) => p.tipo === 'ERROR');

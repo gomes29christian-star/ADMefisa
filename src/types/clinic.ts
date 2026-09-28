@@ -107,7 +107,7 @@ export interface Paciente {
   doutoresAtendentesIds?: string[];
   doutoresAtendentesNomes?: string[];
   pastaDoutoraMefisa?: string;
-  polo?: 'M1' | 'M2' | 'Polo 1' | 'Polo 2';
+  polo?: 'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON';
   observacoes?: string;
   dataCriacao?: string;
   dataUltimaAtualizacao: string;
@@ -223,11 +223,13 @@ export interface Sessao {
 
 export interface GuiaDigitacao {
   id: string;
+  classificacao?: 'ABA' | 'CONV.';
   numeroGuia: string;
   numeroConta?: string;
   autorizacaoId: string;
   pacienteId: string;
   pacienteNome: string;
+  procedimentoNome?: string;
   prestadorId: string;
   prestadorNome: string;
   convenioNome: string;
@@ -249,7 +251,7 @@ export interface GuiaDigitacao {
   observacoes?: string;
   senha?: string;
   dataValidadeSenha?: string;
-  polo?: 'M1' | 'M2' | 'Polo 1' | 'Polo 2';
+  polo?: 'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON';
   assinada?: 'SIM' | 'PARCIAL' | 'NAO';
   responsavelColherAssinatura?: string;
   datasSessoes?: string[];

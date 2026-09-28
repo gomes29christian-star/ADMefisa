@@ -59,8 +59,6 @@ const CHAVES_MEFISA = [
   'clinica_mefisa_deleted_records_v1',
   'mefisa_auditoria_geral_v2',
   'mefisa_auditoria_pacientes_v1',
-  'mefisa_secret_achievements',
-  'mefisa_secret_unlocked',
   'mefisa_theme',
   'mefisa_font_size',
   'mefisa_reduced_motion',
