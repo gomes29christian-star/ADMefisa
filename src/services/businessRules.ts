@@ -170,11 +170,26 @@ export function formatIsoDate(d: Date): string {
 }
 
 /**
- * Converte YYYY-MM-DD em Date local
+ * Converte YYYY-MM-DD em Date local com proteção robusta contra datas inválidas/incompletas
  */
 export function parseIsoDateLocal(isoStr: string): Date {
-  const parts = isoStr.split('-');
-  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  if (!isoStr || typeof isoStr !== 'string' || !isoStr.trim()) {
+    return new Date();
+  }
+  const parts = isoStr.trim().split('-');
+  if (parts.length !== 3) return new Date();
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+
+  if (isNaN(year) || isNaN(month) || isNaN(day) || year < 1900 || year > 2100) {
+    return new Date();
+  }
+  const d = new Date(year, month, day, 12, 0, 0);
+  if (isNaN(d.getTime())) {
+    return new Date();
+  }
+  return d;
 }
 
 /**
@@ -467,7 +482,9 @@ export function calcularAlinhamentoProximaAutorizacao(params: {
       const mesSeguinte = parseIsoDateLocal(dataInicioCicloStr);
       mesSeguinte.setMonth(mesSeguinte.getMonth() + 1);
       mesSeguinte.setDate(1);
-      while (!diasArray.includes(mesSeguinte.getDay() as DiaSemanaIndice)) {
+      let safetyCount1 = 0;
+      const targetDias1 = diasArray.length > 0 ? diasArray : [1 as DiaSemanaIndice];
+      while (!targetDias1.includes(mesSeguinte.getDay() as DiaSemanaIndice) && safetyCount1++ < 31) {
         mesSeguinte.setDate(mesSeguinte.getDate() + 1);
       }
       dataFinal = mesSeguinte;
@@ -476,7 +493,9 @@ export function calcularAlinhamentoProximaAutorizacao(params: {
     const mesSeguinte = parseIsoDateLocal(dataInicioCicloStr);
     mesSeguinte.setMonth(mesSeguinte.getMonth() + 1);
     mesSeguinte.setDate(1);
-    while (!diasArray.includes(mesSeguinte.getDay() as DiaSemanaIndice)) {
+    let safetyCount2 = 0;
+    const targetDias2 = diasArray.length > 0 ? diasArray : [1 as DiaSemanaIndice];
+    while (!targetDias2.includes(mesSeguinte.getDay() as DiaSemanaIndice) && safetyCount2++ < 31) {
       mesSeguinte.setDate(mesSeguinte.getDate() + 1);
     }
     dataFinal = mesSeguinte;

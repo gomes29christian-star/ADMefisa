@@ -14,6 +14,7 @@ import {
   Send,
   Building,
   RotateCcw,
+  Search,
 } from 'lucide-react';
 import {
   calcularSessoesPeriodo,
@@ -61,7 +62,8 @@ export function calcularCronogramaConvencional(
   quantidade: number,
   duracao: '30MIN' | '1H',
   datasCustomizadas: Record<number, string> = {},
-  proximaAutCustomizada?: string
+  proximaAutCustomizada?: string,
+  guiaAtrasada: boolean = false
 ): ResultadoCronogramaConvencional {
   const dtRefIso = dataAutorizacaoIso && dataAutorizacaoIso.trim() ? dataAutorizacaoIso.trim() : new Date().toISOString().split('T')[0];
   const sessoes: SessaoConvencional[] = [];
@@ -73,7 +75,21 @@ export function calcularCronogramaConvencional(
 
   const datasCalculadasIso: string[] = [];
 
-  if (duracao === '30MIN') {
+  if (guiaAtrasada) {
+    // GUIA ATRASADA: Partindo do Dia da Autorização, pula de 1 em 1 dia, pulando domingos e alertando feriados
+    const curr = new Date(dtInicio.getTime());
+    if (curr.getDay() === 0) {
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    let safetyAtrasada = 0;
+    while (datasCalculadasIso.length < qtdEfetiva && safetyAtrasada++ < 60) {
+      if (curr.getDay() !== 0) {
+        datasCalculadasIso.push(curr.toISOString().split('T')[0]);
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+  } else if (duracao === '30MIN') {
     if (qtdEfetiva === 4) {
       for (let i = 0; i < 4; i++) {
         const d = new Date(dtInicio.getTime());
@@ -208,7 +224,15 @@ export function calcularCronogramaConvencional(
   if (proximaAutCustomizada) {
     dataProxIso = proximaAutCustomizada;
   } else {
-    if (duracao === '30MIN') {
+    if (guiaAtrasada) {
+      const ultIso = datasCalculadasIso[datasCalculadasIso.length - 1];
+      const dtUlt = new Date((ultIso || dtRefIso) + 'T12:00:00Z');
+      dtUlt.setDate(dtUlt.getDate() + 1);
+      if (dtUlt.getDay() === 0) {
+        dtUlt.setDate(dtUlt.getDate() + 1);
+      }
+      dataProxIso = dtUlt.toISOString().split('T')[0];
+    } else if (duracao === '30MIN') {
       // Para 30MIN (4 ou 5 sessões), a autorização subsequente é a 4ª semana (+28 dias)
       const dtNext = new Date(dtInicio.getTime());
       dtNext.setDate(dtNext.getDate() + 28);
@@ -344,12 +368,27 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
   // Estados específicos para a Calculadora CONVENCIONAL
   const prestadoresSistema = React.useMemo(() => obterPrestadoresStorage(), [isOpen]);
   const [prestadorIdConv, setPrestadorIdConv] = useState<string>(() => prestadoresSistema[0]?.id || 'prest-1');
+  const [buscaDoutorConv, setBuscaDoutorConv] = useState<string>('');
+  const [dropdownDoutorAberto, setDropdownDoutorAberto] = useState<boolean>(false);
   const [dataAutorizacaoConv, setDataAutorizacaoConv] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [qtdSessoesConv, setQtdSessoesConv] = useState<number>(4);
   const [duracaoSessaoConv, setDuracaoSessaoConv] = useState<'30MIN' | '1H'>('30MIN');
+  const [guiaAtrasadaConv, setGuiaAtrasadaConv] = useState<boolean>(false);
   const [datasCustomizadasConv, setDatasCustomizadasConv] = useState<Record<number, string>>({});
   const [proximaAutCustomizadaConv, setProximaAutCustomizadaConv] = useState<string>('');
   const [copiedResumoConv, setCopiedResumoConv] = useState<boolean>(false);
+
+  const prestadoresFiltrados = React.useMemo(() => {
+    if (!buscaDoutorConv.trim()) return prestadoresSistema;
+    const term = buscaDoutorConv.toLowerCase().trim();
+    return prestadoresSistema.filter(
+      (p) =>
+        p.nome.toLowerCase().includes(term) ||
+        (p.crmOuCrp && p.crmOuCrp.toLowerCase().includes(term)) ||
+        (p.especialidade && p.especialidade.toLowerCase().includes(term)) ||
+        (p.orgaoClasse && p.orgaoClasse.toLowerCase().includes(term))
+    );
+  }, [prestadoresSistema, buscaDoutorConv]);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -405,11 +444,12 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
     qtdSessoesConv,
     duracaoSessaoConv,
     datasCustomizadasConv,
-    proximaAutCustomizadaConv
+    proximaAutCustomizadaConv,
+    guiaAtrasadaConv
   );
 
   // Verificação de 2 ou mais sessões na mesma semana no modelo Convencional
-  const temMultiplasSessoesNaSemana = duracaoSessaoConv === '1H' || qtdSessoesConv === 5;
+  const temMultiplasSessoesNaSemana = guiaAtrasadaConv || duracaoSessaoConv === '1H' || qtdSessoesConv === 5;
   const qtdSessoesSemanaisNum = duracaoSessaoConv === '1H' ? 2 : (qtdSessoesConv === 5 ? 2 : 1);
   const prestadorConvSel = prestadoresSistema.find((p) => p.id === prestadorIdConv) || prestadoresSistema[0];
   const orgaoTexto = prestadorConvSel?.orgaoClasse || 'CRP';
@@ -1193,26 +1233,133 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
                     </span>
                   </div>
 
-                  {/* 4. Profissional / Doutor Mefisa */}
-                  <div className="bg-white dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
-                    <label className="block text-slate-700 dark:text-slate-200 font-bold text-xs mb-1.5">
-                      4. Profissional / Doutor Mefisa *
+                  {/* 4. Profissional / Doutor Mefisa (Pesquisável) */}
+                  <div className="bg-white dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 relative">
+                    <label className="block text-slate-700 dark:text-slate-200 font-bold text-xs mb-1.5 flex items-center justify-between">
+                      <span>4. Profissional / Doutor Mefisa *</span>
+                      <span className="text-[10px] text-[#002172] dark:text-blue-400 font-extrabold bg-blue-50 dark:bg-blue-950/80 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+                        🔍 Pesquisável
+                      </span>
                     </label>
-                    <select
-                      value={prestadorIdConv}
-                      onChange={(e) => setPrestadorIdConv(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white focus:outline-[#002172] cursor-pointer"
-                    >
-                      {prestadoresSistema.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.nome.toUpperCase()} ({p.orgaoClasse || 'CRP'}: {p.crmOuCrp})
-                        </option>
-                      ))}
-                    </select>
+
+                    <div className="relative">
+                      <div className="relative flex items-center">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          placeholder="Digite para pesquisar por nome ou conselho..."
+                          value={
+                            dropdownDoutorAberto
+                              ? buscaDoutorConv
+                              : prestadorConvSel
+                              ? `${prestadorConvSel.nome.toUpperCase()} (${prestadorConvSel.orgaoClasse || 'CRP'}: ${prestadorConvSel.crmOuCrp})`
+                              : ''
+                          }
+                          onFocus={() => {
+                            setBuscaDoutorConv('');
+                            setDropdownDoutorAberto(true);
+                          }}
+                          onChange={(e) => {
+                            setBuscaDoutorConv(e.target.value);
+                            setDropdownDoutorAberto(true);
+                          }}
+                          className="w-full pl-8 pr-8 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white focus:outline-[#002172]"
+                        />
+                        {dropdownDoutorAberto && (
+                          <button
+                            type="button"
+                            onClick={() => setDropdownDoutorAberto(false)}
+                            className="absolute right-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Dropdown de Opções Filtradas em Tempo Real */}
+                      {dropdownDoutorAberto && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 max-h-52 overflow-y-auto p-1 space-y-1">
+                          {prestadoresFiltrados.length > 0 ? (
+                            prestadoresFiltrados.map((p) => {
+                              const isSel = p.id === prestadorIdConv;
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setPrestadorIdConv(p.id);
+                                    setDropdownDoutorAberto(false);
+                                    setBuscaDoutorConv('');
+                                  }}
+                                  className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                                    isSel
+                                      ? 'bg-[#002172] text-white shadow-2xs'
+                                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="font-extrabold">{p.nome.toUpperCase()}</div>
+                                    <div className={`text-[10px] font-medium ${isSel ? 'text-blue-200' : 'text-slate-400'}`}>
+                                      {p.especialidade} • {p.orgaoClasse || 'CRP'}: {p.crmOuCrp}
+                                    </div>
+                                  </div>
+                                  {isSel && <Check className="w-4 h-4 text-[#91CA0C] shrink-0" />}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="p-3 text-center text-xs text-slate-400 font-medium">
+                              Nenhum Doutor Mefisa encontrado para "{buscaDoutorConv}"
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     <span className="text-[10px] text-slate-400 dark:text-slate-400 mt-1.5 block font-medium">
                       Incluso na observação quando &ge; 2 sessões/semana
                     </span>
                   </div>
+                </div>
+
+                {/* Opção Especial: Guia Atrasada */}
+                <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 rounded-xl border border-amber-200/80 dark:border-amber-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-2 rounded-lg ${guiaAtrasadaConv ? 'bg-amber-500 text-white' : 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300'}`}>
+                      <AlertTriangle className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-amber-950 dark:text-amber-100">
+                          Guia Atrasada
+                        </span>
+                        {guiaAtrasadaConv && (
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-amber-600 text-white">
+                            Ativada (1 em 1 dia)
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-amber-800/90 dark:text-amber-300 font-medium">
+                        Partindo do Dia da Autorização, pula de 1 em 1 dia (pula domingos e alerta feriados em amarelo) até completar as {qtdSessoesConv} sessões.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGuiaAtrasadaConv(!guiaAtrasadaConv);
+                      setDatasCustomizadasConv({});
+                      setProximaAutCustomizadaConv('');
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer shrink-0 ${
+                      guiaAtrasadaConv
+                        ? 'bg-amber-600 text-white border-amber-700 shadow-2xs hover:bg-amber-700'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {guiaAtrasadaConv ? '✓ Guia Atrasada Ativada' : 'Ativar Guia Atrasada'}
+                  </button>
                 </div>
               </div>
 

@@ -145,11 +145,23 @@ const FERIADOS_INICIAIS: FeriadoConfig[] = [
 
 // Helper seguro de parsing de datas YYYY-MM-DD
 export function parseIsoDateLocal(dateStr: string): Date {
-  const parts = dateStr.split('-');
+  if (!dateStr || typeof dateStr !== 'string' || !dateStr.trim()) {
+    return new Date();
+  }
+  const parts = dateStr.trim().split('-');
+  if (parts.length !== 3) return new Date();
   const year = parseInt(parts[0], 10);
   const month = parseInt(parts[1], 10) - 1;
   const day = parseInt(parts[2], 10);
-  return new Date(year, month, day, 12, 0, 0);
+
+  if (isNaN(year) || isNaN(month) || isNaN(day) || year < 1900 || year > 2100) {
+    return new Date();
+  }
+  const d = new Date(year, month, day, 12, 0, 0);
+  if (isNaN(d.getTime())) {
+    return new Date();
+  }
+  return d;
 }
 
 export function formatIsoDate(date: Date): string {
