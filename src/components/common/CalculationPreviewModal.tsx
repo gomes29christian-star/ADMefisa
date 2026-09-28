@@ -230,20 +230,6 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
       setSessoesSemana(proximo.length);
       setOverrideQuantidade(null);
       setDatasCustomizadas({});
-
-      // Se passou a ser 1 único dia habitual, ajusta a dataInicio para alinhar perfeitamente no mesmo dia da semana
-      if (proximo.length === 1 && dataInicio) {
-        const dtCurrent = parseIsoDateLocal(dataInicio);
-        const targetDay = proximo[0];
-        let diff = targetDay - dtCurrent.getDay();
-        if (diff !== 0) {
-          const dtNova = new Date(dtCurrent);
-          dtNova.setDate(dtNova.getDate() + diff);
-          if (dtNova.getDay() === 0) dtNova.setDate(dtNova.getDate() + 1);
-          setDataInicio(formatIsoDate(dtNova));
-        }
-      }
-
       return proximo;
     });
   };
