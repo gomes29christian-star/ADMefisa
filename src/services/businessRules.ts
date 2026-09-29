@@ -685,17 +685,7 @@ export function gerarCronogramaComAuditoriaFeriados(
       dCurr.setDate(dCurr.getDate() + 1);
     }
 
-    // Alinha a 1ª sessão para o primeiro dia habitual de atendimento do paciente
-    if (diasArray.length > 0) {
-      let diasAjuste = 0;
-      while (!diasArray.includes(dCurr.getDay() as DiaSemanaIndice) && diasAjuste < 7) {
-        dCurr.setDate(dCurr.getDate() + 1);
-        if (dCurr.getDay() === 0) dCurr.setDate(dCurr.getDate() + 1); // Pula domingo
-        diasAjuste++;
-      }
-    }
-
-    // Sessão #1: No dia da autorização (mesmo que sábado, salvo domingos ou exceção de múltiplos dias)
+    // Sessão #1: EXATAMENTE no dia escolhido de Início do Ciclo
     const dataIso1 = formatIsoDate(dCurr);
     const conflito1 = verificarConflitoFeriado(dataIso1);
     if (conflito1) totalConflitos++;
@@ -710,68 +700,11 @@ export function gerarCronogramaComAuditoriaFeriados(
 
     // Sessões #2 em diante:
     if (totalSessoes > 1) {
-      if (sessoesPorSemana > 1) {
-        // Quando há múltiplas sessões por semana (ex: 3 sessões/semana = 1 sessão a cada 2 dias)
-        const passoDias = Math.max(1, Math.floor(7 / sessoesPorSemana));
-        let dNext = new Date(dCurr);
+      let dNext = new Date(dCurr);
+      let sessoesGeradas = 1;
+      let diasVerificados = 0;
 
-        for (let i = 2; i <= totalSessoes; i++) {
-          dNext.setDate(dNext.getDate() + passoDias);
-
-          // Pula Domingo ou Feriado nacional/municipal
-          let tentativas = 0;
-          while ((dNext.getDay() === 0 || verificarConflitoFeriado(formatIsoDate(dNext))) && tentativas < 14) {
-            dNext.setDate(dNext.getDate() + 1);
-            tentativas++;
-          }
-
-          const dataIso = formatIsoDate(dNext);
-          const conflito = verificarConflitoFeriado(dataIso);
-          if (conflito) totalConflitos++;
-
-          sessoes.push({
-            numero: i,
-            data: dataIso,
-            diaSemana: formatarDiaSemanaPt(dNext.getDay() as DiaSemanaIndice),
-            temConflitoFeriado: !!conflito,
-            conflito: conflito || undefined,
-          });
-        }
-      } else if (diasArray.length <= 1) {
-        // Se 1 sessão por semana e passa em 1 dia habitual específico:
-        // dCurr já está alinhado ao dia habitual para a sessão #1.
-        let dNext = new Date(dCurr);
-        dNext.setDate(dNext.getDate() + 7);
-
-        for (let i = 2; i <= totalSessoes; i++) {
-          // Pula Domingo ou Feriado nacional/municipal
-          let tentativas = 0;
-          while ((dNext.getDay() === 0 || verificarConflitoFeriado(formatIsoDate(dNext))) && tentativas < 14) {
-            dNext.setDate(dNext.getDate() + 1);
-            tentativas++;
-          }
-
-          const dataIso = formatIsoDate(dNext);
-          const conflito = verificarConflitoFeriado(dataIso);
-          if (conflito) totalConflitos++;
-
-          sessoes.push({
-            numero: i,
-            data: dataIso,
-            diaSemana: formatarDiaSemanaPt(dNext.getDay() as DiaSemanaIndice),
-            temConflitoFeriado: !!conflito,
-            conflito: conflito || undefined,
-          });
-
-          // Próximas sessões avançam de 7 em 7 dias no dia habitual
-          dNext.setDate(dNext.getDate() + 7);
-        }
-      } else {
-        // Múltiplos dias por semana
-        let dNext = new Date(dCurr);
-        let sessoesGeradas = 1;
-        let diasVerificados = 0;
-
+      if (diasArray.length > 0) {
         while (sessoesGeradas < totalSessoes && diasVerificados < 365) {
           dNext.setDate(dNext.getDate() + 1);
           diasVerificados++;
@@ -793,6 +726,24 @@ export function gerarCronogramaComAuditoriaFeriados(
             });
             sessoesGeradas++;
           }
+        }
+      } else {
+        // Fallback: avança semanalmente (+7 dias)
+        for (let i = 2; i <= totalSessoes; i++) {
+          dNext.setDate(dNext.getDate() + 7);
+          if (dNext.getDay() === 0) dNext.setDate(dNext.getDate() + 1);
+
+          const dataIso = formatIsoDate(dNext);
+          const conflito = verificarConflitoFeriado(dataIso);
+          if (conflito) totalConflitos++;
+
+          sessoes.push({
+            numero: i,
+            data: dataIso,
+            diaSemana: formatarDiaSemanaPt(dNext.getDay() as DiaSemanaIndice),
+            temConflitoFeriado: !!conflito,
+            conflito: conflito || undefined,
+          });
         }
       }
     }

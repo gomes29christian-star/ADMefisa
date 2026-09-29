@@ -306,20 +306,6 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
   const handleDataInicioChange = (novaDataIso: string) => {
     setDataInicio(novaDataIso);
     setDatasCustomizadas({}); // Reseta alterações manuais de datas ao mudar início do ciclo
-
-    if (novaDataIso && novaDataIso.trim()) {
-      const dt = parseIsoDateLocal(novaDataIso.trim());
-      const diaSemanaNew = dt.getDay() as DiaSemanaIndice;
-      if (diaSemanaNew !== 0) { // Se não for domingo
-        if (diasSemanaHabituais.length <= 1) {
-          setDiasSemanaHabituais([diaSemanaNew]);
-          setSessoesSemana(1);
-        } else if (!diasSemanaHabituais.includes(diaSemanaNew)) {
-          setDiasSemanaHabituais([diaSemanaNew]);
-          setSessoesSemana(1);
-        }
-      }
-    }
   };
 
   const toggleDiaSemana = (indice: DiaSemanaIndice) => {
@@ -437,6 +423,19 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
     diasSemanaHabituais,
     sessoesSemana
   );
+
+  // Cálculo da Próxima Autorização Posterior (Ciclo Subsequente do Modelo ABA)
+  const ultimaSessaoAtualIso =
+    datasCustomizadas[quantidadeEfetiva] ||
+    cronograma.sessoes[cronograma.sessoes.length - 1]?.data ||
+    alinhamento.dataProximaAutorizacaoCalculada;
+
+  const alinhamentoPosterior = calcularAlinhamentoProximaAutorizacao({
+    diaSemanaHabitual: diasSemanaHabituais,
+    dataInicioCicloStr: ultimaSessaoAtualIso,
+    sessoesPorSemana: sessoesSemana,
+    opcaoSabadoEscolhida: opcaoSabado,
+  });
 
   // Cronograma Convencional (CONVENCIONAL)
   const cronogramaConv = calcularCronogramaConvencional(
@@ -842,26 +841,18 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-blue-100 dark:border-slate-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-blue-100 dark:border-slate-800">
               <div>
-                <span className="text-[10px] text-slate-400 dark:text-slate-400 block">Data Inicial Encontrada:</span>
-                <span className="font-bold text-slate-700 dark:text-slate-200 text-xs">
-                  {formatarDiaSemanaPt(identificarDiaSemana(alinhamento.dataReferenciaInicialCorte))},{' '}
-                  {formatarDataBr(alinhamento.dataReferenciaInicialCorte, showMonthInitials)}
+                <span className="text-[10px] text-indigo-700 dark:text-indigo-300 block font-bold">Próxima Autorização Posterior:</span>
+                <span className="font-extrabold text-indigo-900 dark:text-indigo-200 text-xs sm:text-sm">
+                  {formatarDiaSemanaPt(identificarDiaSemana(alinhamentoPosterior.dataProximaAutorizacaoCalculada))},{' '}
+                  {formatarDataBr(alinhamentoPosterior.dataProximaAutorizacaoCalculada, showMonthInitials)}
                 </span>
               </div>
 
               <div>
-                <span className="text-[10px] text-slate-400 dark:text-slate-400 block">Data Ajustada Alinhada:</span>
-                <span className="font-extrabold text-[#002172] dark:text-blue-300 text-sm">
-                  {formatarDiaSemanaPt(identificarDiaSemana(alinhamento.dataProximaAutorizacaoCalculada))},{' '}
-                  {formatarDataBr(alinhamento.dataProximaAutorizacaoCalculada, showMonthInitials)}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-slate-400 dark:text-slate-400 block">Total de Sessões no Ciclo:</span>
-                <span className="font-extrabold text-[#91CA0C] text-sm bg-slate-900 px-2 py-0.5 rounded-md inline-block">
+                <span className="text-[10px] text-slate-400 dark:text-slate-400 block font-medium">Total de Sessões no Ciclo:</span>
+                <span className="font-extrabold text-[#91CA0C] text-xs sm:text-sm bg-slate-900 px-2 py-0.5 rounded-md inline-block">
                   {quantidadeEfetiva} sessões autorizadas
                 </span>
               </div>
