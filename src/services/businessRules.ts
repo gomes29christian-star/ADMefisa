@@ -444,139 +444,49 @@ export function calcularAlinhamentoProximaAutorizacao(params: {
     dataInicioCicloStr,
     sessoesPorSemana,
     quantidadeTotalSessoes,
-    datasSessoes,
   } = params;
 
   const diasArray: DiaSemanaIndice[] = Array.isArray(diaSemanaParam)
     ? diaSemanaParam
     : [diaSemanaParam];
-  const diaSemanaHabitual = diasArray[0] ?? 2;
+  const primaryHabitualDay = (diasArray[0] ?? 2) as DiaSemanaIndice;
 
-  let dataFinal: Date;
+  const dtInicio = parseIsoDateLocal(dataInicioCicloStr);
+  const anoInicio = dtInicio.getFullYear();
+  const mesInicio = dtInicio.getMonth(); // 0..11
+  const mesAlvoIdx = (mesInicio + 1) % 12;
+  const anoAlvo = mesInicio === 11 ? anoInicio + 1 : anoInicio;
 
-  if (datasSessoes && datasSessoes.length > 0) {
-    const ultimaDataBr = datasSessoes[datasSessoes.length - 1];
-    let dUltima: Date;
-    if (ultimaDataBr.includes('/')) {
-      const [dia, mes, ano] = ultimaDataBr.split('/').map(Number);
-      dUltima = new Date(ano, mes - 1, dia);
-    } else {
-      dUltima = parseIsoDateLocal(ultimaDataBr);
-    }
-    // A próxima autorização inicia 7 dias após a última sessão do ciclo
-    dUltima.setDate(dUltima.getDate() + 7);
-    dataFinal = dUltima;
-  } else if (quantidadeTotalSessoes && quantidadeTotalSessoes > 0) {
-    const sessoesCalc = calcularDatasSessoesAlinhadas({
-      dataInicioStr: dataInicioCicloStr,
-      quantidade: quantidadeTotalSessoes,
-      sessoesPorSemana,
-      diasSemanaHabituais: diasArray,
-    });
-    if (sessoesCalc && sessoesCalc.length > 0) {
-      const [dia, mes, ano] = sessoesCalc[sessoesCalc.length - 1].split('/').map(Number);
-      const dUltima = new Date(ano, mes - 1, dia);
-      dUltima.setDate(dUltima.getDate() + 7);
-      dataFinal = dUltima;
-    } else {
-      const mesSeguinte = parseIsoDateLocal(dataInicioCicloStr);
-      mesSeguinte.setMonth(mesSeguinte.getMonth() + 1);
-      mesSeguinte.setDate(1);
-      let safetyCount1 = 0;
-      const targetDias1 = diasArray.length > 0 ? diasArray : [1 as DiaSemanaIndice];
-      while (!targetDias1.includes(mesSeguinte.getDay() as DiaSemanaIndice) && safetyCount1++ < 31) {
-        mesSeguinte.setDate(mesSeguinte.getDate() + 1);
-      }
-      dataFinal = mesSeguinte;
-    }
-  } else {
-    const mesSeguinte = parseIsoDateLocal(dataInicioCicloStr);
-    mesSeguinte.setMonth(mesSeguinte.getMonth() + 1);
-    mesSeguinte.setDate(1);
-    let safetyCount2 = 0;
-    const targetDias2 = diasArray.length > 0 ? diasArray : [1 as DiaSemanaIndice];
-    while (!targetDias2.includes(mesSeguinte.getDay() as DiaSemanaIndice) && safetyCount2++ < 31) {
-      mesSeguinte.setDate(mesSeguinte.getDate() + 1);
-    }
-    dataFinal = mesSeguinte;
-  }
+  const cronCompleto = gerarCronogramaComAuditoriaFeriados(
+    dataInicioCicloStr,
+    quantidadeTotalSessoes || 0,
+    diasArray,
+    sessoesPorSemana,
+    anoAlvo,
+    mesAlvoIdx
+  );
 
-  const diaSemanaCorte = dataFinal.getDay() as DiaSemanaIndice;
-  let diasRecuo = 0;
-
-  // EXCEÇÃO OPERACIONAL — SÁBADO
-  let excecaoSabadoInfo = {
-    detectada: false,
-    dataSabadoOriginal: undefined as string | undefined,
-    dataSugeridaDeslocamento: undefined as string | undefined,
-    justificativaOperacional: undefined as string | undefined,
-    diasAlternativosDisponiveis: undefined as
-      | Array<{ data: string; descricao: string }>
-      | undefined,
-  };
-
-  if (diaSemanaHabitual === 6 || dataFinal.getDay() === 6) {
-    const dataSabado = new Date(dataFinal);
-    const dataSexta = new Date(dataSabado);
-    dataSexta.setDate(dataSabado.getDate() - 1);
-
-    const dataSegunda = new Date(dataSabado);
-    dataSegunda.setDate(dataSabado.getDate() + 2);
-
-    excecaoSabadoInfo = {
-      detectada: true,
-      dataSabadoOriginal: formatIsoDate(dataSabado),
-      dataSugeridaDeslocamento: formatIsoDate(dataSexta),
-      justificativaOperacional:
-        'Esta autorização caiu em um sábado, quando não há operação administrativa na Clínica Mefisa.',
-      diasAlternativosDisponiveis: [
-        {
-          data: formatIsoDate(dataSexta),
-          descricao: `Sexta-feira anterior (${formatIsoDate(dataSexta)}) — Padrão recomendado`,
-        },
-        {
-          data: formatIsoDate(dataSegunda),
-          descricao: `Segunda-feira subsequente (${formatIsoDate(dataSegunda)})`,
-        },
-      ],
-    };
-
-    if (params.opcaoSabadoEscolhida === 'SEGUNDA_FEIRA_SEGUINTE') {
-      dataFinal = dataSegunda;
-    } else {
-      dataFinal = dataSexta;
-    }
-  }
+  const dataProximaAutorizacaoCalculadaIso = cronCompleto.proximaAutorizacaoSugerida;
+  const dataFinal = parseIsoDateLocal(dataProximaAutorizacaoCalculadaIso);
 
   const MESES_NOMES = [
-    'Janeiro',
-    'Fevereiro',
-    'Março',
-    'Abril',
-    'Maio',
-    'Junho',
-    'Julho',
-    'Agosto',
-    'Setembro',
-    'Outubro',
-    'Novembro',
-    'Dezembro',
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
   ];
   const mesCompetencia = `${MESES_NOMES[dataFinal.getMonth()]}/${dataFinal.getFullYear()}`;
-  const dataProximaAutorizacaoCalculadaIso = formatIsoDate(dataFinal);
 
   return {
-    diaSemanaHabitual,
-    diaSemanaNome: formatarDiaSemanaPt(parseIsoDateLocal(dataProximaAutorizacaoCalculadaIso).getDay() as DiaSemanaIndice),
+    diaSemanaHabitual: primaryHabitualDay,
+    diaSemanaNome: formatarDiaSemanaPt(dataFinal.getDay() as DiaSemanaIndice),
     mesCompetenciaReferencia: mesCompetencia,
-    dataReferenciaInicialCorte: formatIsoDate(dataFinal),
+    dataReferenciaInicialCorte: dataProximaAutorizacaoCalculadaIso,
     dataProximaAutorizacaoCalculada: dataProximaAutorizacaoCalculadaIso,
-    foiDeslocadoParaDiaAnterior: diasRecuo > 0,
-    diasDeslocadosAnterior: diasRecuo,
-    adicionouOcorrenciaSemanal: false,
-    semanasCicloCalculadas: 4,
-    totalSessoesSugeridas: sessoesPorSemana * 4,
-    excecaoSabado: excecaoSabadoInfo,
+    foiDeslocadoParaDiaAnterior: false,
+    diasDeslocadosAnterior: 0,
+    adicionouOcorrenciaSemanal: cronCompleto.sessoes.length > sessoesPorSemana * 4,
+    semanasCicloCalculadas: Math.ceil(cronCompleto.sessoes.length / Math.max(1, sessoesPorSemana)),
+    totalSessoesSugeridas: cronCompleto.sessoes.length,
+    excecaoSabado: { detectada: false },
     regraDescritiva: `A data da próxima autorização foi alinhada ao início do próximo ciclo (${formatarDataBr(dataProximaAutorizacaoCalculadaIso)}).`,
   };
 }
@@ -652,7 +562,9 @@ export function gerarCronogramaComAuditoriaFeriados(
   dataPrimeiraSessaoStr: string,
   totalSessoes: number,
   diaSemanaHabitualParam: DiaSemanaIndice | DiaSemanaIndice[],
-  sessoesPorSemana: number = 1
+  sessoesPorSemana: number = 1,
+  anoAlvoParam?: number,
+  mesAlvoIdxParam?: number
 ): {
   sessoes: Array<{
     numero: number;
@@ -668,6 +580,26 @@ export function gerarCronogramaComAuditoriaFeriados(
     ? diaSemanaHabitualParam
     : [diaSemanaHabitualParam !== undefined && diaSemanaHabitualParam !== null ? diaSemanaHabitualParam : 1];
 
+  let effectiveDias = [...diasArray];
+  if (sessoesPorSemana > effectiveDias.length && sessoesPorSemana > 1) {
+    const base = effectiveDias[0] ?? 3;
+    const setDias = new Set<DiaSemanaIndice>(effectiveDias);
+    const candidatos: DiaSemanaIndice[] = [
+      base,
+      ((base + 2) % 7) as DiaSemanaIndice,
+      ((base + 4) % 7) as DiaSemanaIndice,
+      1, 3, 5, 2, 4
+    ];
+    for (const d of candidatos) {
+      if (d !== 0 && setDias.size < sessoesPorSemana) {
+        setDias.add(d);
+      }
+    }
+    effectiveDias = Array.from(setDias).sort((a, b) => a - b);
+  }
+
+  const primaryHabitualDay = effectiveDias[0] ?? 1;
+
   const sessoes: Array<{
     numero: number;
     data: string;
@@ -677,90 +609,86 @@ export function gerarCronogramaComAuditoriaFeriados(
   }> = [];
   let totalConflitos = 0;
 
-  if (totalSessoes > 0) {
-    let dCurr = parseIsoDateLocal(dataPrimeiraSessaoStr);
+  const dtStart = parseIsoDateLocal(dataPrimeiraSessaoStr);
+  if (dtStart.getDay() === 0) dtStart.setDate(dtStart.getDate() + 1);
 
-    // REGRA 1: Domingos NUNCA são contados (avançam para Segunda-feira)
-    if (dCurr.getDay() === 0) {
-      dCurr.setDate(dCurr.getDate() + 1);
+  const anoInicio = dtStart.getFullYear();
+  const mesInicio = dtStart.getMonth();
+  const anoAlvo = anoAlvoParam !== undefined ? anoAlvoParam : (mesInicio === 11 ? anoInicio + 1 : anoInicio);
+  const mesAlvoIdx = mesAlvoIdxParam !== undefined ? mesAlvoIdxParam : (mesInicio + 1) % 12;
+
+  let dCurr = new Date(dtStart);
+  let sessoesGeradas = 0;
+  let guard = 0;
+  const alvoFixado = totalSessoes && totalSessoes > 0;
+
+  while (guard++ < 100) {
+    let alcancouAlvo = false;
+
+    for (let i = 0; i < sessoesPorSemana; i++) {
+      if (alvoFixado && sessoesGeradas >= totalSessoes) {
+        alcancouAlvo = true;
+        break;
+      }
+
+      const targetDay = effectiveDias[i % effectiveDias.length];
+      let dSess = new Date(dCurr);
+      let diff = (targetDay - dSess.getDay() + 7) % 7;
+      dSess.setDate(dSess.getDate() + diff);
+
+      if (dSess.getDay() === 0) dSess.setDate(dSess.getDate() + 1);
+
+      const dataIso = formatIsoDate(dSess);
+      const conflito = verificarConflitoFeriado(dataIso);
+      if (conflito) totalConflitos++;
+
+      sessoes.push({
+        numero: sessoesGeradas + 1,
+        data: dataIso,
+        diaSemana: formatarDiaSemanaPt(dSess.getDay() as DiaSemanaIndice),
+        temConflitoFeriado: !!conflito,
+        conflito: conflito || undefined,
+      });
+      sessoesGeradas++;
     }
 
-    // Sessão #1: EXATAMENTE no dia escolhido de Início do Ciclo
-    const dataIso1 = formatIsoDate(dCurr);
-    const conflito1 = verificarConflitoFeriado(dataIso1);
-    if (conflito1) totalConflitos++;
+    if (alcancouAlvo) break;
 
-    sessoes.push({
-      numero: 1,
-      data: dataIso1,
-      diaSemana: formatarDiaSemanaPt(dCurr.getDay() as DiaSemanaIndice),
-      temConflitoFeriado: !!conflito1,
-      conflito: conflito1 || undefined,
-    });
+    // Se o número de sessões não foi fixado via override, verifica se a próxima autorização já atinge o mês alvo
+    if (!alvoFixado && sessoes.length > 0) {
+      const ultimaSessaoIso = sessoes[sessoes.length - 1].data;
+      const dtUlt = parseIsoDateLocal(ultimaSessaoIso);
 
-    // Sessões #2 em diante:
-    if (totalSessoes > 1) {
-      let dNext = new Date(dCurr);
-      let sessoesGeradas = 1;
-      let diasVerificados = 0;
+      let candidate = new Date(dtUlt);
+      candidate.setDate(candidate.getDate() + 1);
+      let cGuard = 0;
+      while (candidate.getDay() !== primaryHabitualDay && cGuard++ < 14) {
+        candidate.setDate(candidate.getDate() + 1);
+      }
 
-      if (diasArray.length > 0) {
-        while (sessoesGeradas < totalSessoes && diasVerificados < 365) {
-          dNext.setDate(dNext.getDate() + 1);
-          diasVerificados++;
-
-          if (dNext.getDay() === 0) continue; // Pula domingo
-
-          const dayOfWeek = dNext.getDay() as DiaSemanaIndice;
-          if (diasArray.includes(dayOfWeek)) {
-            const dataIso = formatIsoDate(dNext);
-            const conflito = verificarConflitoFeriado(dataIso);
-            if (conflito) totalConflitos++;
-
-            sessoes.push({
-              numero: sessoesGeradas + 1,
-              data: dataIso,
-              diaSemana: formatarDiaSemanaPt(dayOfWeek),
-              temConflitoFeriado: !!conflito,
-              conflito: conflito || undefined,
-            });
-            sessoesGeradas++;
-          }
-        }
-      } else {
-        // Fallback: avança semanalmente (+7 dias)
-        for (let i = 2; i <= totalSessoes; i++) {
-          dNext.setDate(dNext.getDate() + 7);
-          if (dNext.getDay() === 0) dNext.setDate(dNext.getDate() + 1);
-
-          const dataIso = formatIsoDate(dNext);
-          const conflito = verificarConflitoFeriado(dataIso);
-          if (conflito) totalConflitos++;
-
-          sessoes.push({
-            numero: i,
-            data: dataIso,
-            diaSemana: formatarDiaSemanaPt(dNext.getDay() as DiaSemanaIndice),
-            temConflitoFeriado: !!conflito,
-            conflito: conflito || undefined,
-          });
-        }
+      if (candidate.getFullYear() > anoAlvo || (candidate.getFullYear() === anoAlvo && candidate.getMonth() >= mesAlvoIdx)) {
+        break;
       }
     }
+
+    dCurr.setDate(dCurr.getDate() + 7);
   }
 
-  const ultimaData = sessoes.length > 0 ? sessoes[sessoes.length - 1].data : dataPrimeiraSessaoStr;
-  const proximaData = calcularProximaAutorizacaoAposUltimaSessao(
-    ultimaData,
-    diasArray,
-    dataPrimeiraSessaoStr,
-    sessoesPorSemana
-  );
+  // Calcula a data da próxima autorização posterior final
+  const ultimaDataIso = sessoes.length > 0 ? sessoes[sessoes.length - 1].data : dataPrimeiraSessaoStr;
+  const dtUltima = parseIsoDateLocal(ultimaDataIso);
+  let candidateFinal = new Date(dtUltima);
+  candidateFinal.setDate(candidateFinal.getDate() + 1);
+  let cGuard = 0;
+  while (candidateFinal.getDay() !== primaryHabitualDay && cGuard++ < 14) {
+    candidateFinal.setDate(candidateFinal.getDate() + 1);
+  }
+  if (candidateFinal.getDay() === 0) candidateFinal.setDate(candidateFinal.getDate() + 1);
 
   return {
     sessoes,
     totalConflitos,
-    proximaAutorizacaoSugerida: proximaData,
+    proximaAutorizacaoSugerida: formatIsoDate(candidateFinal),
   };
 }
 
@@ -1195,7 +1123,7 @@ export function calcularSessoesPeriodo(
     }
   }
 
-  const justificativa = `Sabemos que a quantidade do formulário é ${sessoesPorSemana} por semana, porém foi solicitado ${quantidadeFinal}, que será para o mês inteiro.`;
+  const justificativa = `Sabemos que a quantidade do formulario e ${sessoesPorSemana} por semana, porem foi solicitado ${quantidadeFinal}, que sera para o mes inteiro.`;
 
   const tamanhoValido = tamanhoArquivoMb < 10;
   const mensagemValidacao = tamanhoValido

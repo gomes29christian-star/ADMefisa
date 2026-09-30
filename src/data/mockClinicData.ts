@@ -124,6 +124,21 @@ export const deduplicarPrestadores = (lista: Prestador[]): Prestador[] => {
 
 const PRESTADORES_PADRAO_INICIAIS: Prestador[] = [
   {
+    id: 'prest-angelica',
+    nome: 'ANGELICA DA CRUZ',
+    cpf: '456.789.012-34',
+    titulo: 'CRP 25036 - Psicóloga ABA',
+    cbo: '251510',
+    crmOuCrp: '25036',
+    orgaoClasse: 'CRP',
+    uf: 'SP',
+    especialidade: 'Psicologia / Análise do Comportamento Aplicada (ABA)',
+    procedimentos: ['Psicoterapia ABA / TCC Adulto', 'Psicologia'],
+    pastaAtribuida: 'Pasta Corpo Clínico — Mefisa',
+    ativo: true,
+    tipo: 'MEFISA',
+  },
+  {
     id: 'prest-1',
     nome: 'Dra. Ana Beatriz Albuquerque',
     cpf: '123.456.789-01',

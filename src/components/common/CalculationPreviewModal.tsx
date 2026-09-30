@@ -317,7 +317,6 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
       } else {
         proximo = [...prev, indice].sort((a, b) => a - b);
       }
-      setSessoesSemana(proximo.length);
       setOverrideQuantidade(null);
       setDatasCustomizadas({});
       return proximo;
@@ -376,6 +375,10 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
     );
   }, [prestadoresSistema, buscaDoutorConv]);
 
+  // Estados para observações e seleção de profissional Mefisa
+  const [doutorMefisaId, setDoutorMefisaId] = useState<string>(() => prestadoresSistema[0]?.id || 'prest-angelica');
+  const [copiedObsKey, setCopiedObsKey] = useState<string | null>(null);
+
   React.useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -414,7 +417,7 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
   const quantidadeEfetiva =
     overrideQuantidade !== null
       ? overrideQuantidade
-      : resultadoFormulario.quantidadeTotalSugerida;
+      : alinhamento.totalSessoesSugeridas;
 
   // Cronograma com auditoria de feriados em Ferraz de Vasconcelos (ABA)
   const cronograma = gerarCronogramaComAuditoriaFeriados(
@@ -459,10 +462,49 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
     ? `Paciente realiza ${qtdSessoesSemanaisNum} sessoes semanais de acordo com avaliacao tecnica. Profissional: ${nomePrestadorUpper}. ${orgaoTexto}: ${conselhoTexto}.`
     : '';
 
-  const handleCopyJustificativa = () => {
-    navigator.clipboard.writeText(resultadoFormulario.justificativaFormularioGerada);
-    setCopiedJustificativa(true);
-    setTimeout(() => setCopiedJustificativa(false), 2000);
+  const doutorMefisaSel = prestadoresSistema.find((p) => p.id === doutorMefisaId) || prestadoresSistema[0];
+  const doutorMefisaNomeUpper = doutorMefisaSel?.nome?.toUpperCase() || 'ANGELICA DA CRUZ';
+  const doutorMefisaOrgao = doutorMefisaSel?.orgaoClasse || 'CRP';
+  const doutorMefisaConselho = doutorMefisaSel?.crmOuCrp || '25036';
+
+  const converterNumeroExtenso = (num: number): string => {
+    const mapa: Record<number, string> = {
+      1: 'uma',
+      2: 'duas',
+      3: 'tres',
+      4: 'quatro',
+      5: 'cinco',
+      6: 'seis',
+      7: 'sete',
+      8: 'oito',
+      9: 'nove',
+      10: 'dez',
+    };
+    return mapa[num] || String(num);
+  };
+
+  const sessoesExtenso = converterNumeroExtenso(sessoesSemana);
+
+  // Observações sem acentos
+  const textoJustificativaPadrao = `Sabemos que a quantidade do formulario e ${sessoesSemana} por semana, porem foi solicitado ${quantidadeEfetiva}, que sera para o mes inteiro.`;
+
+  const textoObsSemanal = `Paciente realiza ${sessoesExtenso} sessoes semanais de acordo com avaliacao tecnica. Profissional: ${doutorMefisaNomeUpper}. ${doutorMefisaOrgao}: ${doutorMefisaConselho}`;
+
+  // Múltiplas sessões no mesmo dia
+  const contagemDatasMap: Record<string, number> = {};
+  cronograma.sessoes.forEach((s) => {
+    const dt = datasCustomizadas[s.numero] || s.data;
+    contagemDatasMap[dt] = (contagemDatasMap[dt] || 0) + 1;
+  });
+  const maxSessoesMesmoDia = Math.max(...Object.values(contagemDatasMap), 1);
+  const temMaisDeUmaSessaoMesmoDia = maxSessoesMesmoDia > 1;
+
+  const textoObsMesmoDia = `O paciente realizou, na mesma data em horarios diferentes, ${maxSessoesMesmoDia} sessoes pelo metodo ABA na clinica, conforme orientacao do formulario medico anexo a autorizacao.`;
+
+  const handleCopyText = (texto: string, key: string) => {
+    navigator.clipboard.writeText(texto);
+    setCopiedObsKey(key);
+    setTimeout(() => setCopiedObsKey(null), 2000);
   };
 
   const handleIniciarRemarcacao = (sessao: { numero: number; data: string; conflito?: ConflitoFeriadoSessao }) => {
@@ -722,6 +764,7 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
                   onChange={(e) => {
                     setSessoesSemana(Number(e.target.value));
                     setOverrideQuantidade(null);
+                    setDatasCustomizadas({});
                   }}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-extrabold text-[#002172] dark:text-blue-300 focus:outline-[#002172] dark:focus:outline-blue-400"
                 />
@@ -827,45 +870,6 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Resultado do Alinhamento da Próxima Autorização */}
-          <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-slate-800/80 border border-blue-200/90 dark:border-slate-700 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-[#002172] dark:text-blue-300 text-xs flex items-center gap-1.5 uppercase tracking-wide">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                Cálculo de Alinhamento da Próxima Autorização
-              </span>
-              <span className="text-[10px] font-mono font-bold bg-[#002172] dark:bg-blue-900 text-white px-2 py-0.5 rounded-full">
-                {alinhamento.semanasCicloCalculadas} semanas no ciclo
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-blue-100 dark:border-slate-800">
-              <div>
-                <span className="text-[10px] text-indigo-700 dark:text-indigo-300 block font-bold">Próxima Autorização Posterior:</span>
-                <span className="font-extrabold text-indigo-900 dark:text-indigo-200 text-xs sm:text-sm">
-                  {formatarDiaSemanaPt(identificarDiaSemana(alinhamentoPosterior.dataProximaAutorizacaoCalculada))},{' '}
-                  {formatarDataBr(alinhamentoPosterior.dataProximaAutorizacaoCalculada, showMonthInitials)}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-slate-400 dark:text-slate-400 block font-medium">Total de Sessões no Ciclo:</span>
-                <span className="font-extrabold text-[#91CA0C] text-xs sm:text-sm bg-slate-900 px-2 py-0.5 rounded-md inline-block">
-                  {quantidadeEfetiva} sessões autorizadas
-                </span>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed bg-white/70 dark:bg-slate-900/70 p-2.5 rounded-lg border border-blue-100/60 dark:border-slate-800">
-              <strong className="text-slate-800 dark:text-slate-100">Regra de Negócio:</strong> {alinhamento.regraDescritiva}
-              {alinhamento.adicionouOcorrenciaSemanal && (
-                <span className="text-emerald-800 dark:text-emerald-400 font-bold block mt-1">
-                  ✓ Considerada mais uma ocorrência semanal no ciclo para garantir a integridade do tratamento.
-                </span>
-              )}
-            </p>
           </div>
 
           {/* ALERTA ESPECIAL — EXCEÇÃO DE SÁBADO */}
@@ -1073,33 +1077,163 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
             </div>
           )}
 
-          {/* Justificativa Automática para o Portal */}
-          <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2">
+          {/* Resultado do Alinhamento da Próxima Autorização (Posicionado Abaixo do Cronograma) */}
+          <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-slate-800/80 border border-blue-200/90 dark:border-slate-700 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-amber-900 text-xs flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-amber-700" />
-                Justificativa Padrão Gerada para o Portal do Convênio
+              <span className="font-bold text-[#002172] dark:text-blue-300 text-xs flex items-center gap-1.5 uppercase tracking-wide">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                Cálculo de Alinhamento da Próxima Autorização
               </span>
-              <button
-                onClick={handleCopyJustificativa}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 text-[11px] font-semibold transition-colors"
-              >
-                {copiedJustificativa ? (
-                  <>
-                    <Check className="w-3 h-3 text-emerald-600" />
-                    <span>Copiado!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3 h-3 text-amber-700" />
-                    <span>Copiar Justificativa</span>
-                  </>
-                )}
-              </button>
+              <span className="text-[10px] font-mono font-bold bg-[#002172] dark:bg-blue-900 text-white px-2 py-0.5 rounded-full">
+                {alinhamento.semanasCicloCalculadas} semanas no ciclo
+              </span>
             </div>
-            <p className="p-2.5 bg-white rounded-xl text-slate-800 font-medium italic border border-amber-100">
-              "{resultadoFormulario.justificativaFormularioGerada}"
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-blue-100 dark:border-slate-800">
+              <div>
+                <span className="text-[10px] text-indigo-700 dark:text-indigo-300 block font-bold">Próxima Autorização Posterior:</span>
+                <span className="font-extrabold text-indigo-900 dark:text-indigo-200 text-xs sm:text-sm">
+                  {formatarDiaSemanaPt(identificarDiaSemana(alinhamento.dataProximaAutorizacaoCalculada))},{' '}
+                  {formatarDataBr(alinhamento.dataProximaAutorizacaoCalculada, showMonthInitials)}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-[10px] text-slate-400 dark:text-slate-400 block font-medium">Total de Sessões no Ciclo:</span>
+                <span className="font-extrabold text-[#91CA0C] text-xs sm:text-sm bg-slate-900 px-2 py-0.5 rounded-md inline-block">
+                  {quantidadeEfetiva} sessões autorizadas
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed bg-white/70 dark:bg-slate-900/70 p-2.5 rounded-lg border border-blue-100/60 dark:border-slate-800">
+              <strong className="text-slate-800 dark:text-slate-100">Regra de Negócio:</strong> {alinhamento.regraDescritiva}
+              {alinhamento.adicionouOcorrenciaSemanal && (
+                <span className="text-emerald-800 dark:text-emerald-400 font-bold block mt-1">
+                  ✓ Considerada mais uma ocorrência semanal no ciclo para garantir a integridade do tratamento.
+                </span>
+              )}
             </p>
+          </div>
+
+          {/* Observações e Justificativas para o Portal (Sem Acentos) */}
+          <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/90 dark:border-amber-800/80 space-y-3 shadow-2xs">
+            <div className="flex items-center justify-between border-b border-amber-200/70 dark:border-amber-800/70 pb-2">
+              <span className="font-extrabold text-xs text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-amber-700 dark:text-amber-400" />
+                Observações para o Convênio
+              </span>
+            </div>
+
+            {/* Seletor de Profissional Mefisa (Limpo e Espaçoso) */}
+            {sessoesSemana > 1 && (
+              <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-amber-200/80 dark:border-amber-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="text-xs font-bold text-amber-950 dark:text-amber-200 shrink-0">
+                  Profissional Mefisa:
+                </label>
+                <select
+                  value={doutorMefisaId}
+                  onChange={(e) => setDoutorMefisaId(e.target.value)}
+                  className="w-full sm:w-auto flex-1 max-w-lg px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-[#002172]"
+                >
+                  {prestadoresSistema.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome.toUpperCase()} ({p.orgaoClasse || 'CRP'}: {p.crmOuCrp || '25036'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="space-y-2.5">
+              {/* Observação 1: Múltiplas Sessões na Semana (Se sessoesSemana > 1) */}
+              {sessoesSemana > 1 && (
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                      Observação de Sessões Semanais ({sessoesSemana}x por semana):
+                    </span>
+                    <button
+                      onClick={() => handleCopyText(textoObsSemanal, 'semanal')}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#002172] text-white hover:bg-[#001750] text-[11px] font-bold transition-all cursor-pointer"
+                    >
+                      {copiedObsKey === 'semanal' ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-300" />
+                          <span>Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3 text-white" />
+                          <span>Copiar Observação</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-100 font-mono text-xs font-medium border border-slate-200/80 dark:border-slate-700/80 select-all">
+                    "{textoObsSemanal}"
+                  </p>
+                </div>
+              )}
+
+              {/* Observação 2: Múltiplas Sessões no Mesmo Dia (Se houver) */}
+              {temMaisDeUmaSessaoMesmoDia && (
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-amber-900 dark:text-amber-300">
+                      Observação de Múltiplas Sessões na Mesma Data ({maxSessoesMesmoDia}x no mesmo dia):
+                    </span>
+                    <button
+                      onClick={() => handleCopyText(textoObsMesmoDia, 'mesmoDia')}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#002172] text-white hover:bg-[#001750] text-[11px] font-bold transition-all cursor-pointer"
+                    >
+                      {copiedObsKey === 'mesmoDia' ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-300" />
+                          <span>Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3 text-white" />
+                          <span>Copiar Observação</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-100 font-mono text-xs font-medium border border-slate-200/80 dark:border-slate-700/80 select-all">
+                    "{textoObsMesmoDia}"
+                  </p>
+                </div>
+              )}
+
+              {/* Observação 3: Justificativa Padrão do Formulário */}
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                    Justificativa do Formulário de Solicitacao:
+                  </span>
+                  <button
+                    onClick={() => handleCopyText(textoJustificativaPadrao, 'padrao')}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#002172] text-white hover:bg-[#001750] text-[11px] font-bold transition-all cursor-pointer"
+                  >
+                    {copiedObsKey === 'padrao' ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-300" />
+                        <span>Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3 text-white" />
+                        <span>Copiar Justificativa</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-100 font-mono text-xs font-medium border border-slate-200/80 dark:border-slate-700/80 select-all">
+                  "{textoJustificativaPadrao}"
+                </p>
+              </div>
+            </div>
           </div>
             </>
           ) : (
