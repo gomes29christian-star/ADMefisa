@@ -328,7 +328,8 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
 
   // REGRA 02 CONFIRMADA: Decisão do Usuário sobre Faltas Justificadas no Ciclo
   const [temFaltasJustificadas, setTemFaltasJustificadas] = useState<boolean>(false);
-  const [quantidadeFaltas, setQuantidadeFaltas] = useState<number>(1);
+  const [datasFaltas, setDatasFaltas] = useState<string[]>(['2026-09-10']);
+  const [inputDataFalta, setInputDataFalta] = useState<string>('2026-09-10');
   const [modoFaltas, setModoFaltas] = useState<ModoAbatimentoFaltas>('DESCONTAR_PROXIMA_AUTORIZACAO');
   const [motivoFaltas, setMotivoFaltas] = useState<string>('Atestado médico da criança');
 
@@ -408,7 +409,8 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
     temFaltasJustificadas
       ? {
           modoAbatimento: modoFaltas,
-          quantidadeFaltasJustificadas: quantidadeFaltas,
+          quantidadeFaltasJustificadas: datasFaltas.length,
+          datasFaltas,
           motivoFaltas,
         }
       : undefined
@@ -424,7 +426,10 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
     dataInicio,
     quantidadeEfetiva,
     diasSemanaHabituais,
-    sessoesSemana
+    sessoesSemana,
+    undefined,
+    undefined,
+    temFaltasJustificadas && modoFaltas === 'DESCONTAR_PROXIMA_AUTORIZACAO' ? datasFaltas : undefined
   );
 
   // Cálculo da Próxima Autorização Posterior (Ciclo Subsequente do Modelo ABA)
@@ -796,16 +801,53 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-bold text-purple-900 dark:text-purple-200 mb-1">
-                        Quantidade de Faltas Justificadas:
+                        Data da(s) sessão(ões) faltantes:
                       </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={quantidadeFaltas}
-                        onChange={(e) => setQuantidadeFaltas(Math.max(1, Number(e.target.value)))}
-                        className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl text-xs font-bold text-purple-950 dark:text-purple-100"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={inputDataFalta}
+                          onChange={(e) => setInputDataFalta(e.target.value)}
+                          className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl text-xs font-bold text-purple-950 dark:text-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (inputDataFalta && !datasFaltas.includes(inputDataFalta)) {
+                              setDatasFaltas([...datasFaltas, inputDataFalta].sort());
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-purple-800 hover:bg-purple-900 text-white rounded-xl text-xs font-bold transition-colors shrink-0 cursor-pointer"
+                        >
+                          + Adicionar Data
+                        </button>
+                      </div>
+
+                      {/* Exibição das Datas de Faltas Selecionadas */}
+                      {datasFaltas.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {datasFaltas.map((dtIso) => (
+                            <span
+                              key={dtIso}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-100 dark:bg-purple-950/80 border border-purple-300 dark:border-purple-700 text-purple-950 dark:text-purple-100 text-xs font-bold"
+                            >
+                              <span>📅 {formatarDataBr(dtIso, showMonthInitials)}</span>
+                              <button
+                                type="button"
+                                onClick={() => setDatasFaltas(datasFaltas.filter((d) => d !== dtIso))}
+                                className="text-purple-700 dark:text-purple-300 hover:text-red-600 font-extrabold text-xs ml-0.5 cursor-pointer"
+                                title="Remover esta data de falta"
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-purple-800/80 dark:text-purple-300/80 mt-1 italic">
+                          Nenhuma data de falta selecionada. Escolha a data acima.
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold text-purple-900 dark:text-purple-200 mb-1">
@@ -839,7 +881,7 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
                           1. Descontar da Próxima Autorização
                         </div>
                         <div className={`text-[10px] mt-0.5 ${modoFaltas === 'DESCONTAR_PROXIMA_AUTORIZACAO' ? 'text-purple-200' : 'text-slate-500 dark:text-slate-400'}`}>
-                          Abate as {quantidadeFaltas} falta(s) da quantidade total solicitada no portal.
+                          Abate as {datasFaltas.length} falta(s) da quantidade total solicitada no portal.
                         </div>
                       </button>
 
@@ -1093,8 +1135,8 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
               <div>
                 <span className="text-[10px] text-indigo-700 dark:text-indigo-300 block font-bold">Próxima Autorização Posterior:</span>
                 <span className="font-extrabold text-indigo-900 dark:text-indigo-200 text-xs sm:text-sm">
-                  {formatarDiaSemanaPt(identificarDiaSemana(alinhamento.dataProximaAutorizacaoCalculada))},{' '}
-                  {formatarDataBr(alinhamento.dataProximaAutorizacaoCalculada, showMonthInitials)}
+                  {formatarDiaSemanaPt(identificarDiaSemana(cronograma.proximaAutorizacaoSugerida || alinhamento.dataProximaAutorizacaoCalculada))},{' '}
+                  {formatarDataBr(cronograma.proximaAutorizacaoSugerida || alinhamento.dataProximaAutorizacaoCalculada, showMonthInitials)}
                 </span>
               </div>
 
@@ -1107,7 +1149,7 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
             </div>
 
             <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed bg-white/70 dark:bg-slate-900/70 p-2.5 rounded-lg border border-blue-100/60 dark:border-slate-800">
-              <strong className="text-slate-800 dark:text-slate-100">Regra de Negócio:</strong> {alinhamento.regraDescritiva}
+              <strong className="text-slate-800 dark:text-slate-100">Regra de Negócio:</strong> A data da próxima autorização foi alinhada ao início do próximo ciclo ({formatarDataBr(cronograma.proximaAutorizacaoSugerida || alinhamento.dataProximaAutorizacaoCalculada, showMonthInitials)}).
               {alinhamento.adicionouOcorrenciaSemanal && (
                 <span className="text-emerald-800 dark:text-emerald-400 font-bold block mt-1">
                   ✓ Considerada mais uma ocorrência semanal no ciclo para garantir a integridade do tratamento.

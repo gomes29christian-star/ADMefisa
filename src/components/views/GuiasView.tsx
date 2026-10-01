@@ -33,7 +33,7 @@ import {
   calcularSessoesSemanaisJanela,
   sanitizarCbo,
 } from '../../services/businessRules';
-import { ValidacaoDuplicidadeGuiaSessao, DiaSemanaIndice, GuiaDigitacao, Usuario, Prestador } from '../../types/clinic';
+import { ValidacaoDuplicidadeGuiaSessao, DiaSemanaIndice, GuiaDigitacao, Usuario, Prestador, ModoAbatimentoFaltas } from '../../types/clinic';
 import { carregarUsuariosIniciais } from '../../services/userService';
 import { useTheme } from '../../context/ThemeContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
@@ -311,6 +311,13 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
   const [textoLoteInput, setTextoLoteInput] = useState<string>('');
   const [erroEdicaoLote, setErroEdicaoLote] = useState<string | null>(null);
 
+  // Estados de Faltas Justificadas no Faturamento (Drawer)
+  const [temFaltasJustificadasDrawer, setTemFaltasJustificadasDrawer] = useState<boolean>(false);
+  const [datasFaltasDrawer, setDatasFaltasDrawer] = useState<string[]>([]);
+  const [inputDataFaltaDrawer, setInputDataFaltaDrawer] = useState<string>('');
+  const [modoFaltasDrawer, setModoFaltasDrawer] = useState<ModoAbatimentoFaltas>('DESCONTAR_PROXIMA_AUTORIZACAO');
+  const [motivoFaltasDrawer, setMotivoFaltasDrawer] = useState<string>('Atestado médico da criança');
+
   // Estados para visualização e edição de sessões de guia já faturada (Tabela)
   const [guiaParaEditarSessoes, setGuiaParaEditarSessoes] = useState<GuiaDigitacao | null>(null);
   const [datasSessoesModalGuia, setDatasSessoesModalGuia] = useState<string[]>([]);
@@ -488,11 +495,14 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
     dataInicioStr: string,
     quantidade: number,
     pacienteNomeOuId?: string,
-    sessoesPorSemanaOverride?: number
+    sessoesPorSemanaOverride?: number,
+    datasFaltasParam?: string[],
+    modoFaltasParam?: ModoAbatimentoFaltas
   ): string[] => {
     if (!dataInicioStr) return [];
 
     let diaAlvo: DiaSemanaIndice = 1; // Padrão: Segunda-feira
+    let diasHabituaisPac: DiaSemanaIndice[] | undefined = undefined;
     let sessoesSemanaPac = sessoesPorSemanaOverride || 1;
     if (pacienteNomeOuId) {
       const termoNorm = pacienteNomeOuId.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -509,6 +519,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
       if (pac?.diaDaSemana) {
         diaAlvo = parseDiaSemanaNomeParaIndice(pac.diaDaSemana);
       }
+      if (pac?.diasDaSemana && pac.diasDaSemana.length > 0) {
+        diasHabituaisPac = pac.diasDaSemana.map((dName) => parseDiaSemanaNomeParaIndice(dName));
+      }
       if (!sessoesPorSemanaOverride && pac?.sessoesPorSemana) {
         sessoesSemanaPac = pac.sessoesPorSemana;
       }
@@ -518,8 +531,11 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
       dataInicioStr,
       quantidade,
       diaSemanaHabitual: diaAlvo,
+      diasSemanaHabituais: diasHabituaisPac,
       sessoesPorSemana: sessoesSemanaPac,
       showMonthInitials,
+      datasFaltas: datasFaltasParam,
+      modoFaltas: modoFaltasParam,
     });
   };
 
@@ -2271,7 +2287,9 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
                     guiaSelecionadaDrawer.dataAutorizacao || guiaSelecionadaDrawer.dataSolicitacao,
                     guiaSelecionadaDrawer.quantidadeSolicitada,
                     guiaSelecionadaDrawer.pacienteNome || guiaSelecionadaDrawer.pacienteId,
-                    sessoesPorSemanaDrawer
+                    sessoesPorSemanaDrawer,
+                    temFaltasJustificadasDrawer ? datasFaltasDrawer : undefined,
+                    modoFaltasDrawer
                   );
                   const datasSessoes = automacaoDesativadaDrawer
                     ? datasSessoesDrawer
@@ -2279,6 +2297,134 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
 
                   return (
                     <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                      {/* Bloco de Faltas Justificadas no Faturamento */}
+                      <div className="p-3 rounded-xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <label className="flex items-center gap-2 font-bold text-xs text-purple-950 dark:text-purple-200 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={temFaltasJustificadasDrawer}
+                              onChange={(e) => setTemFaltasJustificadasDrawer(e.target.checked)}
+                              className="w-4 h-4 rounded text-purple-700 focus:ring-purple-500 cursor-pointer"
+                            />
+                            <span>Considerar Faltas Justificadas no Ciclo Atual (Faturamento)</span>
+                          </label>
+                          <span className="text-[10px] bg-purple-200/80 dark:bg-purple-900/80 text-purple-900 dark:text-purple-200 font-bold px-2 py-0.5 rounded-md">
+                            Decisão do Usuário
+                          </span>
+                        </div>
+
+                        {temFaltasJustificadasDrawer && (
+                          <div className="space-y-3 pt-2 border-t border-purple-200/60 dark:border-purple-800/60 animate-fadeIn">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-bold text-purple-900 dark:text-purple-200 mb-1">
+                                  Data da(s) sessão(ões) faltantes:
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="date"
+                                    value={inputDataFaltaDrawer}
+                                    onChange={(e) => setInputDataFaltaDrawer(e.target.value)}
+                                    className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl text-xs font-bold text-purple-950 dark:text-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (inputDataFaltaDrawer && !datasFaltasDrawer.includes(inputDataFaltaDrawer)) {
+                                        setDatasFaltasDrawer([...datasFaltasDrawer, inputDataFaltaDrawer].sort());
+                                      }
+                                    }}
+                                    className="px-3 py-1.5 bg-purple-800 hover:bg-purple-900 text-white rounded-xl text-xs font-bold transition-colors shrink-0 cursor-pointer"
+                                  >
+                                    + Adicionar
+                                  </button>
+                                </div>
+
+                                {/* Lista de Datas de Faltas Selecionadas no Drawer */}
+                                {datasFaltasDrawer.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {datasFaltasDrawer.map((dtIso) => (
+                                      <span
+                                        key={dtIso}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-100 dark:bg-purple-950/80 border border-purple-300 dark:border-purple-700 text-purple-950 dark:text-purple-100 text-xs font-bold"
+                                      >
+                                        <span>📅 {formatarDataBr(dtIso, showMonthInitials)}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setDatasFaltasDrawer(datasFaltasDrawer.filter((d) => d !== dtIso))}
+                                          className="text-purple-700 dark:text-purple-300 hover:text-red-600 font-extrabold text-xs ml-0.5 cursor-pointer"
+                                          title="Remover esta data de falta"
+                                        >
+                                          ✕
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-[10px] text-purple-800/80 dark:text-purple-300/80 mt-1 italic">
+                                    Nenhuma data de falta selecionada. Escolha a data acima.
+                                  </div>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-purple-900 dark:text-purple-200 mb-1">
+                                  Motivo da(s) Falta(s):
+                                </label>
+                                <input
+                                  type="text"
+                                  value={motivoFaltasDrawer}
+                                  onChange={(e) => setMotivoFaltasDrawer(e.target.value)}
+                                  placeholder="Ex: Atestado médico de saúde da criança"
+                                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-xl text-xs text-slate-800 dark:text-white"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-purple-900 dark:text-purple-200 mb-1.5">
+                                Como o sistema deve processar estas faltas no faturamento?
+                              </label>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setModoFaltasDrawer('DESCONTAR_PROXIMA_AUTORIZACAO')}
+                                  className={`p-2 rounded-xl border text-left transition-all ${
+                                    modoFaltasDrawer === 'DESCONTAR_PROXIMA_AUTORIZACAO'
+                                      ? 'bg-purple-900 dark:bg-purple-800 text-white border-purple-900 shadow-xs'
+                                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-950/50'
+                                  }`}
+                                >
+                                  <div className="font-bold text-[11px]">
+                                    1. Descontar do Faturamento
+                                  </div>
+                                  <div className={`text-[10px] mt-0.5 ${modoFaltasDrawer === 'DESCONTAR_PROXIMA_AUTORIZACAO' ? 'text-purple-200' : 'text-slate-500 dark:text-slate-400'}`}>
+                                    Pula as {datasFaltasDrawer.length} falta(s) nas datas selecionadas da conta de faturamento.
+                                  </div>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setModoFaltasDrawer('MANTER_INTEGRAL_REPOSICAO_PRONTUARIO')}
+                                  className={`p-2 rounded-xl border text-left transition-all ${
+                                    modoFaltasDrawer === 'MANTER_INTEGRAL_REPOSICAO_PRONTUARIO'
+                                      ? 'bg-purple-900 dark:bg-purple-800 text-white border-purple-900 shadow-xs'
+                                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-950/50'
+                                  }`}
+                                >
+                                  <div className="font-bold text-[11px]">
+                                    2. Manter Quantidade Integral
+                                  </div>
+                                  <div className={`text-[10px] mt-0.5 ${modoFaltasDrawer === 'MANTER_INTEGRAL_REPOSICAO_PRONTUARIO' ? 'text-purple-200' : 'text-slate-500 dark:text-slate-400'}`}>
+                                    Solicita faturamento integral. Reposição clínica controlada em prontuário.
+                                  </div>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[10px] font-bold text-slate-400 uppercase">

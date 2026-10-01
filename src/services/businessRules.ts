@@ -564,7 +564,8 @@ export function gerarCronogramaComAuditoriaFeriados(
   diaSemanaHabitualParam: DiaSemanaIndice | DiaSemanaIndice[],
   sessoesPorSemana: number = 1,
   anoAlvoParam?: number,
-  mesAlvoIdxParam?: number
+  mesAlvoIdxParam?: number,
+  datasFaltasPuladas?: string[]
 ): {
   sessoes: Array<{
     numero: number;
@@ -576,38 +577,31 @@ export function gerarCronogramaComAuditoriaFeriados(
   totalConflitos: number;
   proximaAutorizacaoSugerida: string;
 } {
-  const diasArray: DiaSemanaIndice[] = Array.isArray(diaSemanaHabitualParam)
+  const setFaltasIso = new Set<string>(
+    (datasFaltasPuladas || []).map((d) => {
+      if (!d) return '';
+      const limpo = d.trim();
+      if (limpo.includes('/')) {
+        const [dia, mes, ano] = limpo.split('/');
+        return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+      }
+      return limpo;
+    }).filter(Boolean)
+  );
+
+  const rawDias: DiaSemanaIndice[] = Array.isArray(diaSemanaHabitualParam)
     ? diaSemanaHabitualParam
     : [diaSemanaHabitualParam !== undefined && diaSemanaHabitualParam !== null ? diaSemanaHabitualParam : 1];
 
-  let effectiveDias = [...diasArray];
-  if (sessoesPorSemana > effectiveDias.length && sessoesPorSemana > 1) {
-    const base = effectiveDias[0] ?? 3;
-    const setDias = new Set<DiaSemanaIndice>(effectiveDias);
-    const candidatos: DiaSemanaIndice[] = [
-      base,
-      ((base + 2) % 7) as DiaSemanaIndice,
-      ((base + 4) % 7) as DiaSemanaIndice,
-      1, 3, 5, 2, 4
-    ];
-    for (const d of candidatos) {
-      if (d !== 0 && setDias.size < sessoesPorSemana) {
-        setDias.add(d);
-      }
-    }
-    effectiveDias = Array.from(setDias).sort((a, b) => a - b);
+  const diasSelecionados = Array.from(new Set(rawDias))
+    .filter((d) => d >= 1 && d <= 6)
+    .sort((a, b) => a - b);
+
+  if (diasSelecionados.length === 0) {
+    diasSelecionados.push(1);
   }
 
-  const primaryHabitualDay = effectiveDias[0] ?? 1;
-
-  const sessoes: Array<{
-    numero: number;
-    data: string;
-    diaSemana: string;
-    temConflitoFeriado: boolean;
-    conflito?: ConflitoFeriadoSessao;
-  }> = [];
-  let totalConflitos = 0;
+  const primaryHabitualDay = diasSelecionados[0] ?? 1;
 
   const dtStart = parseIsoDateLocal(dataPrimeiraSessaoStr);
   if (dtStart.getDay() === 0) dtStart.setDate(dtStart.getDate() + 1);
@@ -617,46 +611,41 @@ export function gerarCronogramaComAuditoriaFeriados(
   const anoAlvo = anoAlvoParam !== undefined ? anoAlvoParam : (mesInicio === 11 ? anoInicio + 1 : anoInicio);
   const mesAlvoIdx = mesAlvoIdxParam !== undefined ? mesAlvoIdxParam : (mesInicio + 1) % 12;
 
-  let dCurr = new Date(dtStart);
-  let sessoesGeradas = 0;
-  let guard = 0;
-  const alvoFixado = totalSessoes && totalSessoes > 0;
+  // Encontra a segunda-feira da semana de início
+  const currentMonday = new Date(dtStart);
+  const diffToMonday = (currentMonday.getDay() + 6) % 7;
+  currentMonday.setDate(currentMonday.getDate() - diffToMonday);
 
-  while (guard++ < 100) {
+  const sessoesBrutasSemFiltro: Array<{ dataIso: string; diaSemanaIdx: DiaSemanaIndice }> = [];
+  const alvoFixado = totalSessoes && totalSessoes > 0;
+  let weekGuard = 0;
+
+  while (weekGuard++ < 60) {
     let alcancouAlvo = false;
 
     for (let i = 0; i < sessoesPorSemana; i++) {
-      if (alvoFixado && sessoesGeradas >= totalSessoes) {
+      if (alvoFixado && sessoesBrutasSemFiltro.length >= totalSessoes) {
         alcancouAlvo = true;
         break;
       }
 
-      const targetDay = effectiveDias[i % effectiveDias.length];
-      let dSess = new Date(dCurr);
-      let diff = (targetDay - dSess.getDay() + 7) % 7;
-      dSess.setDate(dSess.getDate() + diff);
+      const targetDay = diasSelecionados[i % diasSelecionados.length];
+      const dtSess = new Date(currentMonday);
+      dtSess.setDate(currentMonday.getDate() + (targetDay - 1));
 
-      if (dSess.getDay() === 0) dSess.setDate(dSess.getDate() + 1);
+      // Não inclui datas anteriores à data de início do ciclo
+      if (dtSess < dtStart) continue;
+      if (dtSess.getDay() === 0) dtSess.setDate(dtSess.getDate() + 1);
 
-      const dataIso = formatIsoDate(dSess);
-      const conflito = verificarConflitoFeriado(dataIso);
-      if (conflito) totalConflitos++;
-
-      sessoes.push({
-        numero: sessoesGeradas + 1,
-        data: dataIso,
-        diaSemana: formatarDiaSemanaPt(dSess.getDay() as DiaSemanaIndice),
-        temConflitoFeriado: !!conflito,
-        conflito: conflito || undefined,
+      sessoesBrutasSemFiltro.push({
+        dataIso: formatIsoDate(dtSess),
+        diaSemanaIdx: dtSess.getDay() as DiaSemanaIndice,
       });
-      sessoesGeradas++;
     }
 
-    if (alcancouAlvo) break;
-
-    // Se o número de sessões não foi fixado via override, verifica se a próxima autorização já atinge o mês alvo
-    if (!alvoFixado && sessoes.length > 0) {
-      const ultimaSessaoIso = sessoes[sessoes.length - 1].data;
+    // Após completar todas as sessões da semana atual, verifica se a próxima autorização atinge o mês seguinte
+    if (!alvoFixado && sessoesBrutasSemFiltro.length > 0) {
+      const ultimaSessaoIso = sessoesBrutasSemFiltro[sessoesBrutasSemFiltro.length - 1].dataIso;
       const dtUlt = parseIsoDateLocal(ultimaSessaoIso);
 
       let candidate = new Date(dtUlt);
@@ -665,30 +654,60 @@ export function gerarCronogramaComAuditoriaFeriados(
       while (candidate.getDay() !== primaryHabitualDay && cGuard++ < 14) {
         candidate.setDate(candidate.getDate() + 1);
       }
+      if (candidate.getDay() === 0) candidate.setDate(candidate.getDate() + 1);
 
       if (candidate.getFullYear() > anoAlvo || (candidate.getFullYear() === anoAlvo && candidate.getMonth() >= mesAlvoIdx)) {
         break;
       }
     }
 
-    dCurr.setDate(dCurr.getDate() + 7);
+    if (alcancouAlvo) break;
+
+    currentMonday.setDate(currentMonday.getDate() + 7);
   }
 
-  // Calcula a data da próxima autorização posterior final
-  const ultimaDataIso = sessoes.length > 0 ? sessoes[sessoes.length - 1].data : dataPrimeiraSessaoStr;
-  const dtUltima = parseIsoDateLocal(ultimaDataIso);
-  let candidateFinal = new Date(dtUltima);
+  // Calculates candidate next authorization date based on the full natural schedule
+  const ultimaDataIsoCompleta = sessoesBrutasSemFiltro.length > 0
+    ? sessoesBrutasSemFiltro[sessoesBrutasSemFiltro.length - 1].dataIso
+    : dataPrimeiraSessaoStr;
+  const dtUltimaCompleta = parseIsoDateLocal(ultimaDataIsoCompleta);
+  let candidateFinal = new Date(dtUltimaCompleta);
   candidateFinal.setDate(candidateFinal.getDate() + 1);
   let cGuard = 0;
   while (candidateFinal.getDay() !== primaryHabitualDay && cGuard++ < 14) {
     candidateFinal.setDate(candidateFinal.getDate() + 1);
   }
   if (candidateFinal.getDay() === 0) candidateFinal.setDate(candidateFinal.getDate() + 1);
+  const proximaAutorizacaoFinal = formatIsoDate(candidateFinal);
+
+  // Aplica o abate de faltas (remove as datas do cronograma sem empurrar o final do ciclo)
+  const sessoesFiltradas = setFaltasIso.size > 0
+    ? sessoesBrutasSemFiltro.filter((s) => !setFaltasIso.has(s.dataIso))
+    : sessoesBrutasSemFiltro;
+
+  const sessoesEfetivas = alvoFixado ? sessoesFiltradas.slice(0, totalSessoes) : sessoesFiltradas;
+
+  // ORDENAÇÃO RIGOROSAMENTE CRONOLÓGICA
+  sessoesEfetivas.sort((a, b) => a.dataIso.localeCompare(b.dataIso));
+
+  let totalConflitos = 0;
+  const sessoes = sessoesEfetivas.map((s, idx) => {
+    const conflito = verificarConflitoFeriado(s.dataIso);
+    if (conflito) totalConflitos++;
+
+    return {
+      numero: idx + 1,
+      data: s.dataIso,
+      diaSemana: formatarDiaSemanaPt(s.diaSemanaIdx),
+      temConflitoFeriado: !!conflito,
+      conflito: conflito || undefined,
+    };
+  });
 
   return {
     sessoes,
     totalConflitos,
-    proximaAutorizacaoSugerida: formatIsoDate(candidateFinal),
+    proximaAutorizacaoSugerida: proximaAutorizacaoFinal,
   };
 }
 
@@ -749,6 +768,8 @@ export function calcularDatasSessoesAlinhadas(params: {
   diasSemanaHabituais?: DiaSemanaIndice[];
   sessoesPorSemana?: number;
   showMonthInitials?: boolean;
+  datasFaltas?: string[];
+  modoFaltas?: ModoAbatimentoFaltas;
 }): string[] {
   const {
     dataInicioStr,
@@ -757,6 +778,8 @@ export function calcularDatasSessoesAlinhadas(params: {
     diasSemanaHabituais,
     sessoesPorSemana = 1,
     showMonthInitials,
+    datasFaltas,
+    modoFaltas = 'DESCONTAR_PROXIMA_AUTORIZACAO',
   } = params;
   if (!dataInicioStr || quantidade <= 0) return [];
 
@@ -767,11 +790,16 @@ export function calcularDatasSessoesAlinhadas(params: {
       ? diaSemanaHabitual
       : 1;
 
+  const datasPuladas = modoFaltas === 'DESCONTAR_PROXIMA_AUTORIZACAO' ? datasFaltas : undefined;
+
   const cronograma = gerarCronogramaComAuditoriaFeriados(
     dataInicioStr,
     quantidade,
     diasParam,
-    sessoesPorSemana
+    sessoesPorSemana,
+    undefined,
+    undefined,
+    datasPuladas
   );
 
   return cronograma.sessoes.map((s) => formatarDataBr(s.data, showMonthInitials));
@@ -1097,6 +1125,7 @@ export function calcularSessoesPeriodo(
   opcoesFaltas?: {
     modoAbatimento: ModoAbatimentoFaltas;
     quantidadeFaltasJustificadas: number;
+    datasFaltas?: string[];
     motivoFaltas?: string;
   }
 ) {
@@ -1114,12 +1143,16 @@ export function calcularSessoesPeriodo(
   let observacaoAuditoriaFaltas = '';
 
   if (opcoesFaltas && opcoesFaltas.quantidadeFaltasJustificadas > 0) {
+    const listagemDatas = opcoesFaltas.datasFaltas && opcoesFaltas.datasFaltas.length > 0
+      ? ` nas datas (${opcoesFaltas.datasFaltas.map(d => formatarDataBr(d)).join(', ')})`
+      : '';
+
     if (opcoesFaltas.modoAbatimento === 'DESCONTAR_PROXIMA_AUTORIZACAO') {
       quantidadeFinal = Math.max(0, quantidadeBruta - opcoesFaltas.quantidadeFaltasJustificadas);
-      formulaDescritiva = `(${sessoesPorSemana} sessões/sem × ${semanasCalculadas} sem) - ${opcoesFaltas.quantidadeFaltasJustificadas} faltas justificadas abatidas = ${quantidadeFinal} sessões solicitadas`;
-      observacaoAuditoriaFaltas = `Abatimento aprovado pelo usuário: ${opcoesFaltas.quantidadeFaltasJustificadas} falta(s) descontada(s) da solicitação mensal. Motivo: ${opcoesFaltas.motivoFaltas || 'Saúde do paciente'}.`;
+      formulaDescritiva = `(${sessoesPorSemana} sessões/sem × ${semanasCalculadas} sem) - ${opcoesFaltas.quantidadeFaltasJustificadas} falta(s) abatida(s) = ${quantidadeFinal} sessões solicitadas`;
+      observacaoAuditoriaFaltas = `Abatimento aprovado pelo usuário: ${opcoesFaltas.quantidadeFaltasJustificadas} falta(s)${listagemDatas} descontada(s) da solicitação mensal. Motivo: ${opcoesFaltas.motivoFaltas || 'Saúde do paciente'}.`;
     } else {
-      observacaoAuditoriaFaltas = `Opção do usuário: Mantida quantidade integral (${quantidadeBruta} sessões) conforme laudo. As ${opcoesFaltas.quantidadeFaltasJustificadas} falta(s) justificadas serão repostas em prontuário.`;
+      observacaoAuditoriaFaltas = `Opção do usuário: Mantida quantidade integral (${quantidadeBruta} sessões) conforme laudo. As ${opcoesFaltas.quantidadeFaltasJustificadas} falta(s)${listagemDatas} justificadas serão repostas em prontuário.`;
     }
   }
 
