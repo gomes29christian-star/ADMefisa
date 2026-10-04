@@ -99,6 +99,7 @@ export const GerenciarProcedimentosModal: React.FC<GerenciarProcedimentosModalPr
   });
 
   const qtdAbas = procedimentos.filter((p) => p.categoria === 'ABA_REGULAR').length;
+  const qtdConvencionais = procedimentos.filter((p) => p.categoria === 'CONVENCIONAL').length;
   const qtdAvaliacoes = procedimentos.filter((p) => p.categoria === 'AVALIACAO_ABA').length;
   const qtdReavaliacoes = procedimentos.filter((p) => p.categoria === 'REAVALIACAO_ABA').length;
 
@@ -191,6 +192,17 @@ export const GerenciarProcedimentosModal: React.FC<GerenciarProcedimentosModalPr
             </button>
 
             <button
+              onClick={() => setFiltroCategoria('CONVENCIONAL')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                filtroCategoria === 'CONVENCIONAL'
+                  ? 'bg-purple-700 text-white shadow-2xs'
+                  : 'bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50'
+              }`}
+            >
+              Convencionais ({qtdConvencionais})
+            </button>
+
+            <button
               onClick={() => setFiltroCategoria('AVALIACAO_ABA')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
                 filtroCategoria === 'AVALIACAO_ABA'
@@ -268,6 +280,8 @@ export const GerenciarProcedimentosModal: React.FC<GerenciarProcedimentosModalPr
                         >
                           {proc.categoria === 'ABA_REGULAR'
                             ? 'ABA Regular'
+                            : proc.categoria === 'CONVENCIONAL'
+                            ? 'Convencional'
                             : proc.categoria === 'AVALIACAO_ABA'
                             ? 'Avaliação'
                             : 'Reavaliação'}

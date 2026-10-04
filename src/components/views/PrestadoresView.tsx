@@ -40,6 +40,8 @@ const LISTA_PROCEDIMENTOS_OPCOES = [
   'Psicologia',
   'Fonoaudiologia',
   'Terapia ocupacional',
+  'Nutricionismo',
+  'Neurologia',
 ];
 
 const CSV_EXEMPLO_PRESTADORES = `Nome Doutor;CPF;Conselho;Registro;UF;Especialidade;Procedimentos Atendidos

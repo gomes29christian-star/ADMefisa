@@ -1,6 +1,6 @@
 import { Procedimento } from '../types/clinic';
 
-export type CategoriaProcedimento = 'ABA_REGULAR' | 'AVALIACAO_ABA' | 'REAVALIACAO_ABA' | 'OUTROS';
+export type CategoriaProcedimento = 'ABA_REGULAR' | 'AVALIACAO_ABA' | 'REAVALIACAO_ABA' | 'CONVENCIONAL' | 'OUTROS';
 
 export interface ProcedimentoCompleto extends Procedimento {
   preco: number;
@@ -86,7 +86,79 @@ export const PROCEDIMENTOS_INICIAIS: ProcedimentoCompleto[] = [
     observacaoRegra: 'Sessão regular terapêutica ABA. Permitida em autorizações e digitações de guias.',
   },
 
-  // 2. AS AVALIAÇÕES (NÃO PODEM SER COLOCADAS NAS DIGITAÇÕES; SOMENTE NA AUTORIZAÇÃO)
+  // 2. CONVENCIONAIS (Sessões Convencionais)
+  {
+    id: 'proc-50000470',
+    codigo: '50000470',
+    descricao: 'Sessão de Psicologia',
+    especialidade: 'Psicologia',
+    sessoesPorSemanaPadrao: 1,
+    duracaoHoras: 1,
+    preco: 62.05,
+    categoria: 'CONVENCIONAL',
+    cid: 'F84.0',
+    permiteDigitacao: true,
+    permiteAutorizacao: true,
+    observacaoRegra: 'Sessão Convencional de Psicologia.',
+  },
+  {
+    id: 'proc-50000616',
+    codigo: '50000616',
+    descricao: 'Sessão de Fonoaudiologia',
+    especialidade: 'Fonoaudiologia',
+    sessoesPorSemanaPadrao: 1,
+    duracaoHoras: 1,
+    preco: 62.05,
+    categoria: 'CONVENCIONAL',
+    cid: 'F84.0',
+    permiteDigitacao: true,
+    permiteAutorizacao: true,
+    observacaoRegra: 'Sessão Convencional de Fonoaudiologia.',
+  },
+  {
+    id: 'proc-50000080',
+    codigo: '50000080',
+    descricao: 'Sessão de Terapia Ocupacional',
+    especialidade: 'Terapia Ocupacional',
+    sessoesPorSemanaPadrao: 1,
+    duracaoHoras: 1,
+    preco: 64.39,
+    categoria: 'CONVENCIONAL',
+    cid: 'F84.0',
+    permiteDigitacao: true,
+    permiteAutorizacao: true,
+    observacaoRegra: 'Sessão Convencional de Terapia Ocupacional.',
+  },
+  {
+    id: 'proc-50000560',
+    codigo: '50000560',
+    descricao: 'Sessão de Nutricionismo',
+    especialidade: 'Nutrição',
+    sessoesPorSemanaPadrao: 1,
+    duracaoHoras: 1,
+    preco: 67.01,
+    categoria: 'CONVENCIONAL',
+    cid: 'F84.0',
+    permiteDigitacao: true,
+    permiteAutorizacao: true,
+    observacaoRegra: 'Sessão Convencional de Nutricionismo.',
+  },
+  {
+    id: 'proc-64623548',
+    codigo: '64623548',
+    descricao: 'Sessão de Neurologia',
+    especialidade: 'Neurologia',
+    sessoesPorSemanaPadrao: 1,
+    duracaoHoras: 1,
+    preco: 720.00,
+    categoria: 'CONVENCIONAL',
+    cid: 'F84.0',
+    permiteDigitacao: true,
+    permiteAutorizacao: true,
+    observacaoRegra: 'Consulta/Sessão Convencional de Neurologia.',
+  },
+
+  // 3. AS AVALIAÇÕES (NÃO PODEM SER COLOCADAS NAS DIGITAÇÕES; SOMENTE NA AUTORIZAÇÃO)
   {
     id: 'proc-66600510',
     codigo: '66600510',
@@ -158,7 +230,7 @@ export const PROCEDIMENTOS_INICIAIS: ProcedimentoCompleto[] = [
     observacaoRegra: 'Variante de AVALIAÇÃO: Permitida SOMENTE no fluxo de Autorização prévia. Proibida inclusão em digitações operacionais.',
   },
 
-  // 3. AS REAVALIAÇÕES (NÃO PODEM SER COLOCADAS NAS DIGITAÇÕES; SOMENTE NA AUTORIZAÇÃO)
+  // 4. AS REAVALIAÇÕES (NÃO PODEM SER COLOCADAS NAS DIGITAÇÕES; SOMENTE NA AUTORIZAÇÃO)
   {
     id: 'proc-66600545',
     codigo: '66600545',
@@ -238,6 +310,24 @@ export class ProcedimentosService {
       if (salvo) {
         const parsed = JSON.parse(salvo);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          // Garante que novos procedimentos padrão (como os Convencionais) sejam mesclados automaticamente
+          const idsSalvos = new Set(parsed.map((p: ProcedimentoCompleto) => p.codigo || p.id));
+          const novosFaltantes = PROCEDIMENTOS_INICIAIS.filter((p) => !idsSalvos.has(p.codigo) && !idsSalvos.has(p.id));
+          let alterou = false;
+
+          // Atualiza preço oficial do 50000080 se estiver desatualizado
+          parsed.forEach((p: ProcedimentoCompleto) => {
+            if (p.codigo === '50000080' && p.preco === 67.01) {
+              p.preco = 64.39;
+              alterou = true;
+            }
+          });
+
+          if (novosFaltantes.length > 0 || alterou) {
+            const mesclado = novosFaltantes.length > 0 ? [...parsed, ...novosFaltantes] : parsed;
+            this.salvarTodos(mesclado);
+            return mesclado;
+          }
           return parsed;
         }
       }

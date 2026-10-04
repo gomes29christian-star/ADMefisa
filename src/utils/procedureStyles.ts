@@ -25,6 +25,12 @@ export function obterBadgeColorProcedimento(proc: string): string {
   if (p.includes('musicoterapia') || p.includes('musico')) {
     return 'bg-pink-100 text-pink-950 border-pink-300 dark:bg-pink-950/80 dark:text-pink-200 dark:border-pink-800';
   }
+  if (p.includes('nutricionismo') || p.includes('nutricao')) {
+    return 'bg-teal-100 text-teal-950 border-teal-300 dark:bg-teal-950/80 dark:text-teal-200 dark:border-teal-800';
+  }
+  if (p.includes('neurologia') || p.includes('neuro')) {
+    return 'bg-indigo-100 text-indigo-950 border-indigo-300 dark:bg-indigo-950/80 dark:text-indigo-200 dark:border-indigo-800';
+  }
 
   return 'bg-blue-100 text-blue-950 border-blue-300 dark:bg-blue-950/80 dark:text-blue-200 dark:border-blue-800';
 }

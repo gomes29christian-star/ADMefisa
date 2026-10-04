@@ -2327,6 +2327,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                               novoProcedimento === proc.codigo;
                             const isAvaliacao = proc.categoria === 'AVALIACAO_ABA';
                             const isReavaliacao = proc.categoria === 'REAVALIACAO_ABA';
+                            const isConvencional = proc.categoria === 'CONVENCIONAL';
                             const isDoPaciente = procedimentosDoPacienteSelecionado.some((pNome) => {
                               const pNorm = pNome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                               const descNorm = (proc.descricao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -2373,6 +2374,8 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                                             ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
                                             : isReavaliacao
                                             ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300'
+                                            : isConvencional
+                                            ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300'
                                             : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                                         }`}
                                       >
@@ -2380,6 +2383,8 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                                           ? 'Avaliação'
                                           : isReavaliacao
                                           ? 'Reavaliação'
+                                          : isConvencional
+                                          ? 'Convencional'
                                           : 'Sessão Regular'}
                                       </span>
                                     </div>
