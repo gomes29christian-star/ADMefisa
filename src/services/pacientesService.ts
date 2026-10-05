@@ -22,7 +22,7 @@ import {
   PapelUsuario,
   StatusPaciente,
 } from '../types/clinic';
-import { parseIsoDateLocal, formatIsoDate, normalizarEDeduplicarDiasSemana } from './businessRules';
+import { parseIsoDateLocal, formatIsoDate, normalizarEDeduplicarDiasSemana, isProcedimentoNutricionismo } from './businessRules';
 import { CloudSyncService } from './cloudSyncService';
 import { DeletedRecordsService } from './deletedRecordsService';
 import { AuditoriaService } from './auditoriaService';
@@ -550,6 +550,14 @@ export class PacientesService {
       atualizadoPor: usuario.nome,
     };
 
+    // Regra do Nutricionismo: 1 por mês automaticamente!
+    if (isProcedimentoNutricionismo(pacienteCriado.procedimentoPrincipal || pacienteCriado.procedimentos?.[0])) {
+      pacienteCriado.diaDaSemana = '1 por mês';
+      pacienteCriado.diasDaSemana = ['1 por mês'];
+      pacienteCriado.sessoesPorSemana = 1;
+      pacienteCriado.quantidadeSemana = 1;
+    }
+
     // Se o novo paciente possui formulário, propaga para todos os pacientes com o mesmo nome
     if (pacienteCriado.formulario) {
       const nomeNormalizado = normalizarTexto(pacienteCriado.nome);
@@ -642,6 +650,14 @@ export class PacientesService {
     if (camposAtualizados.carteirinhaAtual) {
       pacienteAtualizado.carteirinha = camposAtualizados.carteirinhaAtual;
       pacienteAtualizado.carteirinhaAtualMascarada = mascararCarteirinha(camposAtualizados.carteirinhaAtual);
+    }
+
+    // Regra do Nutricionismo: 1 por mês automaticamente!
+    if (isProcedimentoNutricionismo(pacienteAtualizado.procedimentoPrincipal || pacienteAtualizado.procedimentos?.[0])) {
+      pacienteAtualizado.diaDaSemana = '1 por mês';
+      pacienteAtualizado.diasDaSemana = ['1 por mês'];
+      pacienteAtualizado.sessoesPorSemana = 1;
+      pacienteAtualizado.quantidadeSemana = 1;
     }
 
     lista[indice] = pacienteAtualizado;

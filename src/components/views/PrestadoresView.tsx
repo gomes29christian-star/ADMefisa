@@ -161,6 +161,7 @@ export const PrestadoresView: React.FC = () => {
   };
 
   // Estados do Importador de Planilhas de Doutores
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [etapaImportacao, setEtapaImportacao] = useState<1 | 2 | 3 | 4>(1);
   const [nomeArquivo, setNomeArquivo] = useState('');
   const [cabecalho, setCabecalho] = useState<string[]>([]);
@@ -629,13 +630,30 @@ export const PrestadoresView: React.FC = () => {
         </div>
 
         {abaAtiva !== 'importacao' && (
-          <button
-            onClick={abrirModalNovo}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#002172] hover:bg-[#001752] text-white text-xs font-bold transition-colors shadow-xs"
-          >
-            <Plus className="w-4 h-4 text-[#91CA0C]" />
-            <span>{abaAtiva === 'mefisa' ? '+ Novo Doutor Mefisa' : '+ Novo Prestador Externo'}</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                setAbaAtiva('importacao');
+                setEtapaImportacao(1);
+                setSelecionadosIds([]);
+                setTimeout(() => {
+                  fileInputRef.current?.click();
+                }, 100);
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-[#91CA0C]" />
+              <span>Importar Planilha</span>
+            </button>
+
+            <button
+              onClick={abrirModalNovo}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#002172] hover:bg-[#001752] text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+            >
+              <Plus className="w-4 h-4 text-[#91CA0C]" />
+              <span>{abaAtiva === 'mefisa' ? '+ Novo Doutor Mefisa' : '+ Novo Prestador Externo'}</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -696,8 +714,12 @@ export const PrestadoresView: React.FC = () => {
         </button>
 
         <button
-          onClick={() => { setAbaAtiva('importacao'); setSelecionadosIds([]); }}
-          className={`pb-3 text-xs font-bold transition-all relative flex items-center gap-1.5 ${
+          onClick={() => {
+            setAbaAtiva('importacao');
+            setEtapaImportacao(1);
+            setSelecionadosIds([]);
+          }}
+          className={`pb-3 text-xs font-bold transition-all relative flex items-center gap-1.5 cursor-pointer ${
             abaAtiva === 'importacao'
               ? 'text-[#002172] dark:text-blue-400 border-b-2 border-[#002172] dark:border-blue-400'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
@@ -1106,8 +1128,15 @@ export const PrestadoresView: React.FC = () => {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <label className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#002172] hover:bg-[#001752] text-white text-xs font-bold cursor-pointer transition-colors shadow-xs">
                   <Upload className="w-4 h-4 text-[#91CA0C]" />
-                  <span>Selecionar Planilha CSV</span>
-                  <input type="file" accept=".csv" onChange={handleFileUploadPrestadores} className="hidden" />
+                  <span>Selecionar Planilha do Computador (.csv, .xlsx)</span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv, .xlsx, .xls, .txt, text/csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                    onChange={handleFileUploadPrestadores}
+                    onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
+                    className="hidden"
+                  />
                 </label>
 
                 <button
@@ -1259,12 +1288,24 @@ export const PrestadoresView: React.FC = () => {
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 Os prestadores foram importados para a aba de "Prestadores & Credenciados Externos".
               </p>
-              <button
-                onClick={() => setAbaAtiva('prestadores')}
-                className="px-5 py-2.5 bg-[#002172] text-white text-xs font-bold rounded-xl hover:bg-[#001752] transition-colors"
-              >
-                Ver Prestadores Externos
-              </button>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={() => setAbaAtiva(tipoImportacaoLote === 'MEFISA' ? 'mefisa' : 'prestadores')}
+                  className="px-5 py-2.5 bg-[#002172] text-white text-xs font-bold rounded-xl hover:bg-[#001752] transition-colors cursor-pointer"
+                >
+                  Ver Lista de {tipoImportacaoLote === 'MEFISA' ? 'Doutores Mefisa' : 'Prestadores Externos'}
+                </button>
+                <button
+                  onClick={() => {
+                    setEtapaImportacao(1);
+                    setNomeArquivo('');
+                    setLinhasBrutas([]);
+                  }}
+                  className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  Realizar Nova Importação
+                </button>
+              </div>
             </div>
           )}
         </div>

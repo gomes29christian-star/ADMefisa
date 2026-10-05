@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { UserCog, Check, X, Shield, AlertCircle, Building, Stethoscope, Search, FolderCheck, Clock } from 'lucide-react';
 import { Paciente, StatusPaciente, PapelUsuario, StatusTokenPaciente, StatusImpressaoPaciente } from '../../types/clinic';
 import { PacientesService } from '../../services/pacientesService';
+import { isProcedimentoNutricionismo } from '../../services/businessRules';
 import { obterPrestadoresStorage } from '../../data/mockClinicData';
 import { ProcedimentosService } from '../../services/procedimentosService';
 
@@ -469,7 +470,17 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
               </div>
             </div>
 
-            {classificacao === 'CONVENCIONAL' ? (
+            {isProcedimentoNutricionismo(procedimentoPrincipal) ? (
+              <div className="sm:col-span-2 p-3 bg-purple-50 dark:bg-purple-950/80 border border-purple-300 dark:border-purple-700 rounded-xl text-xs space-y-1 animate-in fade-in">
+                <div className="flex items-center gap-2 font-extrabold text-purple-900 dark:text-purple-200">
+                  <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                  <span>Duração & Frequência: 1 por mês (1x/mês)</span>
+                </div>
+                <p className="text-[11px] text-purple-800 dark:text-purple-300 font-medium">
+                  Atribuído automaticamente conforme protocolo do procedimento de Nutricionismo.
+                </p>
+              </div>
+            ) : classificacao === 'CONVENCIONAL' ? (
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Duração da Sessão *

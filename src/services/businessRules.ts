@@ -1177,3 +1177,12 @@ export function calcularSessoesPeriodo(
     observacaoFaltasAuditoria: observacaoAuditoriaFaltas,
   };
 }
+
+/**
+ * Verifica se um procedimento é de Nutricionismo / Nutrição
+ */
+export function isProcedimentoNutricionismo(procedimento?: string | null): boolean {
+  if (!procedimento) return false;
+  const pNorm = procedimento.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return pNorm.includes('nutri') || pNorm.includes('nutricion');
+}

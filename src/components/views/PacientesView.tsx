@@ -208,7 +208,7 @@ import { NovoPacienteModal } from '../pacientes/NovoPacienteModal';
 import { PacientePerfilDrawer } from '../pacientes/PacientePerfilDrawer';
 import { useTheme } from '../../context/ThemeContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
-import { formatarDataBr, normalizarDiaSemana, normalizarEDeduplicarDiasSemana } from '../../services/businessRules';
+import { formatarDataBr, normalizarDiaSemana, normalizarEDeduplicarDiasSemana, isProcedimentoNutricionismo } from '../../services/businessRules';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
 
 import { obterBadgeColorProcedimento, CLASS_TABELA_LISTRADA_ROW } from '../../utils/procedureStyles';
@@ -1564,38 +1564,44 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
 
                       {/* Dias do Atendimento com Badges Selecionáveis em Tempo Real + Qtd/Semana */}
                       <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {OPCOES_DIAS_ATENDIMENTO.map((dia) => {
+                        {isProcedimentoNutricionismo(pac.procedimentoPrincipal) ? (
+                          <span className="inline-block px-2.5 py-1 rounded-full text-[10.5px] font-extrabold bg-purple-100 text-purple-900 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-800 shadow-2xs">
+                            🗓️ 1 por mês (1x/mês)
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {OPCOES_DIAS_ATENDIMENTO.map((dia) => {
+                                const ativas = parseDiasAtendimento(pac.diaDaSemana, pac.diasDaSemana);
+                                const ativa = isDiaAtivo(dia, ativas);
+                                return (
+                                  <button
+                                    key={dia}
+                                    type="button"
+                                    onClick={(e) => handleToggleSemanaPaciente(pac.id, dia, e)}
+                                    title={ativa ? `Desativar ${dia} para este paciente` : `Ativar ${dia} para este paciente`}
+                                    className={`px-2 py-0.5 text-[11px] font-mono font-bold rounded-md transition-all cursor-pointer ${
+                                      ativa
+                                        ? 'bg-[#002172] text-white shadow-2xs border border-[#002172] hover:bg-rose-700 hover:border-rose-700'
+                                        : 'bg-slate-100 text-slate-400 dark:bg-slate-800/80 dark:text-slate-500 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800'
+                                    }`}
+                                  >
+                                    {dia}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {(() => {
                               const ativas = parseDiasAtendimento(pac.diaDaSemana, pac.diasDaSemana);
-                              const ativa = isDiaAtivo(dia, ativas);
+                              const qtd = pac.quantidadeSemana || pac.sessoesPorSemana || ativas.length;
                               return (
-                                <button
-                                  key={dia}
-                                  type="button"
-                                  onClick={(e) => handleToggleSemanaPaciente(pac.id, dia, e)}
-                                  title={ativa ? `Desativar ${dia} para este paciente` : `Ativar ${dia} para este paciente`}
-                                  className={`px-2 py-0.5 text-[11px] font-mono font-bold rounded-md transition-all cursor-pointer ${
-                                    ativa
-                                      ? 'bg-[#002172] text-white shadow-2xs border border-[#002172] hover:bg-rose-700 hover:border-rose-700'
-                                      : 'bg-slate-100 text-slate-400 dark:bg-slate-800/80 dark:text-slate-500 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800'
-                                  }`}
-                                >
-                                  {dia}
-                                </button>
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-extrabold bg-blue-100 text-[#002172] dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800" title="Quantidade de sessões por semana">
+                                  {qtd}x/sem
+                                </span>
                               );
-                            })}
+                            })()}
                           </div>
-                          {(() => {
-                            const ativas = parseDiasAtendimento(pac.diaDaSemana, pac.diasDaSemana);
-                            const qtd = pac.quantidadeSemana || pac.sessoesPorSemana || ativas.length;
-                            return (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-extrabold bg-blue-100 text-[#002172] dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800" title="Quantidade de sessões por semana">
-                                {qtd}x/sem
-                              </span>
-                            );
-                          })()}
-                        </div>
+                        )}
                       </td>
 
                       {/* 5. Status */}
