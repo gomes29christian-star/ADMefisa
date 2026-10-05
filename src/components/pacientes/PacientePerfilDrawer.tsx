@@ -1543,6 +1543,46 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Informações do Módulo Convencional (se aplicável ou preenchido) */}
+              <div className="pt-2 border-t border-slate-200/80 grid grid-cols-2 sm:grid-cols-6 gap-2 text-xs bg-purple-50/50 dark:bg-purple-950/30 p-2.5 rounded-xl">
+                <div>
+                  <span className="text-slate-500 block text-[10px]">Classificação</span>
+                  <span className="font-extrabold text-purple-900 dark:text-purple-200">
+                    {paciente.classificacao === 'CONVENCIONAL' ? '🏥 Convencional' : '🎯 ABA Regular'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">Polo(s) Mefisa</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {paciente.polos?.join(', ') || paciente.polo || 'M1'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">TOKEN</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                    {paciente.token || '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">Duração Sessão</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    ⏱️ {paciente.duracaoSessao || '1H'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">CID</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                    {paciente.cid || 'F84.0'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">Última Autorização</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {formatarDataBr(paciente.ultimaAutorizacaoData, showMonthInitials) || '—'}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* 2. PRÓXIMAS ATIVIDADES */}

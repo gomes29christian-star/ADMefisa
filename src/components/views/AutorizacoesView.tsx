@@ -286,6 +286,9 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
     return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   }, [autorizacoes, isNovoModalAberto]);
 
+  // Seção/Módulo Ativo: TODAS | ABA | CONVENCIONAL
+  const [secaoAtiva, setSecaoAtiva] = useState<'TODAS' | 'ABA' | 'CONVENCIONAL'>('TODAS');
+
   const [novoPacienteId, setNovoPacienteId] = useState('');
   const [novoPacienteNomePersonalizado, setNovoPacienteNomePersonalizado] = useState('');
   const [termoBuscaPaciente, setTermoBuscaPaciente] = useState('');
@@ -940,6 +943,15 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       // Filtro Responsável
       if (filtroResponsavel !== 'TODOS' && aut.responsavel !== filtroResponsavel) return false;
 
+      // Filtro de Seção / Módulo: ABA vs CONVENCIONAL
+      if (secaoAtiva === 'ABA') {
+        const isConv = aut.classificacao === 'CONVENCIONAL' || (aut.procedimento || '').toLowerCase().includes('sessão de');
+        if (isConv) return false;
+      } else if (secaoAtiva === 'CONVENCIONAL') {
+        const isConv = aut.classificacao === 'CONVENCIONAL' || (aut.procedimento || '').toLowerCase().includes('sessão de');
+        if (!isConv) return false;
+      }
+
       // Filtro Apenas Minhas
       if (apenasMinhas && aut.responsavel !== usuarioAtual.nome) return false;
 
@@ -1319,6 +1331,58 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Acompanhe o andamento das autorizações realizadas nos portais das operadoras, controle prazos e registre conclusões ou recusas.
           </p>
+
+          {/* Seletor de Seção / Módulo: ABA vs CONVENCIONAIS */}
+          {(() => {
+            const qtdConvencional = autorizacoes.filter(
+              (a) => a.classificacao === 'CONVENCIONAL' || (a.procedimento || '').toLowerCase().includes('sessão de')
+            ).length;
+            const qtdAba = autorizacoes.length - qtdConvencional;
+
+            return (
+              <div className="flex items-center gap-1.5 p-1 mt-2 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 w-fit">
+                <button
+                  type="button"
+                  onClick={() => setSecaoAtiva('TODAS')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    secaoAtiva === 'TODAS'
+                      ? 'bg-[#002172] text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Todas ({autorizacoes.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSecaoAtiva('ABA')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    secaoAtiva === 'ABA'
+                      ? 'bg-emerald-700 text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span>🎯 Autorizações ABA</span>
+                  <span className="px-1.5 py-0.2 text-[10px] bg-emerald-800/80 text-white rounded-full">
+                    {qtdAba}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSecaoAtiva('CONVENCIONAL')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    secaoAtiva === 'CONVENCIONAL'
+                      ? 'bg-purple-700 text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span>🏥 Autorizações Convencionais</span>
+                  <span className="px-1.5 py-0.2 text-[10px] bg-purple-900/80 text-white rounded-full">
+                    {qtdConvencional}
+                  </span>
+                </button>
+              </div>
+            );
+          })()}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">

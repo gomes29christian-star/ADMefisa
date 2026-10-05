@@ -108,6 +108,11 @@ export interface Paciente {
   doutoresAtendentesNomes?: string[];
   pastaDoutoraMefisa?: string;
   polo?: 'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON';
+  polos?: Array<'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON'>;
+  classificacao?: 'ABA' | 'CONVENCIONAL';
+  token?: string;
+  duracaoSessao?: '30MIN' | '1H';
+  cid?: string;
   observacoes?: string;
   dataCriacao?: string;
   dataUltimaAtualizacao: string;
@@ -203,6 +208,11 @@ export interface Autorizacao {
   justificativaFormulario: string;
   tamanhoFormularioMb: number;
   ajustes: AjusteAutorizacao[];
+  classificacao?: 'ABA' | 'CONVENCIONAL';
+  polos?: Array<'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON'>;
+  token?: string;
+  duracaoSessao?: '30MIN' | '1H';
+  cid?: string;
 }
 
 export interface Sessao {

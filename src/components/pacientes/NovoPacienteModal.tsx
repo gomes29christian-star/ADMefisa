@@ -90,6 +90,12 @@ export const NovoPacienteModal: React.FC<NovoPacienteModalProps> = ({
     prestadoresSistema.length > 0 ? [prestadoresSistema[0].id] : []
   );
   const [polo, setPolo] = useState<'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON'>('M1');
+  const [classificacao, setClassificacao] = useState<'ABA' | 'CONVENCIONAL'>('ABA');
+  const [polos, setPolos] = useState<Array<'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON'>>(['M1']);
+  const [token, setToken] = useState('');
+  const [duracaoSessao, setDuracaoSessao] = useState<'30MIN' | '1H'>('1H');
+  const [cid, setCid] = useState('F84.0');
+  const [ultimaAutorizacaoDataInput, setUltimaAutorizacaoDataInput] = useState('');
   const [pesquisaPrestadorInput, setPesquisaPrestadorInput] = useState('');
   const [pesquisaDoutoresInput, setPesquisaDoutoresInput] = useState('');
   const [dropdownPrestadorAberto, setDropdownPrestadorAberto] = useState(false);
@@ -260,7 +266,13 @@ export const NovoPacienteModal: React.FC<NovoPacienteModalProps> = ({
         doutoresAtendentesIds,
         doutoresAtendentesNomes: doutoresSel.map((p) => `${p.nome} (${p.orgaoClasse} ${p.crmOuCrp})`),
         pastaDoutoraMefisa: undefined,
-        polo,
+        polo: polos[0] || polo,
+        polos,
+        classificacao,
+        token: token.trim() || undefined,
+        duracaoSessao,
+        cid: cid.trim() || undefined,
+        ultimaAutorizacaoData: ultimaAutorizacaoDataInput.trim() || undefined,
         status: 'ATIVO' as const,
         aguardandoDoutor,
         proximaAutorizacaoData: aguardandoDoutor
@@ -396,6 +408,37 @@ export const NovoPacienteModal: React.FC<NovoPacienteModalProps> = ({
                 </span>
               </div>
 
+              {/* Seletor de Classificação / Módulo */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Classificação / Módulo de Atendimento *
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setClassificacao('ABA')}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      classificacao === 'ABA'
+                        ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    🎯 Módulo ABA Regular
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClassificacao('CONVENCIONAL')}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      classificacao === 'CONVENCIONAL'
+                        ? 'bg-purple-700 text-white border-purple-700 shadow-2xs'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    🏥 Módulo Convencional
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -411,6 +454,112 @@ export const NovoPacienteModal: React.FC<NovoPacienteModalProps> = ({
                     }}
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-[#002172]"
                     required
+                  />
+                </div>
+
+                {/* Polo(s) Múltiplos */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Polo(s) de Atendimento Mefisa (Pode selecionar mais de um) *
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(['M1', 'M2', 'ON'] as const).map((pItem) => {
+                      const marcado = polos.includes(pItem);
+                      return (
+                        <label
+                          key={pItem}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                            marcado
+                              ? 'bg-blue-100 dark:bg-blue-950/80 border-blue-500 text-blue-900 dark:text-blue-200'
+                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={marcado}
+                            onChange={() => {
+                              if (marcado) {
+                                if (polos.length > 1) setPolos(polos.filter((p) => p !== pItem));
+                              } else {
+                                setPolos([...polos, pItem]);
+                              }
+                            }}
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Polo {pItem}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* TOKEN & Duração da Sessão */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    TOKEN
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: TKN-9821-X"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Duração da Sessão *
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDuracaoSessao('30MIN')}
+                      className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        duracaoSessao === '30MIN'
+                          ? 'bg-blue-700 text-white border-blue-700'
+                          : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      ⏱️ 30 MIN
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDuracaoSessao('1H')}
+                      className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        duracaoSessao === '1H'
+                          ? 'bg-blue-700 text-white border-blue-700'
+                          : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      ⏱️ 1 HORA
+                    </button>
+                  </div>
+                </div>
+
+                {/* CID e Data da Última Autorização */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    CID Diagnóstico
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: F84.0"
+                    value={cid}
+                    onChange={(e) => setCid(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Data da Última Autorização
+                  </label>
+                  <input
+                    type="date"
+                    value={ultimaAutorizacaoDataInput}
+                    onChange={(e) => setUltimaAutorizacaoDataInput(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white"
                   />
                 </div>
 

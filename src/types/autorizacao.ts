@@ -45,6 +45,11 @@ export interface AutorizacaoV2 {
   assinada?: 'SIM' | 'PARCIAL' | 'NAO';
   responsavelColherAssinatura?: string;
   datasSessoesCustomizadas?: string[];
+  classificacao?: 'ABA' | 'CONVENCIONAL';
+  polos?: Array<'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON'>;
+  token?: string;
+  duracaoSessao?: '30MIN' | '1H';
+  cid?: string;
 }
 
 export interface FiltrosAutorizacaoState {

@@ -436,6 +436,9 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
     PacientesService.obterFiltroUsuario(usuarioAtual.id)
   );
 
+  // Estado de Seção/Aba Ativa: TODOS | ABA | CONVENCIONAL
+  const [secaoAtiva, setSecaoAtiva] = useState<'TODOS' | 'ABA' | 'CONVENCIONAL'>('TODOS');
+
   // Estados de seleção múltipla para datas de autorização
   const [datasProximaAutSel, setDatasProximaAutSel] = useState<string[]>([]);
   const [datasUltimaAutSel, setDatasUltimaAutSel] = useState<string[]>([]);
@@ -544,6 +547,13 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
   // Filtra pacientes localmente
   const pacientesBase = PacientesService.filtrarPacientes(pacientes, filtros);
   const pacientesFiltrados = pacientesBase.filter(p => {
+    if (secaoAtiva === 'ABA') {
+      const isConv = p.classificacao === 'CONVENCIONAL' || (p.procedimentoPrincipal || '').toLowerCase().includes('sessão de');
+      if (isConv) return false;
+    } else if (secaoAtiva === 'CONVENCIONAL') {
+      const isConv = p.classificacao === 'CONVENCIONAL' || (p.procedimentoPrincipal || '').toLowerCase().includes('sessão de');
+      if (!isConv) return false;
+    }
     if (filtrosColunas.nome) {
       const matchNome = matchTextFilter(p.nome, filtrosColunas.nome);
       const matchProntuario = matchTextFilter(p.codigoProntuario, filtrosColunas.nome);
@@ -788,6 +798,58 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
           <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">
             Entidade mestre central única: autorizações, sessões e guias referenciam este cadastro sem duplicação.
           </p>
+
+          {/* Seletor de Seção / Módulo: ABA vs CONVENCIONAIS */}
+          {(() => {
+            const qtdConvencional = pacientes.filter(
+              (p) => p.classificacao === 'CONVENCIONAL' || (p.procedimentoPrincipal || '').toLowerCase().includes('sessão de')
+            ).length;
+            const qtdAba = pacientes.length - qtdConvencional;
+
+            return (
+              <div className="flex items-center gap-1.5 p-1 mt-2 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 w-fit">
+                <button
+                  type="button"
+                  onClick={() => setSecaoAtiva('TODOS')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    secaoAtiva === 'TODOS'
+                      ? 'bg-[#002172] text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Todos ({pacientes.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSecaoAtiva('ABA')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    secaoAtiva === 'ABA'
+                      ? 'bg-emerald-700 text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span>🎯 Módulo ABA</span>
+                  <span className="px-1.5 py-0.2 text-[10px] bg-emerald-800/80 text-white rounded-full">
+                    {qtdAba}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSecaoAtiva('CONVENCIONAL')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    secaoAtiva === 'CONVENCIONAL'
+                      ? 'bg-purple-700 text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span>🏥 Módulo Convencionais</span>
+                  <span className="px-1.5 py-0.2 text-[10px] bg-purple-900/80 text-white rounded-full">
+                    {qtdConvencional}
+                  </span>
+                </button>
+              </div>
+            );
+          })()}
         </div>
 
         <div className="flex items-center gap-2">
