@@ -208,14 +208,78 @@ export class LegacyImportService {
     };
   }
   /**
-   * Faz o parse de arquivo CSV/texto com suporte a delimitador (vírgula ou ponto e vírgula)
+   * Detector automático inteligente de delimitador CSV (ponto e vírgula, tabulação, vírgula ou pipe)
+   */
+  public static detectarSeparadorCsv(texto: string): string {
+    const semBom = texto.replace(/^\uFEFF/, '');
+    const amostraLinhas = semBom.split(/\r?\n/).slice(0, 10);
+
+    let countSemicolon = 0;
+    let countTab = 0;
+    let countComma = 0;
+    let countPipe = 0;
+
+    amostraLinhas.forEach((linha) => {
+      // Ignora conteúdo entre aspas para evitar contar vírgulas dentro dos textos (ex: "seg, ter, qua")
+      const semAspas = linha.replace(/"[^"]*"/g, '');
+      countSemicolon += (semAspas.match(/;/g) || []).length;
+      countTab += (semAspas.match(/\t/g) || []).length;
+      countComma += (semAspas.match(/,/g) || []).length;
+      countPipe += (semAspas.match(/\|/g) || []).length;
+    });
+
+    // Em planilhas brasileiras (exportadas do Excel em português), o delimitador padrão é ponto e vírgula
+    if (countSemicolon > 0 && countSemicolon >= countTab && countSemicolon >= countPipe) return ';';
+    if (countTab > 0 && countTab >= countPipe) return '\t';
+    if (countPipe > 0) return '|';
+    if (countComma > 0) return ',';
+
+    return ';';
+  }
+
+  /**
+   * Split de linha respeitando aspas RFC 4180
+   */
+  public static parseLinhaCsvRobusta(linhaStr: string, separador: string): string[] {
+    const colunas: string[] = [];
+    let atual = '';
+    let dentroAspas = false;
+
+    for (let i = 0; i < linhaStr.length; i++) {
+      const char = linhaStr[i];
+      const proximo = linhaStr[i + 1];
+
+      if (char === '"') {
+        if (dentroAspas && proximo === '"') {
+          atual += '"';
+          i++; // pula aspa duplicada
+        } else {
+          dentroAspas = !dentroAspas;
+        }
+      } else if (char === separador && !dentroAspas) {
+        colunas.push(atual.trim().replace(/^"|"$/g, ''));
+        atual = '';
+      } else {
+        atual += char;
+      }
+    }
+    colunas.push(atual.trim().replace(/^"|"$/g, ''));
+    return colunas;
+  }
+
+  /**
+   * Faz o parse de arquivo CSV/texto com suporte a múltiplos delimitadores (;, \t, ,, |)
+   * e tratamento de aspas RFC 4180
    */
   static parseCsv(conteudoTexto: string): { cabecalho: string[]; linhas: Record<string, string>[] } {
     if (!conteudoTexto || !conteudoTexto.trim()) {
       return { cabecalho: [], linhas: [] };
     }
 
-    const linhasBrutas = conteudoTexto
+    const textoLimpo = conteudoTexto.replace(/^\uFEFF/, '').trim();
+    const separador = this.detectarSeparadorCsv(textoLimpo);
+
+    const linhasBrutas = textoLimpo
       .split(/\r?\n/)
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
@@ -224,18 +288,16 @@ export class LegacyImportService {
       return { cabecalho: [], linhas: [] };
     }
 
-    // Detectar separador (ponto e vírgula ou vírgula)
-    const primeiraLinha = linhasBrutas[0];
-    const separador = primeiraLinha.includes(';') ? ';' : ',';
-
-    const cabecalho = primeiraLinha.split(separador).map((c) => c.trim().replace(/^"|"$/g, ''));
+    const cabecalho = this.parseLinhaCsvRobusta(linhasBrutas[0], separador);
     const linhas: Record<string, string>[] = [];
 
     for (let i = 1; i < linhasBrutas.length; i++) {
-      const valores = linhasBrutas[i].split(separador).map((v) => v.trim().replace(/^"|"$/g, ''));
+      const valores = this.parseLinhaCsvRobusta(linhasBrutas[i], separador);
       const obj: Record<string, string> = {};
       cabecalho.forEach((col, idx) => {
-        obj[col] = valores[idx] || '';
+        if (col) {
+          obj[col] = valores[idx] !== undefined ? valores[idx] : '';
+        }
       });
       linhas.push(obj);
     }
@@ -299,17 +361,31 @@ export class LegacyImportService {
         mapeamento[coluna] = 'prestador';
       } else if (colNorm.includes('paciente') || colNorm.includes('nome') || colNorm.includes('aluno') || colNorm.includes('cliente')) {
         mapeamento[coluna] = 'nome';
-      } else if (colNorm.includes('cart') || colNorm.includes('carteirinha') || colNorm.includes('cartao') || colNorm.includes('matricula')) {
+      } else if (colNorm.includes('cart') || colNorm.includes('carteirinha') || colNorm.includes('cartao') || colNorm.includes('matricula') || colNorm.includes('beneficiario')) {
         mapeamento[coluna] = 'carteirinha';
+      } else if (colNorm.includes('cpf')) {
+        mapeamento[coluna] = 'cpf';
+      } else if (colNorm.includes('token') && (colNorm.includes('status') || colNorm.includes('valida') || colNorm.includes('situac'))) {
+        mapeamento[coluna] = 'tokenStatus';
+      } else if (colNorm.includes('token') && (colNorm.includes('just') || colNorm.includes('motivo'))) {
+        mapeamento[coluna] = 'tokenJustificativa';
+      } else if (colNorm.includes('token') || colNorm.includes('tkn') || colNorm.includes('senha')) {
+        mapeamento[coluna] = 'token';
+      } else if (colNorm.includes('impress') || colNorm.includes('imprimido') || colNorm.includes('a imprimir')) {
+        mapeamento[coluna] = 'statusImpressao';
+      } else if (colNorm.includes('durac') || colNorm.includes('tempo') || colNorm.includes('min') || colNorm.includes('duracao')) {
+        mapeamento[coluna] = 'duracaoSessao';
+      } else if (colNorm.includes('convenio') || colNorm.includes('convênio') || colNorm.includes('plano') || colNorm.includes('operadora')) {
+        mapeamento[coluna] = 'convenio';
       } else if (colNorm.includes('cbo')) {
         mapeamento[coluna] = 'cbo';
       } else if (colNorm.includes('crm') || colNorm.includes('crp') || colNorm.includes('conselho') || colNorm.includes('registro')) {
         mapeamento[coluna] = 'crm';
       } else if (colNorm.includes('uf') || colNorm.includes('estado')) {
         mapeamento[coluna] = 'uf';
-      } else if (colNorm.includes('data') && (colNorm.includes('solicit') || colNorm.includes('pedido'))) {
+      } else if (colNorm.includes('data') && (colNorm.includes('solicit') || colNorm.includes('pedido') || colNorm.includes('guia'))) {
         mapeamento[coluna] = 'dataSolicitacao';
-      } else if (colNorm.includes('procedimento') || colNorm.includes('tratamento') || colNorm.includes('especialidade') || colNorm.includes('servico')) {
+      } else if (colNorm.includes('procedimento') || colNorm.includes('tratamento') || colNorm.includes('especialidade') || colNorm.includes('servico') || colNorm.includes('sessao') || colNorm.includes('sessoes')) {
         mapeamento[coluna] = 'procedimento';
       } else if (eQuantidadeSemana) {
         mapeamento[coluna] = 'quantidadeSemana';
@@ -317,33 +393,19 @@ export class LegacyImportService {
         mapeamento[coluna] = 'diaDaSemana';
       } else if (colNorm.includes('ultim') || colNorm.includes('ult') || colNorm.includes('anterior')) {
         mapeamento[coluna] = 'ultimaAutorizacao';
-      } else if (colNorm.includes('prox') || colNorm.includes('autorizacao')) {
+      } else if (colNorm.includes('prox') || colNorm.includes('autorizacao') || colNorm.includes('validade')) {
         mapeamento[coluna] = 'proximaAutorizacao';
       } else if (colNorm.includes('irregul') || colNorm.includes('cor') || colNorm.includes('alerta')) {
         mapeamento[coluna] = 'indicadorIrregularidade';
       } else if (colNorm.includes('polo') || colNorm.includes('unidade') || colNorm.includes('filial') || colNorm.includes('m1') || colNorm.includes('m2')) {
         mapeamento[coluna] = 'polo';
-      } else if (colNorm.includes('cpf')) {
-        mapeamento[coluna] = 'cpf';
       } else if (colNorm.includes('pasta')) {
         mapeamento[coluna] = 'pastaDoutoraMefisa';
-      } else if (colNorm.includes('convenio') || colNorm.includes('plano') || colNorm.includes('operadora')) {
-        mapeamento[coluna] = 'convenio';
-      } else if (colNorm.includes('token') && (colNorm.includes('status') || colNorm.includes('valida'))) {
-        mapeamento[coluna] = 'tokenStatus';
-      } else if (colNorm.includes('token') && (colNorm.includes('just') || colNorm.includes('motivo'))) {
-        mapeamento[coluna] = 'tokenJustificativa';
-      } else if (colNorm.includes('token') || colNorm.includes('tkn')) {
-        mapeamento[coluna] = 'token';
-      } else if (colNorm.includes('impress') || colNorm.includes('imprimido') || colNorm.includes('a imprimir')) {
-        mapeamento[coluna] = 'statusImpressao';
-      } else if (colNorm.includes('durac') || colNorm.includes('tempo') || colNorm.includes('min') || colNorm.includes('duracao')) {
-        mapeamento[coluna] = 'duracaoSessao';
       } else if (colNorm.includes('cid') || colNorm.includes('diagnostico')) {
         mapeamento[coluna] = 'cid';
       } else if (colNorm.includes('resp') || colNorm.includes('mae') || colNorm.includes('pai') || colNorm.includes('tutor') || colNorm.includes('responsavel')) {
         mapeamento[coluna] = 'responsavelNome';
-      } else if (colNorm.includes('obs') || colNorm.includes('anotac') || colNorm.includes('coment') || colNorm.includes('observacao')) {
+      } else if (colNorm.includes('obs') || colNorm.includes('anotac') || colNorm.includes('coment') || colNorm.includes('observacao') || colNorm.includes('notas')) {
         mapeamento[coluna] = 'observacoes';
       } else if (colNorm.includes('modulo') || colNorm.includes('classifica') || colNorm.includes('categoria')) {
         mapeamento[coluna] = 'classificacao';
@@ -609,21 +671,34 @@ export class LegacyImportService {
       }
     }
 
-    // 3. Determinar Categoria (Avaliação, Reavaliação ou Regular)
+    // 3. Determinar Categoria (Avaliação, Reavaliação, Convencional ou ABA Regular)
     const eAvaliacao = entradaLimpa.includes('avaliacao') || entradaLimpa.includes('aval');
     const eReavaliacao = entradaLimpa.includes('reavaliacao') || entradaLimpa.includes('reaval');
+    const eConvencional =
+      entradaLimpa.includes('sessao de') ||
+      entradaLimpa.includes('convencional') ||
+      entradaLimpa.includes('fisioterapia') ||
+      entradaLimpa.includes('fisio') ||
+      entradaLimpa.includes('nutricionismo') ||
+      entradaLimpa.includes('nutricao') ||
+      entradaLimpa.includes('neurologia') ||
+      (!entradaLimpa.includes('aba') && !eAvaliacao && !eReavaliacao);
 
-    let categoriaAlvo: 'AVALIACAO_ABA' | 'REAVALIACAO_ABA' | 'ABA_REGULAR' = 'ABA_REGULAR';
+    let categoriaAlvo: 'AVALIACAO_ABA' | 'REAVALIACAO_ABA' | 'CONVENCIONAL' | 'ABA_REGULAR' = eConvencional ? 'CONVENCIONAL' : 'ABA_REGULAR';
     if (eReavaliacao) categoriaAlvo = 'REAVALIACAO_ABA';
     else if (eAvaliacao) categoriaAlvo = 'AVALIACAO_ABA';
 
     // Mapeamento de termos e atalhos populares
     const termosEspecialidades = [
+      { chaves: ['fisioterapia', 'fisio', 'fisioterapica', 'motor', 'motora', 'respiratoria', 'pedia'], termoBusca: 'fisioterapia' },
+      { chaves: ['nutricao', 'nutricionismo', 'nutri', 'nutricional'], termoBusca: 'nutricao' },
+      { chaves: ['neurologia', 'neuro', 'neurologica'], termoBusca: 'neurologia' },
       { chaves: ['psicologia', 'psico', 'aba', 'psicoterapia', 'tcc'], termoBusca: 'psicologia' },
       { chaves: ['fonoaudiologia', 'fono', 'audiologia', 'linguagem'], termoBusca: 'fonoaudiologia' },
       { chaves: ['terapia ocupacional', 'to', 'ocupacional'], termoBusca: 'terapia ocupacional' },
       { chaves: ['musicoterapia', 'musico', 'musica'], termoBusca: 'musicoterapia' },
       { chaves: ['psicomotricidade', 'motricidade'], termoBusca: 'psicomotricidade' },
+      { chaves: ['psicopedagogia', 'psicoped'], termoBusca: 'psicopedagogia' },
     ];
 
     let termoBuscaEspecialidade: string | null = null;
@@ -638,10 +713,11 @@ export class LegacyImportService {
       // Procura procedimento correspondente na categoria e especialidade
       const procEspecialidade = procedimentosCadastrados.find((p) => {
         const descP = sanitizar(p.descricao);
-        const matchEsp = descP.includes(termoBuscaEspecialidade!);
+        const matchEsp = descP.includes(termoBuscaEspecialidade!) || sanitizar(p.especialidade || '').includes(termoBuscaEspecialidade!);
+        if (categoriaAlvo === 'CONVENCIONAL') return p.categoria === 'CONVENCIONAL' && matchEsp;
         if (categoriaAlvo === 'AVALIACAO_ABA') return p.categoria === 'AVALIACAO_ABA' && matchEsp;
         if (categoriaAlvo === 'REAVALIACAO_ABA') return p.categoria === 'REAVALIACAO_ABA' && matchEsp;
-        return p.categoria === 'ABA_REGULAR' && matchEsp;
+        return (p.categoria === 'ABA_REGULAR' || p.categoria === 'CONVENCIONAL') && matchEsp;
       });
 
       if (procEspecialidade) {
@@ -649,7 +725,7 @@ export class LegacyImportService {
       }
 
       // Fallback para qualquer procedimento que contenha a especialidade
-      const procQualquer = procedimentosCadastrados.find((p) => sanitizar(p.descricao).includes(termoBuscaEspecialidade!));
+      const procQualquer = procedimentosCadastrados.find((p) => sanitizar(p.descricao).includes(termoBuscaEspecialidade!) || sanitizar(p.especialidade || '').includes(termoBuscaEspecialidade!));
       if (procQualquer) {
         return { procedimento: procQualquer, motivoCorrespondencia: 'FALLBACK_ESPECIALIDADE' };
       }
@@ -935,14 +1011,14 @@ export class LegacyImportService {
             ? (dadosMapeados.statusImpressao.toString().toUpperCase().includes('IMPRIMIDO') || dadosMapeados.statusImpressao.toString().toUpperCase() === 'SIM' || dadosMapeados.statusImpressao.toString().toUpperCase() === 'VERDE' ? 'IMPRIMIDO' : 'A_IMPRIMIR')
             : undefined,
           duracaoSessao: dadosMapeados.duracaoSessao
-            ? (dadosMapeados.duracaoSessao.toString().includes('30') ? '30MIN' : '1H')
-            : undefined,
+            ? (dadosMapeados.duracaoSessao.toString().toLowerCase().includes('30') || dadosMapeados.duracaoSessao.toString().includes('0,5') || dadosMapeados.duracaoSessao.toString().includes('0.5') ? '30MIN' : '1H')
+            : (dadosMapeados.classificacao === 'CONVENCIONAL' || (procedimentoFinal && (procedimentoFinal.toLowerCase().includes('sessão de') || procedimentoFinal.toLowerCase().includes('fisioterapia') || procedimentoFinal.toLowerCase().includes('fonoaudiologia') || procedimentoFinal.toLowerCase().includes('terapia ocupacional') || procedimentoFinal.toLowerCase().includes('nutricionismo'))) ? '30MIN' : '1H'),
           cid: dadosMapeados.cid ? dadosMapeados.cid.trim() : undefined,
           responsavelNome: dadosMapeados.responsavelNome ? dadosMapeados.responsavelNome.trim() : undefined,
           observacoes: dadosMapeados.observacoes ? dadosMapeados.observacoes.trim() : undefined,
           classificacao: dadosMapeados.classificacao
             ? (dadosMapeados.classificacao.toString().toUpperCase().includes('CONV') ? 'CONVENCIONAL' : 'ABA')
-            : undefined,
+            : ((procedimentoFinal && (procedimentoFinal.toLowerCase().includes('sessão de') || procedimentoFinal.toLowerCase().includes('fisioterapia') || procedimentoFinal.toLowerCase().includes('fonoaudiologia') || procedimentoFinal.toLowerCase().includes('terapia ocupacional') || procedimentoFinal.toLowerCase().includes('nutricionismo') || procedimentoFinal.toLowerCase().includes('neurologia'))) ? 'CONVENCIONAL' : 'ABA'),
         },
         problemas,
         statusDuplicidade,
@@ -1026,13 +1102,15 @@ export class LegacyImportService {
           dadosMapeados.quantidadeSemana
         );
 
-        const procNome = dadosMapeados.procedimento || 'Psicologia ABA';
+        const eConv = dadosMapeados.classificacao === 'CONVENCIONAL' || (dadosMapeados.procedimento && (dadosMapeados.procedimento.toLowerCase().includes('sessão de') || dadosMapeados.procedimento.toLowerCase().includes('fisioterapia') || dadosMapeados.procedimento.toLowerCase().includes('fonoaudiologia') || dadosMapeados.procedimento.toLowerCase().includes('nutricionismo')));
+
+        const procNome = dadosMapeados.procedimento || (eConv ? 'Sessão de Fisioterapia' : 'Psicologia ABA');
 
         novosPacientesParaCadastrar.push({
           nome: dadosMapeados.nome,
           carteirinha: dadosMapeados.carteirinha || 'PART-LEGADO-00',
           convenioId: 'conv-1',
-          convenioNome: dadosMapeados.convenio || 'Convênio Legado',
+          convenioNome: dadosMapeados.convenio || (eConv ? 'Bradesco Saúde' : 'Convênio Legado'),
           procedimentoPrincipal: procNome,
           procedimentos: [procNome],
           frequenciasPorProcedimento: {
@@ -1050,13 +1128,13 @@ export class LegacyImportService {
           pastaDoutoraMefisa: dadosMapeados.pastaDoutoraMefisa || (doutorMefisaEncontrado ? `Pasta ${doutorMefisaEncontrado.nome}` : `Pasta ${doutorMefisaNomeStr || 'Mefisa'}`),
           polo: dadosMapeados.polo || 'M1',
           status: 'ATIVO' as const,
-          classificacao: dadosMapeados.classificacao || (procNome.toLowerCase().includes('sessão de') || procNome.toLowerCase().includes('fisioterapia') || procNome.toLowerCase().includes('fonoaudiologia') ? 'CONVENCIONAL' : 'ABA'),
+          classificacao: dadosMapeados.classificacao || (eConv ? 'CONVENCIONAL' : 'ABA'),
           cpf: dadosMapeados.cpf,
           token: dadosMapeados.token,
-          tokenStatus: dadosMapeados.tokenStatus || (dadosMapeados.tokenJustificativa ? 'NVJ' : 'V'),
+          tokenStatus: dadosMapeados.tokenStatus || (dadosMapeados.tokenJustificativa ? 'NVJ' : (dadosMapeados.token ? 'V' : 'V')),
           tokenJustificativa: dadosMapeados.tokenJustificativa,
           statusImpressao: dadosMapeados.statusImpressao || 'A_IMPRIMIR',
-          duracaoSessao: dadosMapeados.duracaoSessao || '1H',
+          duracaoSessao: dadosMapeados.duracaoSessao || (eConv ? '30MIN' : '1H'),
           cid: dadosMapeados.cid || 'F84.0',
           responsavelNome: dadosMapeados.responsavelNome || 'Não informado',
           diaDaSemana: atimResPac.diaDaSemanaStr,
