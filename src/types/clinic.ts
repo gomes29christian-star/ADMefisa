@@ -23,6 +23,8 @@ export interface Usuario {
   personalPasscode?: string;
 }
 
+export type StatusTokenPaciente = 'V' | 'NVJ' | 'NVNJ';
+
 export type StatusPaciente =
   | 'ATIVO'
   | 'INATIVO'
@@ -111,6 +113,8 @@ export interface Paciente {
   polos?: Array<'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON'>;
   classificacao?: 'ABA' | 'CONVENCIONAL';
   token?: string;
+  tokenStatus?: StatusTokenPaciente;
+  tokenJustificativa?: string;
   duracaoSessao?: '30MIN' | '1H';
   cid?: string;
   observacoes?: string;

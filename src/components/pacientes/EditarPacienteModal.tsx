@@ -85,6 +85,10 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
     paciente.polos && paciente.polos.length > 0 ? paciente.polos : [paciente.polo || 'M1']
   );
   const [token, setToken] = useState(paciente.token || '');
+  const [tokenStatusOpcao, setTokenStatusOpcao] = useState<'V' | 'NV'>(
+    paciente.tokenStatus === 'NVJ' || paciente.tokenStatus === 'NVNJ' ? 'NV' : 'V'
+  );
+  const [tokenJustificativa, setTokenJustificativa] = useState(paciente.tokenJustificativa || '');
   const [duracaoSessao, setDuracaoSessao] = useState<'30MIN' | '1H'>(paciente.duracaoSessao || '1H');
   const [cid, setCid] = useState(paciente.cid || 'F84.0');
   const [ultimaAutorizacaoDataInput, setUltimaAutorizacaoDataInput] = useState(
@@ -186,6 +190,12 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
           polos,
           classificacao,
           token: token.trim() || undefined,
+          tokenStatus: (tokenStatusOpcao === 'V'
+            ? 'V'
+            : tokenJustificativa.trim()
+            ? 'NVJ'
+            : 'NVNJ') as StatusTokenPaciente,
+          tokenJustificativa: tokenStatusOpcao === 'NV' ? tokenJustificativa.trim() || undefined : undefined,
           duracaoSessao,
           cid: cid.trim() || undefined,
           ultimaAutorizacaoData: ultimaAutorizacaoDataInput.trim() || undefined,
@@ -319,18 +329,78 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
               </div>
             </div>
 
-            {/* TOKEN & Duração da Sessão */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                TOKEN
-              </label>
-              <input
-                type="text"
-                placeholder="Ex: TKN-9821-X"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-white"
-              />
+            {/* TOKEN & Validação */}
+            <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Código do TOKEN
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: TKN-9821-X"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Validação do TOKEN</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black text-white ${
+                    tokenStatusOpcao === 'V'
+                      ? 'bg-emerald-600'
+                      : tokenJustificativa.trim()
+                      ? 'bg-red-600'
+                      : 'bg-rose-950 text-rose-200 border border-rose-800 font-black'
+                  }`}>
+                    {tokenStatusOpcao === 'V'
+                      ? 'V (VALIDADO)'
+                      : tokenJustificativa.trim()
+                      ? 'NVJ (NÃO VALIDADO; JUSTIFICADO)'
+                      : 'NVNJ (NÃO VALIDADO; NÃO JUSTIFICADO)'}
+                  </span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTokenStatusOpcao('V')}
+                    className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      tokenStatusOpcao === 'V'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    ✓ Validado (V)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTokenStatusOpcao('NV')}
+                    className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      tokenStatusOpcao === 'NV'
+                        ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    ✕ Não Validado (NV)
+                  </button>
+                </div>
+              </div>
+
+              {tokenStatusOpcao === 'NV' && (
+                <div className="sm:col-span-2 space-y-1 animate-in fade-in">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                    Justificativa da Não Validação (Preenchido = NVJ vermelho | Vazio = NVNJ vinho com alerta):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Informe a justificativa..."
+                    value={tokenJustificativa}
+                    onChange={(e) => setTokenJustificativa(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-red-300 dark:border-red-800 rounded-xl text-slate-900 dark:text-white"
+                  />
+                </div>
+              )}
             </div>
 
             <div>

@@ -1559,10 +1559,32 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px]">TOKEN</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                    {paciente.token || '—'}
-                  </span>
+                  <span className="text-slate-500 block text-[10px]">TOKEN & Status</span>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                      {paciente.token || '—'}
+                    </span>
+                    {(() => {
+                      const statusToken = paciente.tokenStatus || (paciente.tokenJustificativa ? 'NVJ' : 'V');
+                      const isV = statusToken === 'V';
+                      const isNvj = statusToken === 'NVJ';
+
+                      return (
+                        <span
+                          className={`px-1.5 py-0.2 rounded text-[9px] font-black ${
+                            isV
+                              ? 'bg-emerald-600 text-white'
+                              : isNvj
+                              ? 'bg-red-600 text-white'
+                              : 'bg-rose-950 text-rose-200 border border-rose-700'
+                          }`}
+                          title={paciente.tokenJustificativa ? `Justificativa: ${paciente.tokenJustificativa}` : undefined}
+                        >
+                          {isV ? 'V' : isNvj ? 'NVJ' : 'NVNJ'}
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </div>
                 <div>
                   <span className="text-slate-500 block text-[10px]">Duração Sessão</span>
