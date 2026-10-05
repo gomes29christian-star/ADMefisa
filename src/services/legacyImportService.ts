@@ -764,12 +764,16 @@ export class LegacyImportService {
    */
   static analisarLinhas(
     linhasBrutas: Record<string, string>[],
-    mapeamento: Record<string, string>
+    mapeamento: Record<string, string>,
+    moduloPadrao: 'ABA' | 'CONVENCIONAL' = 'CONVENCIONAL'
   ): LinhaPreviaImportacao[] {
     const pacientesExistentes = PacientesService.obterPacientes();
     const prestadoresSistema = obterPrestadoresStorage();
     const procedimentosSistema = ProcedimentosService.obterTodos();
     const resultado: LinhaPreviaImportacao[] = [];
+
+    let ultimoNomeValido = '';
+    let ultimaCarteirinhaValida = '';
 
     linhasBrutas.forEach((row, idx) => {
       const linhaNum = idx + 1;
@@ -783,13 +787,80 @@ export class LegacyImportService {
         }
       });
 
-      const nome = (dadosMapeados.nome || '').trim();
-      const carteirinha = (dadosMapeados.carteirinha || '').trim();
-      const prestadorEntrada = (dadosMapeados.prestador || '').trim();
+      let nomeRaw = (dadosMapeados.nome || '').trim();
+      let carteirinhaRaw = (dadosMapeados.carteirinha || '').trim();
+      let prestadorEntrada = (dadosMapeados.prestador || '').trim();
       let doutorMefisaEntrada = (dadosMapeados.doutorMefisa || dadosMapeados.doutoresAtendentes || '').trim();
-      const semanasEntrada = (dadosMapeados.semanasAtendimento || dadosMapeados.semanaDia || dadosMapeados.diaDaSemana || '').trim();
-      const procedimentoEntrada = (dadosMapeados.procedimento || '').trim();
+      let semanasEntrada = (dadosMapeados.semanasAtendimento || dadosMapeados.semanaDia || dadosMapeados.diaDaSemana || '').trim();
+      let procedimentoEntrada = (dadosMapeados.procedimento || '').trim();
       const qtdStr = (dadosMapeados.quantidadeSemana || '').trim();
+
+      // Descompactação e limpeza inteligente de linhas com vírgulas acumuladas (ex: ",SEXTA,PSICOLOGIA,Adriana Roseno")
+      if (
+        nomeRaw.startsWith(',') ||
+        (nomeRaw.includes(',') &&
+          (nomeRaw.toUpperCase().includes('SEXTA') ||
+            nomeRaw.toUpperCase().includes('SEGUNDA') ||
+            nomeRaw.toUpperCase().includes('TERCA') ||
+            nomeRaw.toUpperCase().includes('QUARTA') ||
+            nomeRaw.toUpperCase().includes('QUINTA') ||
+            nomeRaw.toUpperCase().includes('PSICOLOGIA') ||
+            nomeRaw.toUpperCase().includes('FONOAUDIOLOGIA') ||
+            nomeRaw.toUpperCase().includes('FISIOTERAPIA') ||
+            nomeRaw.toUpperCase().includes('TERAPIA')))
+      ) {
+        const partes = nomeRaw.split(',').map((p: string) => p.trim()).filter(Boolean);
+        let nomeExtraido = '';
+
+        partes.forEach((parte: string) => {
+          const pUpper = parte.toUpperCase();
+          if (
+            pUpper.includes('SEG') ||
+            pUpper.includes('TER') ||
+            pUpper.includes('QUA') ||
+            pUpper.includes('QUI') ||
+            pUpper.includes('SEX') ||
+            pUpper.includes('SAB') ||
+            pUpper.includes('DOM')
+          ) {
+            if (!semanasEntrada) semanasEntrada = parte;
+          } else if (
+            pUpper.includes('PSICO') ||
+            pUpper.includes('FONO') ||
+            pUpper.includes('FISIO') ||
+            pUpper.includes('TERAPIA') ||
+            pUpper.includes('NUTRI') ||
+            pUpper.includes('NEURO')
+          ) {
+            if (!procedimentoEntrada) procedimentoEntrada = parte;
+          } else {
+            const { prestador: pDoc } = LegacyImportService.encontrarPrestadorPorPrimeiroNome(parte, prestadoresSistema);
+            if (pDoc) {
+              if (!doutorMefisaEntrada) doutorMefisaEntrada = pDoc.nome;
+            } else if (!nomeExtraido && parte.length >= 3 && !parte.startsWith(',')) {
+              nomeExtraido = parte;
+            }
+          }
+        });
+
+        nomeRaw = nomeExtraido;
+      }
+
+      // Se a linha for contínua/secundária (como procedimento extra ou dia adicional), herda o nome do paciente da linha anterior
+      if (!nomeRaw && ultimoNomeValido) {
+        nomeRaw = ultimoNomeValido;
+        if (!carteirinhaRaw && ultimaCarteirinhaValida) {
+          carteirinhaRaw = ultimaCarteirinhaValida;
+        }
+      }
+
+      if (nomeRaw && !nomeRaw.startsWith(',')) {
+        ultimoNomeValido = nomeRaw;
+        if (carteirinhaRaw) ultimaCarteirinhaValida = carteirinhaRaw;
+      }
+
+      const nome = nomeRaw.replace(/^,+/g, '').trim();
+      const carteirinha = carteirinhaRaw;
       const dataSol = LegacyImportService.normalizarDataBrParaIso(dadosMapeados.dataSolicitacao || '');
       const proxAut = LegacyImportService.normalizarDataBrParaIso(dadosMapeados.proximaAutorizacao || '');
       const ultAut = LegacyImportService.normalizarDataBrParaIso(dadosMapeados.ultimaAutorizacao || '');

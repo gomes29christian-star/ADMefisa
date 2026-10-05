@@ -241,17 +241,8 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
 
   // Executar análise e validação após confirmar mapeamento
   const handleAvancarParaPrevia = () => {
-    const analise = LegacyImportService.analisarLinhas(linhasBrutas, mapeamento);
-    const analiseComModulo = analise.map((l) => ({
-      ...l,
-      dadosMapeados: {
-        ...l.dadosMapeados,
-        classificacao: l.dadosMapeados.classificacao || moduloAntecipado,
-        statusImpressao: l.dadosMapeados.statusImpressao || 'A_IMPRIMIR',
-        duracaoSessao: l.dadosMapeados.duracaoSessao || (moduloAntecipado === 'CONVENCIONAL' ? '30MIN' : '1H'),
-      },
-    }));
-    setLinhasPrevias(analiseComModulo);
+    const analise = LegacyImportService.analisarLinhas(linhasBrutas, mapeamento, moduloAntecipado);
+    setLinhasPrevias(analise);
     setEtapa(3);
   };
 
