@@ -19,7 +19,7 @@ import {
   FolderCheck,
   Clock,
 } from 'lucide-react';
-import { Paciente, PapelUsuario, ResultadoVerificacaoDuplicidadePaciente } from '../../types/clinic';
+import { Paciente, PapelUsuario, ResultadoVerificacaoDuplicidadePaciente, StatusTokenPaciente } from '../../types/clinic';
 import {
   PacientesService,
   calcularVencimentoFormulario,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserCog, Check, X, Shield, AlertCircle, Building, Stethoscope, Search, FolderCheck, Clock } from 'lucide-react';
-import { Paciente, StatusPaciente, PapelUsuario } from '../../types/clinic';
+import { Paciente, StatusPaciente, PapelUsuario, StatusTokenPaciente } from '../../types/clinic';
 import { PacientesService } from '../../services/pacientesService';
 import { obterPrestadoresStorage } from '../../data/mockClinicData';
 import { ProcedimentosService } from '../../services/procedimentosService';

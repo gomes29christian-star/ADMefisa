@@ -195,7 +195,7 @@ const MultiSelectDateFilter: React.FC<MultiSelectDateFilterProps> = ({
     </div>
   );
 };
-import { Paciente, Usuario, StatusPaciente, FiltroPacientesUsuario } from '../../types/clinic';
+import { Paciente, Usuario, StatusPaciente, FiltroPacientesUsuario, StatusTokenPaciente } from '../../types/clinic';
 import {
   PacientesService,
   mascararCpf,
@@ -704,6 +704,7 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
       nome: '',
       procedimento: '',
       carteirinha: '',
+      token: '',
       polo: '',
       semanas: '',
       status: '',
