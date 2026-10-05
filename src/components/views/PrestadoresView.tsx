@@ -1472,13 +1472,10 @@ export const PrestadoresView: React.FC = () => {
 
                 {/* Seleção de CBO com Sistema de Pesquisa */}
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     <span className="flex items-center gap-1.5">
                       <Award className="w-3.5 h-3.5 text-blue-600" />
                       <span>CBO & Especialidade Médica/Ocupação *</span>
-                    </span>
-                    <span className="text-[10px] text-blue-600 font-bold">
-                      {cbosFiltradosModal.length} CBO(s) disponível(is)
                     </span>
                   </label>
                   <div className="space-y-1.5">
