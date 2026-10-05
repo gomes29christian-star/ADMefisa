@@ -2,7 +2,7 @@
  * Módulo de Pré-visualização, Mapeamento e Importação Transacional de Planilhas Legadas — Clínica Mefisa
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   FileSpreadsheet,
   Upload,
@@ -20,6 +20,7 @@ import {
   Pencil,
   Edit3,
   X,
+  Search,
 } from 'lucide-react';
 import { LegacyImportService, DADOS_FICTICIOS_EXEMPLO_CSV, DADOS_FICTICIOS_CONVENCIONAIS_CSV } from '../../services/legacyImportService';
 import { LinhaPreviaImportacao, ImportBatch, RelatorioImportacao } from '../../types/import';
@@ -78,6 +79,39 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
   const [mapeamento, setMapeamento] = useState<Record<string, string>>({});
   const [linhasPrevias, setLinhasPrevias] = useState<LinhaPreviaImportacao[]>([]);
   const [relatorioFinal, setRelatorioFinal] = useState<RelatorioImportacao | null>(null);
+
+  // Estados de otimização de renderização e paginação do preview
+  const [paginaAtual, setPaginaAtual] = useState<number>(1);
+  const [itensPorPagina, setItensPorPagina] = useState<number>(30);
+  const [filtroPesquisaPreview, setFiltroPesquisaPreview] = useState<string>('');
+  const [processandoImportacao, setProcessandoImportacao] = useState<boolean>(false);
+
+  // Filtragem memoizada de alta performance para o preview
+  const linhasFiltradasPreview = useMemo(() => {
+    if (!filtroPesquisaPreview.trim()) return linhasPrevias;
+    const term = filtroPesquisaPreview.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return linhasPrevias.filter((l) => {
+      const m = l.dadosMapeados;
+      const nomeNorm = (m.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const cartNorm = (m.carteirinha || '').toLowerCase();
+      const procNorm = (m.procedimento || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const docNorm = (m.doutorMefisa || m.prestador || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return nomeNorm.includes(term) || cartNorm.includes(term) || procNorm.includes(term) || docNorm.includes(term);
+    });
+  }, [linhasPrevias, filtroPesquisaPreview]);
+
+  // Total de páginas memoizado
+  const totalPaginasPreview = useMemo(() => {
+    if (itensPorPagina === 0) return 1;
+    return Math.max(1, Math.ceil(linhasFiltradasPreview.length / itensPorPagina));
+  }, [linhasFiltradasPreview.length, itensPorPagina]);
+
+  // Linhas da página atual
+  const linhasPaginaPreview = useMemo(() => {
+    if (itensPorPagina === 0) return linhasFiltradasPreview;
+    const inicio = (paginaAtual - 1) * itensPorPagina;
+    return linhasFiltradasPreview.slice(inicio, inicio + itensPorPagina);
+  }, [linhasFiltradasPreview, paginaAtual, itensPorPagina]);
 
   // Estados de edição no preview da importação
   const [modoEdicaoDireta, setModoEdicaoDireta] = useState<boolean>(true);
@@ -221,15 +255,19 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
     setEtapa(3);
   };
 
-  // Confirmar importação transacional
+  // Confirmar importação transacional com overlay de alta performance
   const handleConfirmarImportacao = () => {
-    const { relatorio } = LegacyImportService.executarImportacaoTransacional(
-      linhasPrevias,
-      nomeArquivo,
-      usuarioAtualNome
-    );
-    setRelatorioFinal(relatorio);
-    setEtapa(4);
+    setProcessandoImportacao(true);
+    setTimeout(() => {
+      const { relatorio } = LegacyImportService.executarImportacaoTransacional(
+        linhasPrevias,
+        nomeArquivo,
+        usuarioAtualNome
+      );
+      setRelatorioFinal(relatorio);
+      setProcessandoImportacao(false);
+      setEtapa(4);
+    }, 60);
   };
 
   return (
@@ -470,7 +508,7 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
             </div>
           </div>
 
-          {/* Banner de Controle do Modo de Edição */}
+          {/* Banner de Controle do Modo de Edição e Busca Rápida */}
           <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Edit3 className="w-4 h-4 text-[#002172] dark:text-blue-400 shrink-0" />
@@ -484,7 +522,21 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Filtrar por nome, carteirinha, procedimento..."
+                  value={filtroPesquisaPreview}
+                  onChange={(e) => {
+                    setFiltroPesquisaPreview(e.target.value);
+                    setPaginaAtual(1);
+                  }}
+                  className="pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white w-60 focus:outline-[#002172]"
+                />
+              </div>
+
               <button
                 type="button"
                 onClick={() => setModoEdicaoDireta(!modoEdicaoDireta)}
@@ -495,9 +547,53 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
                 }`}
               >
                 <Pencil className="w-3.5 h-3.5 text-[#91CA0C]" />
-                <span>{modoEdicaoDireta ? '⚡ Edição Direta na Tabela: ATIVA' : '👁️ Modo Somente Leitura'}</span>
+                <span>{modoEdicaoDireta ? '⚡ Edição Direta: ATIVA' : '👁️ Somente Leitura'}</span>
               </button>
             </div>
+          </div>
+
+          {/* Barra de Paginação de Alta Performance */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs shadow-2xs">
+            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 font-medium">
+              <span>Exibindo <strong className="font-mono text-slate-900 dark:text-white">{linhasPaginaPreview.length}</strong> de <strong className="font-mono text-slate-900 dark:text-white">{linhasFiltradasPreview.length}</strong> registros mapeados</span>
+              <span>•</span>
+              <span>Por página:</span>
+              <select
+                value={itensPorPagina}
+                onChange={(e) => {
+                  setItensPorPagina(Number(e.target.value));
+                  setPaginaAtual(1);
+                }}
+                className="px-2 py-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded font-bold text-slate-900 dark:text-white focus:outline-[#002172]"
+              >
+                <option value={30}>30 por página</option>
+                <option value={50}>50 por página</option>
+                <option value={100}>100 por página</option>
+                <option value={0}>Exibir Todos ({linhasFiltradasPreview.length})</option>
+              </select>
+            </div>
+
+            {itensPorPagina > 0 && totalPaginasPreview > 1 && (
+              <div className="flex items-center gap-1.5 font-bold font-mono">
+                <button
+                  disabled={paginaAtual <= 1}
+                  onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors"
+                >
+                  ← Anterior
+                </button>
+                <span className="px-2 py-1 text-slate-700 dark:text-slate-300">
+                  Página {paginaAtual} de {totalPaginasPreview}
+                </span>
+                <button
+                  disabled={paginaAtual >= totalPaginasPreview}
+                  onClick={() => setPaginaAtual((p) => Math.min(totalPaginasPreview, p + 1))}
+                  className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors"
+                >
+                  Próxima →
+                </button>
+              </div>
+            )}
           </div>
 
           <TopScrollTableWrapper tableTitle="Pré-visualização e Edição dos Registros Mapeados">
@@ -523,7 +619,7 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {linhasPrevias.map((linha) => (
+                {linhasPaginaPreview.map((linha: LinhaPreviaImportacao) => (
                   <tr key={linha.indiceLinha} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-3 font-mono text-slate-500">#{linha.indiceLinha}</td>
                     
@@ -1234,6 +1330,23 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
                 <span>Salvar Alterações</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Processamento Transacional de Alta Performance */}
+      {processandoImportacao && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full text-center space-y-4 font-sans">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto animate-pulse">
+              <Sparkles className="w-7 h-7" />
+            </div>
+            <h3 className="font-extrabold text-base text-slate-900 dark:text-white font-['Quicksand']">
+              Processando Importação Transacional em Lote...
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Gravando e sincronizando registros sem travamentos no navegador. Por favor, aguarde alguns instantes...
+            </p>
           </div>
         </div>
       )}

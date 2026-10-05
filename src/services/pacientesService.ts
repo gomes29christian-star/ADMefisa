@@ -615,6 +615,100 @@ export class PacientesService {
   }
 
   /**
+   * OTIMIZAÇÃO DE ALTA PERFORMANCE:
+   * Cadastra múltiplos pacientes em lote com 1 única gravação no I/O do storage, evitando congelamento da interface.
+   */
+  static cadastrarPacientesEmLote(
+    novosPacientes: Array<Omit<Paciente, 'id' | 'codigoProntuario' | 'dataCriacao' | 'dataUltimaAtualizacao'> & { codigoProntuario?: string }>,
+    usuario: { nome: string; papel: PapelUsuario }
+  ): Paciente[] {
+    if (!novosPacientes || novosPacientes.length === 0) return [];
+
+    const lista = this.obterPacientes();
+    const agora = new Date();
+    const agoraFormatado = `${formatIsoDate(agora)} ${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
+    const baseTimestamp = Date.now();
+
+    const criados: Paciente[] = [];
+
+    novosPacientes.forEach((novoPaciente, index) => {
+      const novoId = `pac-${baseTimestamp}-${index}`;
+      const codigoProntuario =
+        novoPaciente.codigoProntuario || `#MEF-2026-${String(lista.length + index + 1).padStart(3, '0')}`;
+
+      const carteirinhaInicial: HistoricoCarteirinha = {
+        id: `cart-${baseTimestamp}-${index}`,
+        convenioId: novoPaciente.convenioPrincipalId || novoPaciente.convenioId || 'conv-1',
+        convenioNome: novoPaciente.convenioPrincipalNome || novoPaciente.convenioNome || 'Convênio Padrão',
+        numeroCarteirinha: novoPaciente.carteirinhaAtual || novoPaciente.carteirinha || '',
+        dataInicio: formatIsoDate(agora),
+        status: 'ATUAL',
+        observacao: 'Cadastro em lote via importação de planilha legada',
+        criadoPorUsuario: usuario.nome,
+        criadoEm: agoraFormatado,
+      };
+
+      const pacienteCriado: Paciente = {
+        ...novoPaciente,
+        id: novoId,
+        codigoProntuario,
+        carteirinhaAtual: novoPaciente.carteirinhaAtual || novoPaciente.carteirinha,
+        carteirinhaAtualMascarada: mascararCarteirinha(novoPaciente.carteirinhaAtual || novoPaciente.carteirinha),
+        cpfMascarado: mascararCpf(novoPaciente.cpf || ''),
+        carteirinhas: novoPaciente.carteirinhas?.length ? novoPaciente.carteirinhas : [carteirinhaInicial],
+        responsaveis: novoPaciente.responsaveis || [],
+        responsavelPrincipalNome:
+          novoPaciente.responsaveis?.find((r) => r.principal)?.nome ||
+          novoPaciente.responsavelNome ||
+          'Não informado',
+        dataCriacao: formatIsoDate(agora),
+        statusImpressao: novoPaciente.statusImpressao || 'A_IMPRIMIR',
+        dataUltimaAtualizacao: agoraFormatado,
+        atualizadoPor: usuario.nome,
+      };
+
+      if (isProcedimentoNutricionismo(pacienteCriado.procedimentoPrincipal || pacienteCriado.procedimentos?.[0])) {
+        pacienteCriado.diaDaSemana = '1 por mês';
+        pacienteCriado.diasDaSemana = ['1 por mês'];
+        pacienteCriado.sessoesPorSemana = 1;
+        pacienteCriado.quantidadeSemana = 1;
+      }
+
+      criados.push(pacienteCriado);
+    });
+
+    lista.unshift(...criados);
+    this.persistirPacientes(lista);
+
+    // Sincronização em nuvem Firestore não-bloqueante em background
+    setTimeout(() => {
+      criados.forEach((p) => {
+        CloudSyncService.salvarPacienteNuvem(p).catch(() => {});
+      });
+    }, 100);
+
+    // Evento único de auditoria do lote
+    const eventoLote: EventoAuditoria = {
+      id: `aud-${baseTimestamp}-batch`,
+      dataHora: agoraFormatado,
+      usuarioId: 'usr-sessao',
+      usuarioNome: usuario.nome,
+      papelUsuario: usuario.papel,
+      acao: 'Importação em Lote de Pacientes',
+      entidade: 'PACIENTE',
+      registroId: `lote-${baseTimestamp}`,
+      descricaoRegistro: `Importação em lote de ${criados.length} pacientes via planilha legada`,
+      campoAlterado: 'IMPORTACAO_LOTE',
+      valorAnterior: 'PLANILHA_BRUTA',
+      valorNovo: `${criados.length} novos pacientes cadastrados`,
+      motivo: 'Migração de dados legados por planilha',
+    };
+    this.gravarEventoAuditoria(eventoLote);
+
+    return criados;
+  }
+
+  /**
    * Atualiza dados cadastrais com trilha de auditoria para cada campo relevante modificado
    */
   static atualizarPaciente(

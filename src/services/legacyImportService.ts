@@ -973,6 +973,10 @@ export class LegacyImportService {
     let erros = 0;
     let rejeitados = 0;
 
+    const novosPacientesParaCadastrar: any[] = [];
+    const prestadoresSistema = obterPrestadoresStorage();
+    const todosPacientesExistentes = PacientesService.obterPacientes();
+
     linhasPrevias.forEach((linha) => {
       if (!linha.validoParaImportar) {
         rejeitados++;
@@ -989,7 +993,7 @@ export class LegacyImportService {
 
       if (linha.pacienteExistenteId) {
         // Associar e preservar histórico de carteirinha
-        const pacExistente = PacientesService.obterPacientes().find(
+        const pacExistente = todosPacientesExistentes.find(
           (p) => p.id === linha.pacienteExistenteId
         );
         if (pacExistente && dadosMapeados.carteirinha) {
@@ -1007,7 +1011,6 @@ export class LegacyImportService {
         }
         pacientesAssociados++;
       } else {
-        const prestadoresSistema = obterPrestadoresStorage();
         const doutorMefisaNomeStr = dadosMapeados.doutorMefisa || dadosMapeados.prestador;
         const doutorMefisaEncontrado =
           prestadoresSistema.find((p) => p.nome.toLowerCase() === doutorMefisaNomeStr?.toLowerCase()) ||
@@ -1025,8 +1028,7 @@ export class LegacyImportService {
 
         const procNome = dadosMapeados.procedimento || 'Psicologia ABA';
 
-        // Criar novo paciente com Próxima Autorização histórica e flag de irregularidade
-        const novoPacienteData = {
+        novosPacientesParaCadastrar.push({
           nome: dadosMapeados.nome,
           carteirinha: dadosMapeados.carteirinha || 'PART-LEGADO-00',
           convenioId: 'conv-1',
@@ -1066,15 +1068,17 @@ export class LegacyImportService {
           observacoes: dadosMapeados.observacoes || (dadosMapeados.indicadorIrregularidade
             ? 'Origem: Planilha legada | Tipo: Indicador visual histórico (Irregularidade)'
             : 'Origem: Planilha legada'),
-        };
-
-        PacientesService.cadastrarPaciente(novoPacienteData, {
-          nome: usuarioNome,
-          papel: 'ADMINISTRADOR',
         });
         pacientesCriados++;
       }
     });
+
+    if (novosPacientesParaCadastrar.length > 0) {
+      PacientesService.cadastrarPacientesEmLote(novosPacientesParaCadastrar, {
+        nome: usuarioNome,
+        papel: 'ADMINISTRADOR',
+      });
+    }
 
     const duracaoMs = Date.now() - inicioMs;
     const batch: ImportBatch = {
