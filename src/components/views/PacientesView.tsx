@@ -486,6 +486,38 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
     setTimeout(() => setNotificacaoSucesso(null), 3000);
   };
 
+  // Alterar status de impressão em lote para todos os pacientes selecionados
+  const handleAlterarStatusImpressaoLote = (novoStatus: StatusImpressaoPaciente) => {
+    if (selecionadosIds.length === 0) return;
+
+    let alteradosCount = 0;
+    const novosPacientes = pacientes.map((pac) => {
+      if (selecionadosIds.includes(pac.id)) {
+        const { paciente: pacAtualizado } = PacientesService.atualizarPaciente(
+          pac.id,
+          { statusImpressao: novoStatus },
+          usuarioAtual,
+          `Alterou status de impressão em lote para [${novoStatus}]`
+        );
+        alteradosCount++;
+        return pacAtualizado;
+      }
+      return pac;
+    });
+
+    setPacientes(novosPacientes);
+    if (pacienteSelecionado && selecionadosIds.includes(pacienteSelecionado.id)) {
+      const atualizadoAtual = novosPacientes.find((p) => p.id === pacienteSelecionado.id);
+      if (atualizadoAtual) setPacienteSelecionado(atualizadoAtual);
+    }
+    setNotificacaoSucesso(
+      `Status de impressão de ${alteradosCount} paciente(s) alterado para ${
+        novoStatus === 'IMPRIMIDO' ? 'IMPRIMIDO' : 'A IMPRIMIR'
+      } com sucesso!`
+    );
+    setTimeout(() => setNotificacaoSucesso(null), 3000);
+  };
+
   // Modal Rápido de Alteração de Status do Token
   const [modalTokenState, setModalTokenState] = useState<{
     aberto: boolean;
@@ -1076,7 +1108,21 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
               <strong>{selecionadosIds.length}</strong> paciente(s) selecionado(s)
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => handleAlterarStatusImpressaoLote('IMPRIMIDO')}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+              title="Mudar o status de todos os pacientes selecionados para IMPRIMIDO com 1 clique"
+            >
+              <span>✓ Marcar IMPRIMIDO ({selecionadosIds.length})</span>
+            </button>
+            <button
+              onClick={() => handleAlterarStatusImpressaoLote('A_IMPRIMIR')}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+              title="Mudar o status de todos os pacientes selecionados para A IMPRIMIR com 1 clique"
+            >
+              <span>🖨️ Marcar A IMPRIMIR ({selecionadosIds.length})</span>
+            </button>
             <button
               onClick={() => setModalSemanasLoteAberto(true)}
               className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
