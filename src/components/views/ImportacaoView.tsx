@@ -21,7 +21,7 @@ import {
   Edit3,
   X,
 } from 'lucide-react';
-import { LegacyImportService, DADOS_FICTICIOS_EXEMPLO_CSV } from '../../services/legacyImportService';
+import { LegacyImportService, DADOS_FICTICIOS_EXEMPLO_CSV, DADOS_FICTICIOS_CONVENCIONAIS_CSV } from '../../services/legacyImportService';
 import { LinhaPreviaImportacao, ImportBatch, RelatorioImportacao } from '../../types/import';
 import { useTheme } from '../../context/ThemeContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
@@ -133,9 +133,13 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
     );
   };
 
-  // Carregar fixture fictícia de teste
-  const handleCarregarFixtureFicticia = () => {
-    setNomeArquivo('planilha_legada_ficticia_mefisa.csv');
+  // Módulo Selecionado Antecipadamente ('ABA' ou 'CONVENCIONAL')
+  const [moduloAntecipado, setModuloAntecipado] = useState<'ABA' | 'CONVENCIONAL'>('CONVENCIONAL');
+
+  // Carregar fixture fictícia de teste (Módulo ABA)
+  const handleCarregarFixtureAba = () => {
+    setModuloAntecipado('ABA');
+    setNomeArquivo('planilha_legada_aba_mefisa.csv');
     setConteudoBrutoTexto(DADOS_FICTICIOS_EXEMPLO_CSV);
     const parsed = LegacyImportService.parseCsv(DADOS_FICTICIOS_EXEMPLO_CSV);
     setCabecalho(parsed.cabecalho);
@@ -149,7 +153,27 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
       procedimentos
     );
     setMapeamento(sugestao);
-    setEtapa(2); // Ir para mapeamento
+    setEtapa(2);
+  };
+
+  // Carregar fixture fictícia de teste (Módulo Convencionais)
+  const handleCarregarFixtureConvencionais = () => {
+    setModuloAntecipado('CONVENCIONAL');
+    setNomeArquivo('planilha_legada_convencionais_mefisa.csv');
+    setConteudoBrutoTexto(DADOS_FICTICIOS_CONVENCIONAIS_CSV);
+    const parsed = LegacyImportService.parseCsv(DADOS_FICTICIOS_CONVENCIONAIS_CSV);
+    setCabecalho(parsed.cabecalho);
+    setLinhasBrutas(parsed.linhas);
+    const prestadores = obterPrestadoresStorage();
+    const procedimentos = ProcedimentosService.obterTodos();
+    const sugestao = LegacyImportService.sugerirMapeamentoComDados(
+      parsed.cabecalho,
+      parsed.linhas,
+      prestadores,
+      procedimentos
+    );
+    setMapeamento(sugestao);
+    setEtapa(2);
   };
 
   // Upload manual de arquivo CSV
@@ -184,7 +208,16 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
   // Executar análise e validação após confirmar mapeamento
   const handleAvancarParaPrevia = () => {
     const analise = LegacyImportService.analisarLinhas(linhasBrutas, mapeamento);
-    setLinhasPrevias(analise);
+    const analiseComModulo = analise.map((l) => ({
+      ...l,
+      dadosMapeados: {
+        ...l.dadosMapeados,
+        classificacao: l.dadosMapeados.classificacao || moduloAntecipado,
+        statusImpressao: l.dadosMapeados.statusImpressao || 'A_IMPRIMIR',
+        duracaoSessao: l.dadosMapeados.duracaoSessao || (moduloAntecipado === 'CONVENCIONAL' ? '30MIN' : '1H'),
+      },
+    }));
+    setLinhasPrevias(analiseComModulo);
     setEtapa(3);
   };
 
@@ -258,7 +291,51 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          {/* Seletor Antecipado de Módulo (ABA vs CONVENCIONAIS) */}
+          <div className="max-w-xl mx-auto p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-left space-y-2">
+            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+              Escolha Antecipada do Módulo Mestre de Destino:
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setModuloAntecipado('ABA')}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  moduloAntecipado === 'ABA'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-500'
+                }`}
+              >
+                <div className="font-extrabold text-xs flex items-center gap-1.5">
+                  <span>🎯 Módulo ABA</span>
+                  {moduloAntecipado === 'ABA' && <span className="text-[10px] bg-emerald-800 text-white px-1.5 py-0.2 rounded-full">Selecionado</span>}
+                </div>
+                <div className={`text-[10.5px] mt-1 ${moduloAntecipado === 'ABA' ? 'text-emerald-100' : 'text-slate-500 dark:text-slate-400'}`}>
+                  Para Psicologia ABA, Fono ABA, TO ABA, Musicoterapia e Avaliações ABA (Sessões 1H)
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModuloAntecipado('CONVENCIONAL')}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  moduloAntecipado === 'CONVENCIONAL'
+                    ? 'bg-purple-700 text-white border-purple-700 shadow-2xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-500'
+                }`}
+              >
+                <div className="font-extrabold text-xs flex items-center gap-1.5">
+                  <span>🏥 Módulo Convencionais</span>
+                  {moduloAntecipado === 'CONVENCIONAL' && <span className="text-[10px] bg-purple-900 text-white px-1.5 py-0.2 rounded-full">Selecionado</span>}
+                </div>
+                <div className={`text-[10.5px] mt-1 ${moduloAntecipado === 'CONVENCIONAL' ? 'text-purple-100' : 'text-slate-500 dark:text-slate-400'}`}>
+                  Para Fisioterapia, Fonoaudiologia, Terapia Ocupacional e Psicologia Convencional (30MIN / 1H)
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 flex-wrap">
             <label className="px-5 py-3 rounded-xl bg-[#002172] hover:bg-[#001752] text-white text-xs font-bold shadow-md cursor-pointer transition-colors inline-flex items-center gap-2">
               <FileSpreadsheet className="w-4 h-4 text-[#91CA0C]" />
               <span>Escolher Arquivo do Computador</span>
@@ -266,11 +343,19 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
             </label>
 
             <button
-              onClick={handleCarregarFixtureFicticia}
-              className="px-5 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-bold transition-colors shadow-2xs inline-flex items-center gap-2"
+              onClick={handleCarregarFixtureAba}
+              className="px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-bold transition-colors shadow-2xs inline-flex items-center gap-2 cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-              <span>Carregar Planilha Fictícia de Teste (Exemplo Mefisa)</span>
+              <span>Planilha Exemplo ABA</span>
+            </button>
+
+            <button
+              onClick={handleCarregarFixtureConvencionais}
+              className="px-4 py-3 rounded-xl bg-purple-50 dark:bg-purple-950/80 hover:bg-purple-100 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800 text-xs font-bold transition-colors shadow-2xs inline-flex items-center gap-2 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-purple-700 dark:text-purple-400" />
+              <span>Planilha Exemplo Convencionais</span>
             </button>
           </div>
         </div>
@@ -312,20 +397,29 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
                     className="px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white font-medium focus:outline-[#002172]"
                   >
                     <option value="ignorar">-- Ignorar Coluna --</option>
-                    <option value="nome">Nome do Paciente *</option>
-                    <option value="cpf">CPF</option>
-                    <option value="convenio">Convênio Principal</option>
-                    <option value="carteirinha">Número da Carteirinha</option>
-                    <option value="doutorMefisa">Doutor(a) Mefisa</option>
-                    <option value="prestador">Prestador / Médico Solicitante</option>
-                    <option value="procedimento">Procedimento Terapêutico</option>
-                    <option value="diaDaSemana">Dias em que passa (ex: seg., ter., qua., qui., sex., sáb.)</option>
-                    <option value="quantidadeSemana">Quantidade de Sessões por Semana (ex: 1x/sem, 2x/sem, 3x/sem)</option>
-                    <option value="pastaDoutoraMefisa">Pasta do Doutor Mefisa</option>
-                    <option value="polo">M (M1 / M2)</option>
-                    <option value="dataSolicitacao">Data da Solicitação</option>
-                    <option value="proximaAutorizacao">Próxima Autorização</option>
-                    <option value="ultimaAutorizacao">Última Autorização</option>
+                    <option value="nome">👤 Nome do Paciente *</option>
+                    <option value="carteirinha">🪪 Número da Carteirinha</option>
+                    <option value="cpf">🆔 CPF do Paciente</option>
+                    <option value="convenio">🏥 Convênio Principal</option>
+                    <option value="procedimento">📋 Procedimento Terapêutico TUSS</option>
+                    <option value="token">🔐 Código do TOKEN</option>
+                    <option value="tokenStatus">🚦 Status do TOKEN (V / NVJ / NVNJ)</option>
+                    <option value="tokenJustificativa">📝 Justificativa do TOKEN</option>
+                    <option value="statusImpressao">🖨️ Status de Impressão (IMPRIMIDO / A IMPRIMIR)</option>
+                    <option value="polo">🏢 Polo (M1 / M2 / ON)</option>
+                    <option value="duracaoSessao">⏱️ Duração da Sessão (30MIN / 1H)</option>
+                    <option value="cid">🩺 Diagnóstico / CID-10</option>
+                    <option value="responsavelNome">👨‍👩‍👧 Responsável Legal</option>
+                    <option value="observacoes">💬 Observações / Anotações</option>
+                    <option value="classificacao">🏷️ Módulo / Categoria (ABA / Convencional)</option>
+                    <option value="doutorMefisa">👨‍⚕️ Doutor(a) / Atendente Mefisa</option>
+                    <option value="prestador">🩺 Prestador / Médico Solicitante</option>
+                    <option value="diaDaSemana">📅 Dias em que passa (seg., ter., qua., qui., sex., sáb.)</option>
+                    <option value="quantidadeSemana">🔢 Quantidade de Sessões por Semana</option>
+                    <option value="dataSolicitacao">📆 Data da Solicitação</option>
+                    <option value="proximaAutorizacao">📆 Próxima Autorização</option>
+                    <option value="ultimaAutorizacao">📆 Última Autorização</option>
+                    <option value="pastaDoutoraMefisa">📁 Pasta do Doutor Mefisa</option>
                     <option value="cbo">CBO</option>
                     <option value="crm">CRM / CRP / Conselho</option>
                     <option value="uf">UF</option>
@@ -412,6 +506,8 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
                 <tr>
                   <th className="py-3 px-3 font-bold">Linha</th>
                   <th className="py-3 px-3 font-bold min-w-[170px]">Nome Mapeado *</th>
+                  <th className="py-3 px-3 font-bold text-center min-w-[120px]">Módulo Mestre</th>
+                  <th className="py-3 px-3 font-bold text-center min-w-[120px]">IMPRESSO?</th>
                   <th className="py-3 px-3 font-bold min-w-[130px]">Carteirinha</th>
                   <th className="py-3 px-3 font-bold text-center min-w-[80px]">M (M1/M2)</th>
                   <th className="py-3 px-3 font-bold min-w-[150px]">Doutor(a) Mefisa</th>
@@ -444,6 +540,50 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
                       ) : (
                         <span>{linha.dadosMapeados.nome || '(Sem Nome)'}</span>
                       )}
+                    </td>
+
+                    {/* Módulo Mestre */}
+                    <td className="py-2 px-3 text-center">
+                      {modoEdicaoDireta ? (
+                        <select
+                          value={linha.dadosMapeados.classificacao || moduloAntecipado}
+                          onChange={(e) => handleUpdateCampoLinha(linha.indiceLinha, 'classificacao', e.target.value)}
+                          className="px-2 py-1 text-xs font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded text-slate-900 dark:text-white focus:outline-[#002172]"
+                        >
+                          <option value="ABA">🎯 ABA</option>
+                          <option value="CONVENCIONAL">🏥 CONVENCIONAL</option>
+                        </select>
+                      ) : (
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                          linha.dadosMapeados.classificacao === 'ABA'
+                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                            : 'bg-purple-100 text-purple-900 border border-purple-300'
+                        }`}>
+                          {linha.dadosMapeados.classificacao === 'ABA' ? '🎯 ABA' : '🏥 CONVENCIONAL'}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Status de Impressão */}
+                    <td className="py-2 px-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleUpdateCampoLinha(
+                            linha.indiceLinha,
+                            'statusImpressao',
+                            linha.dadosMapeados.statusImpressao === 'IMPRIMIDO' ? 'A_IMPRIMIR' : 'IMPRIMIDO'
+                          )
+                        }
+                        title="Clique para alternar entre IMPRIMIDO e A IMPRIMIR"
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border cursor-pointer shadow-2xs transition-transform hover:scale-105 ${
+                          linha.dadosMapeados.statusImpressao === 'IMPRIMIDO'
+                            ? 'bg-emerald-600 text-white border-emerald-700'
+                            : 'bg-red-600 text-white border-red-700 animate-pulse'
+                        }`}
+                      >
+                        {linha.dadosMapeados.statusImpressao === 'IMPRIMIDO' ? '✓ IMPRIMIDO' : '🖨️ A IMPRIMIR'}
+                      </button>
                     </td>
 
                     {/* Carteirinha */}
@@ -805,6 +945,65 @@ export const ImportacaoView: React.FC<ImportacaoViewProps> = ({
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold focus:outline-[#002172]"
                   placeholder="Nome do paciente..."
                 />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Módulo Mestre de Destino
+                </label>
+                <select
+                  value={linhaEmEdicaoModal.dadosMapeados.classificacao || moduloAntecipado}
+                  onChange={(e) =>
+                    setLinhaEmEdicaoModal({
+                      ...linhaEmEdicaoModal,
+                      dadosMapeados: { ...linhaEmEdicaoModal.dadosMapeados, classificacao: e.target.value as any },
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold focus:outline-[#002172]"
+                >
+                  <option value="ABA">🎯 Módulo ABA</option>
+                  <option value="CONVENCIONAL">🏥 Módulo Convencionais</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Status de Impressão (IMPRIMIDO?)
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLinhaEmEdicaoModal({
+                        ...linhaEmEdicaoModal,
+                        dadosMapeados: { ...linhaEmEdicaoModal.dadosMapeados, statusImpressao: 'IMPRIMIDO' },
+                      })
+                    }
+                    className={`flex-1 py-2 px-2 rounded-xl text-xs font-black border transition-all cursor-pointer ${
+                      linhaEmEdicaoModal.dadosMapeados.statusImpressao === 'IMPRIMIDO'
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    ✓ IMPRIMIDO
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLinhaEmEdicaoModal({
+                        ...linhaEmEdicaoModal,
+                        dadosMapeados: { ...linhaEmEdicaoModal.dadosMapeados, statusImpressao: 'A_IMPRIMIR' },
+                      })
+                    }
+                    className={`flex-1 py-2 px-2 rounded-xl text-xs font-black border transition-all cursor-pointer ${
+                      linhaEmEdicaoModal.dadosMapeados.statusImpressao === 'A_IMPRIMIR'
+                        ? 'bg-red-600 text-white border-red-600'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    🖨️ A IMPRIMIR
+                  </button>
+                </div>
               </div>
 
               <div>

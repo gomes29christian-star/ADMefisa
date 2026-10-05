@@ -45,6 +45,16 @@ export interface LinhaPreviaImportacao {
     pastaDoutoraMefisa?: string;
     polo?: 'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON';
     indicadorIrregularidade?: boolean;
+    cpf?: string;
+    token?: string;
+    tokenStatus?: 'V' | 'NVJ' | 'NVNJ';
+    tokenJustificativa?: string;
+    statusImpressao?: 'IMPRIMIDO' | 'A_IMPRIMIR';
+    duracaoSessao?: '30MIN' | '1H';
+    cid?: string;
+    responsavelNome?: string;
+    observacoes?: string;
+    classificacao?: 'ABA' | 'CONVENCIONAL';
   };
   problemas: ProblemaImportacao[];
   statusDuplicidade: StatusDuplicidadeImportacao;

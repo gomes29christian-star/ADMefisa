@@ -31,6 +31,12 @@ Carlos Teste;772910394012001;Carlos Eduardo;ter., qui.;Carlos Eduardo;2515-45;06
 Mariana Fictícia;8910442910401;Mariana;seg., qua., sex.;Mariana;2236-05;3/99104;SP;14/10/2026;Fono;3;01/06/2026;12/11/2026;M1;FALSE
 Renato Incompleto;;Helena;ter., qui., sáb.;Helena;2515-10;06/44810;SP;;TO;3;;;M2;FALSE`;
 
+export const DADOS_FICTICIOS_CONVENCIONAIS_CSV = `Nome do Paciente;Carteirinha;CPF;Procedimento;Duração;Status Impresso;Token;Status Token;Justificativa Token;Convênio;Doutora Mefisa;Dias de Atendimento;Próxima Autorização;Polo;Observações
+Beatriz Lima Fonseca;987201948201001;391.820.194-01;Sessão de Fisioterapia Motor;30MIN;A IMPRIMIR;TKN-8821;V;;Bradesco Saúde;Ana Beatriz;seg., qua., sex.;15/11/2026;M1;Tratamento pós-cirúrgico de joelho
+Guilherme Santos Ribeiro;448102938102002;281.940.102-33;Sessão de Fonoaudiologia;1H;IMPRIMIDO;TKN-4412;NVJ;Sem sinal da operadora;SulAmérica Saúde;Maria Clara;ter., qui.;20/11/2026;M2;Acompanhamento de dicção e linguagem
+Juliana Martins Castro;331902849102003;102.394.810-55;Sessão de Terapia Ocupacional;30MIN;A IMPRIMIR;TKN-9901;NVNJ;;Bradesco Saúde;Paula Rego;seg., ter., qui.;28/11/2026;M1;Integração sensorial ocupacional
+Eduardo Mota Silveira;882019482019004;449.102.938-77;Sessão de Psicologia;1H;IMPRIMIDO;;V;;SulAmérica Saúde;Beatriz;qua., sex., sáb.;10/12/2026;M2;Encaminhado por neuropediatra`;
+
 export interface ResultadoAtendimentoInteligente {
   dias: string[];
   diaDaSemanaStr: string;
@@ -323,6 +329,24 @@ export class LegacyImportService {
         mapeamento[coluna] = 'pastaDoutoraMefisa';
       } else if (colNorm.includes('convenio') || colNorm.includes('plano') || colNorm.includes('operadora')) {
         mapeamento[coluna] = 'convenio';
+      } else if (colNorm.includes('token') && (colNorm.includes('status') || colNorm.includes('valida'))) {
+        mapeamento[coluna] = 'tokenStatus';
+      } else if (colNorm.includes('token') && (colNorm.includes('just') || colNorm.includes('motivo'))) {
+        mapeamento[coluna] = 'tokenJustificativa';
+      } else if (colNorm.includes('token') || colNorm.includes('tkn')) {
+        mapeamento[coluna] = 'token';
+      } else if (colNorm.includes('impress') || colNorm.includes('imprimido') || colNorm.includes('a imprimir')) {
+        mapeamento[coluna] = 'statusImpressao';
+      } else if (colNorm.includes('durac') || colNorm.includes('tempo') || colNorm.includes('min') || colNorm.includes('duracao')) {
+        mapeamento[coluna] = 'duracaoSessao';
+      } else if (colNorm.includes('cid') || colNorm.includes('diagnostico')) {
+        mapeamento[coluna] = 'cid';
+      } else if (colNorm.includes('resp') || colNorm.includes('mae') || colNorm.includes('pai') || colNorm.includes('tutor') || colNorm.includes('responsavel')) {
+        mapeamento[coluna] = 'responsavelNome';
+      } else if (colNorm.includes('obs') || colNorm.includes('anotac') || colNorm.includes('coment') || colNorm.includes('observacao')) {
+        mapeamento[coluna] = 'observacoes';
+      } else if (colNorm.includes('modulo') || colNorm.includes('classifica') || colNorm.includes('categoria')) {
+        mapeamento[coluna] = 'classificacao';
       }
     });
 
@@ -901,6 +925,24 @@ export class LegacyImportService {
           pastaDoutoraMefisa: dadosMapeados.pastaDoutoraMefisa ? dadosMapeados.pastaDoutoraMefisa.trim() : undefined,
           polo: poloNormalizado,
           indicadorIrregularidade: irregStr === 'true' || irregStr === 'sim' || irregStr === '1',
+          cpf: dadosMapeados.cpf ? dadosMapeados.cpf.trim() : undefined,
+          token: dadosMapeados.token ? dadosMapeados.token.trim() : undefined,
+          tokenStatus: dadosMapeados.tokenStatus
+            ? (dadosMapeados.tokenStatus.toString().toUpperCase().includes('NVNJ') ? 'NVNJ' : dadosMapeados.tokenStatus.toString().toUpperCase().includes('NV') ? 'NVJ' : 'V')
+            : undefined,
+          tokenJustificativa: dadosMapeados.tokenJustificativa ? dadosMapeados.tokenJustificativa.trim() : undefined,
+          statusImpressao: dadosMapeados.statusImpressao
+            ? (dadosMapeados.statusImpressao.toString().toUpperCase().includes('IMPRIMIDO') || dadosMapeados.statusImpressao.toString().toUpperCase() === 'SIM' || dadosMapeados.statusImpressao.toString().toUpperCase() === 'VERDE' ? 'IMPRIMIDO' : 'A_IMPRIMIR')
+            : undefined,
+          duracaoSessao: dadosMapeados.duracaoSessao
+            ? (dadosMapeados.duracaoSessao.toString().includes('30') ? '30MIN' : '1H')
+            : undefined,
+          cid: dadosMapeados.cid ? dadosMapeados.cid.trim() : undefined,
+          responsavelNome: dadosMapeados.responsavelNome ? dadosMapeados.responsavelNome.trim() : undefined,
+          observacoes: dadosMapeados.observacoes ? dadosMapeados.observacoes.trim() : undefined,
+          classificacao: dadosMapeados.classificacao
+            ? (dadosMapeados.classificacao.toString().toUpperCase().includes('CONV') ? 'CONVENCIONAL' : 'ABA')
+            : undefined,
         },
         problemas,
         statusDuplicidade,
@@ -1006,15 +1048,24 @@ export class LegacyImportService {
           pastaDoutoraMefisa: dadosMapeados.pastaDoutoraMefisa || (doutorMefisaEncontrado ? `Pasta ${doutorMefisaEncontrado.nome}` : `Pasta ${doutorMefisaNomeStr || 'Mefisa'}`),
           polo: dadosMapeados.polo || 'M1',
           status: 'ATIVO' as const,
+          classificacao: dadosMapeados.classificacao || (procNome.toLowerCase().includes('sessão de') || procNome.toLowerCase().includes('fisioterapia') || procNome.toLowerCase().includes('fonoaudiologia') ? 'CONVENCIONAL' : 'ABA'),
+          cpf: dadosMapeados.cpf,
+          token: dadosMapeados.token,
+          tokenStatus: dadosMapeados.tokenStatus || (dadosMapeados.tokenJustificativa ? 'NVJ' : 'V'),
+          tokenJustificativa: dadosMapeados.tokenJustificativa,
+          statusImpressao: dadosMapeados.statusImpressao || 'A_IMPRIMIR',
+          duracaoSessao: dadosMapeados.duracaoSessao || '1H',
+          cid: dadosMapeados.cid || 'F84.0',
+          responsavelNome: dadosMapeados.responsavelNome || 'Não informado',
           diaDaSemana: atimResPac.diaDaSemanaStr,
           diasDaSemana: atimResPac.dias,
           quantidadeSemana: atimResPac.quantidadeSemana,
           sessoesPorSemana: atimResPac.quantidadeSemana,
           proximaAutorizacaoData: dadosMapeados.proximaAutorizacao,
           ultimaAutorizacaoData: dadosMapeados.ultimaAutorizacao,
-          observacoes: dadosMapeados.indicadorIrregularidade
+          observacoes: dadosMapeados.observacoes || (dadosMapeados.indicadorIrregularidade
             ? 'Origem: Planilha legada | Tipo: Indicador visual histórico (Irregularidade)'
-            : 'Origem: Planilha legada',
+            : 'Origem: Planilha legada'),
         };
 
         PacientesService.cadastrarPaciente(novoPacienteData, {
