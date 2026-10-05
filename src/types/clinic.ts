@@ -25,6 +25,8 @@ export interface Usuario {
 
 export type StatusTokenPaciente = 'V' | 'NVJ' | 'NVNJ';
 
+export type StatusImpressaoPaciente = 'IMPRIMIDO' | 'A_IMPRIMIR';
+
 export type StatusPaciente =
   | 'ATIVO'
   | 'INATIVO'
@@ -115,6 +117,7 @@ export interface Paciente {
   token?: string;
   tokenStatus?: StatusTokenPaciente;
   tokenJustificativa?: string;
+  statusImpressao?: StatusImpressaoPaciente;
   duracaoSessao?: '30MIN' | '1H';
   cid?: string;
   observacoes?: string;

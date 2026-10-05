@@ -545,6 +545,7 @@ export class PacientesService {
         novoPaciente.responsavelNome ||
         'Não informado',
       dataCriacao: formatIsoDate(agora),
+      statusImpressao: novoPaciente.statusImpressao || 'A_IMPRIMIR',
       dataUltimaAtualizacao: agoraFormatado,
       atualizadoPor: usuario.nome,
     };

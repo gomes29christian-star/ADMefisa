@@ -195,7 +195,7 @@ const MultiSelectDateFilter: React.FC<MultiSelectDateFilterProps> = ({
     </div>
   );
 };
-import { Paciente, Usuario, StatusPaciente, FiltroPacientesUsuario, StatusTokenPaciente } from '../../types/clinic';
+import { Paciente, Usuario, StatusPaciente, FiltroPacientesUsuario, StatusTokenPaciente, StatusImpressaoPaciente } from '../../types/clinic';
 import {
   PacientesService,
   mascararCpf,
@@ -450,6 +450,7 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
     procedimento: '',
     carteirinha: '',
     token: '',
+    impresso: '',
     polo: '',
     semanas: '',
     status: '',
@@ -460,15 +461,42 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
     atualizacao: '',
   });
 
+  // Alternar status de impressão (Imprimido vs A imprimir)
+  const handleToggleStatusImpressao = (pac: Paciente, e?: React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
+    const novoStatus: StatusImpressaoPaciente =
+      pac.statusImpressao === 'IMPRIMIDO' ? 'A_IMPRIMIR' : 'IMPRIMIDO';
+
+    const { paciente: pacAtualizado } = PacientesService.atualizarPaciente(
+      pac.id,
+      { statusImpressao: novoStatus },
+      usuarioAtual,
+      `Alterou status de impressão para [${novoStatus}]`
+    );
+
+    setPacientes((prev) => prev.map((p) => (p.id === pac.id ? pacAtualizado : p)));
+    if (pacienteSelecionado && pacienteSelecionado.id === pac.id) {
+      setPacienteSelecionado(pacAtualizado);
+    }
+    setNotificacaoSucesso(
+      `Status de impressão de ${pac.nome} alterado para ${
+        novoStatus === 'IMPRIMIDO' ? 'IMPRIMIDO' : 'A IMPRIMIR'
+      }!`
+    );
+    setTimeout(() => setNotificacaoSucesso(null), 3000);
+  };
+
   // Modal Rápido de Alteração de Status do Token
   const [modalTokenState, setModalTokenState] = useState<{
     aberto: boolean;
     paciente: Paciente | null;
+    codigoToken: string;
     opcaoStatus: 'V' | 'NV';
     justificativa: string;
   }>({
     aberto: false,
     paciente: null,
+    codigoToken: '',
     opcaoStatus: 'V',
     justificativa: '',
   });
@@ -478,6 +506,7 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
     setModalTokenState({
       aberto: true,
       paciente: pac,
+      codigoToken: pac.token || '',
       opcaoStatus: isNv ? 'NV' : 'V',
       justificativa: pac.tokenJustificativa || '',
     });
@@ -493,20 +522,22 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
         ? 'NVJ'
         : 'NVNJ';
     const novaJust = modalTokenState.opcaoStatus === 'NV' ? modalTokenState.justificativa.trim() || undefined : undefined;
+    const novoCodigoToken = modalTokenState.codigoToken.trim();
 
     const { paciente: pacAtualizado } = PacientesService.atualizarPaciente(
       pac.id,
       {
+        token: novoCodigoToken || undefined,
         tokenStatus: novoStatus,
         tokenJustificativa: novaJust,
       },
       usuarioAtual,
-      `Atualização de status do Token para [${novoStatus}]`
+      `Atualização do Token [${novoCodigoToken}] e status [${novoStatus}]`
     );
 
     setPacientes((prev) => prev.map((p) => (p.id === pac.id ? pacAtualizado : p)));
-    setModalTokenState({ aberto: false, paciente: null, opcaoStatus: 'V', justificativa: '' });
-    setNotificacaoSucesso(`Status do Token de ${pac.nome} atualizado para ${novoStatus}!`);
+    setModalTokenState({ aberto: false, paciente: null, codigoToken: '', opcaoStatus: 'V', justificativa: '' });
+    setNotificacaoSucesso(`Token do paciente ${pac.nome} atualizado com sucesso!`);
     setTimeout(() => setNotificacaoSucesso(null), 3000);
   };
 
@@ -623,6 +654,11 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
       const matchJust = matchTextFilter(p.tokenJustificativa || '', filtrosColunas.token);
       if (!matchToken && !matchStatus && !matchJust) return false;
     }
+    if (filtrosColunas.impresso) {
+      const term = filtrosColunas.impresso.trim().toLowerCase();
+      const statusTexto = p.statusImpressao === 'IMPRIMIDO' ? 'imprimido' : 'a imprimir';
+      if (!statusTexto.includes(term)) return false;
+    }
     if (filtrosColunas.polo && !matchTextFilter(p.polo || 'M1', filtrosColunas.polo)) {
       return false;
     }
@@ -705,6 +741,7 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
       procedimento: '',
       carteirinha: '',
       token: '',
+      impresso: '',
       polo: '',
       semanas: '',
       status: '',
@@ -1132,6 +1169,22 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
                   className="mt-1 w-full px-1 py-1 text-[11px] font-normal text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-900 dark:text-white focus:outline-blue-600"
                 />
               </th>
+              {/* IMPRESSO? */}
+              <th className="py-3 px-4 font-bold text-slate-900 dark:text-white text-center min-w-[115px]">
+                <div>IMPRESSO?</div>
+                <input
+                  type="text"
+                  list="dl-pacientes-impresso"
+                  placeholder="Imprimido / A imprimir..."
+                  value={filtrosColunas.impresso}
+                  onChange={(e) => setFiltrosColunas({ ...filtrosColunas, impresso: e.target.value })}
+                  className="mt-1 w-full px-1 py-1 text-[11px] font-normal text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-900 dark:text-white focus:outline-blue-600"
+                />
+                <datalist id="dl-pacientes-impresso">
+                  <option value="Imprimido" />
+                  <option value="A imprimir" />
+                </datalist>
+              </th>
               {/* 4. M (M1 / M2) */}
               <th className="py-3 px-4 font-bold text-slate-900 dark:text-white text-center">
                 <div>M</div>
@@ -1428,6 +1481,22 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
                             </div>
                           );
                         })()}
+                      </td>
+
+                      {/* IMPRESSO? Status Badge com Troca Rápida com 1-Clique */}
+                      <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleStatusImpressao(pac, e)}
+                          title="Clique para alternar entre Imprimido (Verde) e A imprimir (Vermelho)"
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border cursor-pointer transition-transform hover:scale-105 shadow-2xs ${
+                            pac.statusImpressao === 'IMPRIMIDO'
+                              ? 'bg-emerald-600 text-white border-emerald-700'
+                              : 'bg-red-600 text-white border-red-700 animate-pulse'
+                          }`}
+                        >
+                          {pac.statusImpressao === 'IMPRIMIDO' ? '✓ IMPRIMIDO' : '🖨️ A IMPRIMIR'}
+                        </button>
                       </td>
 
                       {/* 4. M (M1 / M2) */}
@@ -1861,7 +1930,7 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setModalTokenState({ aberto: false, paciente: null, opcaoStatus: 'V', justificativa: '' })}
+                onClick={() => setModalTokenState({ aberto: false, paciente: null, codigoToken: '', opcaoStatus: 'V', justificativa: '' })}
                 className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
               >
                 ✕
@@ -1869,6 +1938,20 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
             </div>
 
             <div className="space-y-3">
+              {/* Código do TOKEN */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Código do TOKEN
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: TKN-9821-X ou digite o código do token..."
+                  value={modalTokenState.codigoToken}
+                  onChange={(e) => setModalTokenState({ ...modalTokenState, codigoToken: e.target.value })}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-slate-900 dark:text-white focus:outline-[#002172]"
+                />
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Status da Validação *
@@ -1922,7 +2005,7 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
-                onClick={() => setModalTokenState({ aberto: false, paciente: null, opcaoStatus: 'V', justificativa: '' })}
+                onClick={() => setModalTokenState({ aberto: false, paciente: null, codigoToken: '', opcaoStatus: 'V', justificativa: '' })}
                 className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
               >
                 Cancelar

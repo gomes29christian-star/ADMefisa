@@ -472,6 +472,15 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
                     ? 'M2'
                     : 'M1'}
                 </span>
+                <span
+                  className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${
+                    paciente.statusImpressao === 'IMPRIMIDO'
+                      ? 'bg-emerald-600 text-white border-emerald-500'
+                      : 'bg-red-600 text-white border-red-500 animate-pulse'
+                  }`}
+                >
+                  {paciente.statusImpressao === 'IMPRIMIDO' ? '✓ IMPRIMIDO' : '🖨️ A IMPRIMIR'}
+                </span>
               </div>
               <h2 className="text-2xl font-bold font-['Quicksand'] text-white">
                 {paciente.nome}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserCog, Check, X, Shield, AlertCircle, Building, Stethoscope, Search, FolderCheck, Clock } from 'lucide-react';
-import { Paciente, StatusPaciente, PapelUsuario, StatusTokenPaciente } from '../../types/clinic';
+import { Paciente, StatusPaciente, PapelUsuario, StatusTokenPaciente, StatusImpressaoPaciente } from '../../types/clinic';
 import { PacientesService } from '../../services/pacientesService';
 import { obterPrestadoresStorage } from '../../data/mockClinicData';
 import { ProcedimentosService } from '../../services/procedimentosService';
@@ -81,6 +81,30 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
   const [classificacao, setClassificacao] = useState<'ABA' | 'CONVENCIONAL'>(
     paciente.classificacao || 'ABA'
   );
+
+  // Procedimentos filtrados dinamicamente pelo Módulo/Classificação
+  const procedimentosFiltradosPorModulo = procedimentosSessoesApenas.filter((p) => {
+    const isConv = p.categoria === 'CONVENCIONAL' || (p.descricao || '').toLowerCase().includes('sessão de');
+    return classificacao === 'CONVENCIONAL' ? isConv : !isConv;
+  });
+
+  const handleTrocarClassificacao = (novaClassificacao: 'ABA' | 'CONVENCIONAL') => {
+    setClassificacao(novaClassificacao);
+    const disponiveis = procedimentosSessoesApenas.filter((p) => {
+      const isConv = p.categoria === 'CONVENCIONAL' || (p.descricao || '').toLowerCase().includes('sessão de');
+      return novaClassificacao === 'CONVENCIONAL' ? isConv : !isConv;
+    });
+    if (disponiveis.length > 0) {
+      const jaPertence = disponiveis.some((p) => p.descricao === procedimentoPrincipal);
+      if (!jaPertence) {
+        const primeiroProc = disponiveis[0];
+        setProcedimentoPrincipal(primeiroProc.descricao);
+        if (primeiroProc.sessoesPorSemanaPadrao) {
+          setSessoesPorSemana(primeiroProc.sessoesPorSemanaPadrao);
+        }
+      }
+    }
+  };
   const [polos, setPolos] = useState<Array<'M1' | 'M2' | 'ON' | 'Polo 1' | 'Polo 2' | 'Polo ON'>>(
     paciente.polos && paciente.polos.length > 0 ? paciente.polos : [paciente.polo || 'M1']
   );
@@ -89,6 +113,9 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
     paciente.tokenStatus === 'NVJ' || paciente.tokenStatus === 'NVNJ' ? 'NV' : 'V'
   );
   const [tokenJustificativa, setTokenJustificativa] = useState(paciente.tokenJustificativa || '');
+  const [statusImpressao, setStatusImpressao] = useState<StatusImpressaoPaciente>(
+    paciente.statusImpressao || 'A_IMPRIMIR'
+  );
   const [duracaoSessao, setDuracaoSessao] = useState<'30MIN' | '1H'>(paciente.duracaoSessao || '1H');
   const [cid, setCid] = useState(paciente.cid || 'F84.0');
   const [ultimaAutorizacaoDataInput, setUltimaAutorizacaoDataInput] = useState(
@@ -196,6 +223,7 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
             ? 'NVJ'
             : 'NVNJ') as StatusTokenPaciente,
           tokenJustificativa: tokenStatusOpcao === 'NV' ? tokenJustificativa.trim() || undefined : undefined,
+          statusImpressao,
           duracaoSessao,
           cid: cid.trim() || undefined,
           ultimaAutorizacaoData: ultimaAutorizacaoDataInput.trim() || undefined,
@@ -256,7 +284,7 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setClassificacao('ABA')}
+                  onClick={() => handleTrocarClassificacao('ABA')}
                   className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                     classificacao === 'ABA'
                       ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs'
@@ -267,7 +295,7 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setClassificacao('CONVENCIONAL')}
+                  onClick={() => handleTrocarClassificacao('CONVENCIONAL')}
                   className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                     classificacao === 'CONVENCIONAL'
                       ? 'bg-purple-700 text-white border-purple-700 shadow-2xs'
@@ -401,37 +429,93 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
                   />
                 </div>
               )}
-            </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Duração da Sessão *
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDuracaoSessao('30MIN')}
-                  className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    duracaoSessao === '30MIN'
-                      ? 'bg-blue-700 text-white border-blue-700'
-                      : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                  }`}
-                >
-                  ⏱️ 30 MIN
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDuracaoSessao('1H')}
-                  className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    duracaoSessao === '1H'
-                      ? 'bg-blue-700 text-white border-blue-700'
-                      : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                  }`}
-                >
-                  ⏱️ 1 HORA
-                </button>
+              {/* Status de Impressão (Imprimido vs A imprimir) */}
+              <div className="sm:col-span-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Status de Impressão (IMPRIMIDO?) *</span>
+                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black text-white ${
+                    statusImpressao === 'IMPRIMIDO'
+                      ? 'bg-emerald-600'
+                      : 'bg-red-600 animate-pulse'
+                  }`}>
+                    {statusImpressao === 'IMPRIMIDO' ? '✓ IMPRIMIDO' : '🖨️ A IMPRIMIR'}
+                  </span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStatusImpressao('IMPRIMIDO')}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-black border transition-all cursor-pointer ${
+                      statusImpressao === 'IMPRIMIDO'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    ✓ IMPRIMIDO
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusImpressao('A_IMPRIMIR')}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-black border transition-all cursor-pointer ${
+                      statusImpressao === 'A_IMPRIMIR'
+                        ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    🖨️ A IMPRIMIR
+                  </button>
+                </div>
               </div>
             </div>
+
+            {classificacao === 'CONVENCIONAL' ? (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Duração da Sessão *
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDuracaoSessao('30MIN')}
+                    className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      duracaoSessao === '30MIN'
+                        ? 'bg-purple-700 text-white border-purple-700 shadow-2xs'
+                        : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    ⏱️ 30 MIN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDuracaoSessao('1H')}
+                    className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      duracaoSessao === '1H'
+                        ? 'bg-purple-700 text-white border-purple-700 shadow-2xs'
+                        : 'bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    ⏱️ 1 HORA
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Quantidade de Sessões por Semana *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={sessoesPorSemana || ''}
+                  onChange={(e) => setSessoesPorSemana(e.target.value === '' ? 1 : Math.max(1, parseInt(e.target.value, 10)))}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold font-mono text-slate-800 dark:text-white focus:outline-[#002172]"
+                  placeholder="Ex: 3"
+                  required
+                />
+              </div>
+            )}
 
             {/* CID e Data da Última Autorização */}
             <div>
@@ -753,50 +837,31 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
               </div>
             </div>
 
-            {/* Procedimento Principal e Quantidade de Sessões por Semana */}
-            <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                  <span>Procedimento Terapêutico * (Apenas Sessões)</span>
-                  <span className="text-[10px] text-emerald-600 font-bold">Sem Avaliações</span>
-                </label>
-                <select
-                  value={procedimentoPrincipal}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setProcedimentoPrincipal(val);
-                    const procObj = procedimentosSessoesApenas.find((p) => p.descricao === val);
-                    if (procObj?.sessoesPorSemanaPadrao) {
-                      setSessoesPorSemana(procObj.sessoesPorSemanaPadrao);
-                    }
-                  }}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-[#002172]"
-                  required
-                >
-                  {procedimentosSessoesApenas.map((proc) => (
-                    <option key={proc.id} value={proc.descricao}>
-                      {proc.codigo} — {proc.descricao} (CID {proc.cid || 'F84.0'} • R$ {proc.preco.toFixed(2).replace('.', ',')})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Sessões / Sem *</span>
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={sessoesPorSemana || ''}
-                  onChange={(e) => setSessoesPorSemana(e.target.value === '' ? 0 : Math.max(1, parseInt(e.target.value, 10)))}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-[#002172] text-center"
-                  placeholder="Ex: 3"
-                  required
-                />
-              </div>
+            {/* Procedimento Principal */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                <span>Procedimento Terapêutico * (Apenas Sessões)</span>
+                <span className="text-[10px] text-emerald-600 font-bold">Sem Avaliações</span>
+              </label>
+              <select
+                value={procedimentoPrincipal}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setProcedimentoPrincipal(val);
+                  const procObj = procedimentosFiltradosPorModulo.find((p) => p.descricao === val);
+                  if (procObj?.sessoesPorSemanaPadrao) {
+                    setSessoesPorSemana(procObj.sessoesPorSemanaPadrao);
+                  }
+                }}
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-[#002172]"
+                required
+              >
+                {procedimentosFiltradosPorModulo.map((proc) => (
+                  <option key={proc.id} value={proc.descricao}>
+                    {proc.codigo} — {proc.descricao} (CID {proc.cid || 'F84.0'} • R$ {proc.preco.toFixed(2).replace('.', ',')})
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Observações Administrativas */}
