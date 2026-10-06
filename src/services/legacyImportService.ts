@@ -780,6 +780,7 @@ export class LegacyImportService {
 
     let ultimoNomeValido = '';
     let ultimaCarteirinhaValida = '';
+    let contagemHerancaConsecutiva = 0;
 
     linhasBrutas.forEach((row, idx) => {
       const linhaNum = idx + 1;
@@ -852,32 +853,28 @@ export class LegacyImportService {
         nomeRaw = nomeExtraido;
       }
 
-      // Verifica se a linha possui dados operacionais reais (como procedimento, doutor, dia, token, etc.)
-      const temDadosOperacionais = Boolean(
-        procedimentoEntrada ||
-          doutorMefisaEntrada ||
-          semanasEntrada ||
-          dadosMapeados.token ||
-          dadosMapeados.statusImpressao ||
-          dadosMapeados.convenio ||
-          dadosMapeados.cpf
+      // A herança só ocorre se a linha contiver um Procedimento, Dia de Atendimento, Token ou Doutor explícito
+      const temDadosOperacionaisEspecificos = Boolean(
+        procedimentoEntrada || doutorMefisaEntrada || semanasEntrada || dadosMapeados.token
       );
 
-      // Se a linha for contínua/secundária (como procedimento extra ou dia adicional), herda o nome do paciente APENAS se houver dados operacionais reais
-      if (!nomeRaw && temDadosOperacionais && ultimoNomeValido) {
+      // Se a linha for contínua/secundária, herda o nome do paciente APENAS se houver procedimento/dia/médico explícito E limite máximo de 3 linhas secundárias
+      if (!nomeRaw && temDadosOperacionaisEspecificos && ultimoNomeValido && contagemHerancaConsecutiva < 3) {
         nomeRaw = ultimoNomeValido;
+        contagemHerancaConsecutiva++;
         if (!carteirinhaRaw && ultimaCarteirinhaValida) {
           carteirinhaRaw = ultimaCarteirinhaValida;
         }
       }
 
-      // Se não houver nome e nem dados operacionais, ignora a linha vazia/fantasma do final da planilha
-      if (!nomeRaw && !temDadosOperacionais) {
+      // Se não houver nome e nem procedimento/dia/médico específico na célula, descarte esta linha fantasma/modelo do Excel
+      if (!nomeRaw) {
         return;
       }
 
       if (nomeRaw && !nomeRaw.startsWith(',')) {
         ultimoNomeValido = nomeRaw;
+        contagemHerancaConsecutiva = 0;
         if (carteirinhaRaw) ultimaCarteirinhaValida = carteirinhaRaw;
       }
 
