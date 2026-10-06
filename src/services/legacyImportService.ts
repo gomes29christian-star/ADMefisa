@@ -282,7 +282,10 @@ export class LegacyImportService {
     const linhasBrutas = textoLimpo
       .split(/\r?\n/)
       .map((l) => l.trim())
-      .filter((l) => l.length > 0);
+      .filter((l) => {
+        const semDelimitadores = l.replace(/[,;\t|"\s]/g, '');
+        return semDelimitadores.length > 0;
+      });
 
     if (linhasBrutas.length === 0) {
       return { cabecalho: [], linhas: [] };
@@ -293,6 +296,9 @@ export class LegacyImportService {
 
     for (let i = 1; i < linhasBrutas.length; i++) {
       const valores = this.parseLinhaCsvRobusta(linhasBrutas[i], separador);
+      const temConteudo = valores.some((v) => v && v.replace(/[,;\t|"\s]/g, '').trim().length > 0);
+      if (!temConteudo) continue;
+
       const obj: Record<string, string> = {};
       cabecalho.forEach((col, idx) => {
         if (col) {
@@ -846,12 +852,28 @@ export class LegacyImportService {
         nomeRaw = nomeExtraido;
       }
 
-      // Se a linha for contínua/secundária (como procedimento extra ou dia adicional), herda o nome do paciente da linha anterior
-      if (!nomeRaw && ultimoNomeValido) {
+      // Verifica se a linha possui dados operacionais reais (como procedimento, doutor, dia, token, etc.)
+      const temDadosOperacionais = Boolean(
+        procedimentoEntrada ||
+          doutorMefisaEntrada ||
+          semanasEntrada ||
+          dadosMapeados.token ||
+          dadosMapeados.statusImpressao ||
+          dadosMapeados.convenio ||
+          dadosMapeados.cpf
+      );
+
+      // Se a linha for contínua/secundária (como procedimento extra ou dia adicional), herda o nome do paciente APENAS se houver dados operacionais reais
+      if (!nomeRaw && temDadosOperacionais && ultimoNomeValido) {
         nomeRaw = ultimoNomeValido;
         if (!carteirinhaRaw && ultimaCarteirinhaValida) {
           carteirinhaRaw = ultimaCarteirinhaValida;
         }
+      }
+
+      // Se não houver nome e nem dados operacionais, ignora a linha vazia/fantasma do final da planilha
+      if (!nomeRaw && !temDadosOperacionais) {
+        return;
       }
 
       if (nomeRaw && !nomeRaw.startsWith(',')) {
