@@ -26,6 +26,7 @@ export const carregarAutorizacoesIniciais = (): AutorizacaoV2[] => {
         if (Array.isArray(parsed)) {
           return parsed.map((a: any) => ({
             ...a,
+            operadora: 'SULAMÉRICA',
             diasEmAnalise: a.status === 'EM_ANALISE' ? calcularDiasCorridos(a.dataSolicitacao) : (a.diasEmAnalise || 0),
           }));
         }
@@ -45,7 +46,7 @@ export const carregarAutorizacoesIniciais = (): AutorizacaoV2[] => {
       pacienteId: 'pac-1',
       pacienteNome: 'Lucas Gabriel da Silva',
       carteirinha: '00624689123',
-      operadora: 'SulAmérica Saúde',
+      operadora: 'SULAMÉRICA',
       procedimento: 'Psicologia ABA',
       prestador: 'Dra. Ana Beatriz Albuquerque',
       cbo: '251510',
@@ -76,7 +77,7 @@ export const carregarAutorizacoesIniciais = (): AutorizacaoV2[] => {
       pacienteId: 'pac-2',
       pacienteNome: 'Beatriz Lima Souza',
       carteirinha: '00571123456',
-      operadora: 'Bradesco Saúde',
+      operadora: 'SULAMÉRICA',
       procedimento: 'Fonoaudiologia',
       prestador: 'Dr. Carlos Eduardo Neves',
       cbo: '223810',
@@ -107,7 +108,7 @@ export const carregarAutorizacoesIniciais = (): AutorizacaoV2[] => {
       pacienteId: 'pac-3',
       pacienteNome: 'Matheus Henrique',
       carteirinha: '30536788990',
-      operadora: 'Unimed Central',
+      operadora: 'SULAMÉRICA',
       procedimento: 'Terapia Ocupacional',
       prestador: 'Dra. Mariana Souza',
       cbo: '251510',
@@ -193,7 +194,7 @@ export const carregarAutorizacoesIniciais = (): AutorizacaoV2[] => {
       pacienteId: 'pac-theo-pio',
       pacienteNome: 'Theo Pio Correia Silva',
       carteirinha: '005711998877',
-      operadora: 'Bradesco Saúde',
+      operadora: 'SulAmérica Saúde',
       procedimento: 'Psicologia ABA',
       prestador: 'Dra. Ana Beatriz Albuquerque',
       cbo: '251510',
@@ -232,7 +233,7 @@ export const carregarAutorizacoesIniciais = (): AutorizacaoV2[] => {
       pacienteId: 'pac-theo-pio',
       pacienteNome: 'Theo Pio Correia Silva',
       carteirinha: '005711998877',
-      operadora: 'Bradesco Saúde',
+      operadora: 'SulAmérica Saúde',
       procedimento: 'TO Terapia Ocupacional ABA',
       prestador: 'Dra. Mariana Souza',
       cbo: '251510',
@@ -271,7 +272,7 @@ export const carregarAutorizacoesIniciais = (): AutorizacaoV2[] => {
       pacienteId: 'pac-7',
       pacienteNome: 'Alice de Oliveira Leão',
       carteirinha: '305367332211',
-      operadora: 'Unimed Central',
+      operadora: 'SulAmérica Saúde',
       procedimento: 'Fonoaudiologia ABA',
       prestador: 'Dr. Carlos Eduardo Neves',
       cbo: '223810',
@@ -309,7 +310,7 @@ export const carregarAutorizacoesIniciais = (): AutorizacaoV2[] => {
       pacienteId: 'pac-4',
       pacienteNome: 'Sophia Ribeiro',
       carteirinha: '32630511223',
-      operadora: 'Amil Assistência',
+      operadora: 'SulAmérica Saúde',
       procedimento: 'Musicoterapia',
       prestador: 'Dr. Carlos Eduardo Neves',
       cbo: '223810',
@@ -338,20 +339,21 @@ export const carregarAutorizacoesIniciais = (): AutorizacaoV2[] => {
 };
 
 export const carregarGuiasIniciais = (padraoIniciais: GuiaDigitacao[]): GuiaDigitacao[] => {
+  const padraoUnico = padraoIniciais.map((g) => ({ ...g, convenioNome: 'SulAmérica Saúde' }));
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const saved = localStorage.getItem(STORAGE_KEY_GUIAS_FATURAMENTO);
       if (saved !== null) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed;
+          return parsed.map((g: any) => ({ ...g, convenioNome: 'SulAmérica Saúde' }));
         }
       }
     }
   } catch (e) {
     console.error('Erro ao carregar guias faturadas do localStorage', e);
   }
-  return padraoIniciais;
+  return padraoUnico;
 };
 
 export const salvarGuiasStorage = (guias: GuiaDigitacao[]) => {

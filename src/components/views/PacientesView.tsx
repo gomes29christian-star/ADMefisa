@@ -271,16 +271,8 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
   }, [pacientes]);
 
   const opcoesConvenios = useMemo(() => {
-    const set = new Set<string>();
-    pacientes.forEach((p) => {
-      const conv = p.convenioPrincipalNome || p.convenioNome;
-      if (conv) set.add(conv.trim());
-    });
-    MOCK_CONVENIOS.forEach((c) => {
-      if (c.nome) set.add(c.nome.trim());
-    });
-    return Array.from(set).filter(Boolean).sort();
-  }, [pacientes]);
+    return ['SULAMÉRICA'];
+  }, []);
 
   const opcoesPolos = useMemo(() => {
     const set = new Set<string>();

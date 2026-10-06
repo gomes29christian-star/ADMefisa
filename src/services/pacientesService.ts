@@ -285,6 +285,18 @@ export class PacientesService {
         let houveCorrecao = false;
         const corrigidos = apenasReais.map((p: Paciente) => {
           let pAjustado = p;
+
+          if (p.convenioNome !== 'SULAMÉRICA' || p.convenioPrincipalNome !== 'SULAMÉRICA') {
+            houveCorrecao = true;
+            pAjustado = {
+              ...pAjustado,
+              convenioId: 'conv-1',
+              convenioNome: 'SULAMÉRICA',
+              convenioPrincipalId: 'conv-1',
+              convenioPrincipalNome: 'SULAMÉRICA',
+            };
+          }
+
           const { diasArray, diaStr } = normalizarEDeduplicarDiasSemana(p.diasDaSemana || p.diaDaSemana);
           if (p.diaDaSemana !== diaStr || JSON.stringify(p.diasDaSemana) !== JSON.stringify(diasArray)) {
             houveCorrecao = true;
@@ -522,7 +534,7 @@ export class PacientesService {
     const carteirinhaInicial: HistoricoCarteirinha = {
       id: `cart-${Date.now()}`,
       convenioId: novoPaciente.convenioPrincipalId || novoPaciente.convenioId || 'conv-1',
-      convenioNome: novoPaciente.convenioPrincipalNome || novoPaciente.convenioNome || 'Convênio Padrão',
+      convenioNome: novoPaciente.convenioPrincipalNome || novoPaciente.convenioNome || 'SulAmérica Saúde',
       numeroCarteirinha: novoPaciente.carteirinhaAtual || novoPaciente.carteirinha || '',
       dataInicio: formatIsoDate(agora),
       status: 'ATUAL',
@@ -639,7 +651,7 @@ export class PacientesService {
       const carteirinhaInicial: HistoricoCarteirinha = {
         id: `cart-${baseTimestamp}-${index}`,
         convenioId: novoPaciente.convenioPrincipalId || novoPaciente.convenioId || 'conv-1',
-        convenioNome: novoPaciente.convenioPrincipalNome || novoPaciente.convenioNome || 'Convênio Padrão',
+        convenioNome: novoPaciente.convenioPrincipalNome || novoPaciente.convenioNome || 'SulAmérica Saúde',
         numeroCarteirinha: novoPaciente.carteirinhaAtual || novoPaciente.carteirinha || '',
         dataInicio: formatIsoDate(agora),
         status: 'ATUAL',

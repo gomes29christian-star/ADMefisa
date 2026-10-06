@@ -245,37 +245,9 @@ export const salvarPrestadoresStorage = (prestadores: Prestador[]) => {
 export const MOCK_CONVENIOS: Convenio[] = [
   {
     id: 'conv-1',
-    nome: 'SulAmérica Saúde',
+    nome: 'SULAMÉRICA',
     codigoAns: '006246',
     portalUrl: 'https://saude.sulamerica.com.br/prestador',
-    alertaAnaliseDiasPadrao: 7,
-  },
-  {
-    id: 'conv-2',
-    nome: 'Bradesco Saúde',
-    codigoAns: '005711',
-    portalUrl: 'https://www.bradescoseguros.com.br',
-    alertaAnaliseDiasPadrao: 7,
-  },
-  {
-    id: 'conv-3',
-    nome: 'Unimed Central',
-    codigoAns: '305367',
-    portalUrl: 'https://www.unimed.coop.br',
-    alertaAnaliseDiasPadrao: 5,
-  },
-  {
-    id: 'conv-4',
-    nome: 'Amil Assistência Médica',
-    codigoAns: '326305',
-    portalUrl: 'https://www.amil.com.br/portal/web/servicos',
-    alertaAnaliseDiasPadrao: 7,
-  },
-  {
-    id: 'conv-5',
-    nome: 'Porto Seguro Saúde',
-    codigoAns: '000582',
-    portalUrl: 'https://www.portoseguro.com.br',
     alertaAnaliseDiasPadrao: 7,
   },
 ];

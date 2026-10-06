@@ -1167,7 +1167,7 @@ export class LegacyImportService {
             pacExistente.id,
             {
               convenioId: 'conv-1',
-              convenioNome: 'Convênio Importado',
+              convenioNome: 'SULAMÉRICA',
               numeroCarteirinha: dadosMapeados.carteirinha,
               dataInicio: dadosMapeados.dataSolicitacao || '2026-10-24',
               observacao: 'Importação histórica da planilha legada',
@@ -1200,7 +1200,7 @@ export class LegacyImportService {
           nome: dadosMapeados.nome,
           carteirinha: dadosMapeados.carteirinha || 'PART-LEGADO-00',
           convenioId: 'conv-1',
-          convenioNome: dadosMapeados.convenio || (eConv ? 'Bradesco Saúde' : 'Convênio Legado'),
+          convenioNome: 'SULAMÉRICA',
           procedimentoPrincipal: procNome,
           procedimentos: [procNome],
           frequenciasPorProcedimento: {

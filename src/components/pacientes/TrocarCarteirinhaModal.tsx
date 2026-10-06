@@ -127,7 +127,6 @@ export const TrocarCarteirinhaModal: React.FC<TrocarCarteirinhaModalProps> = ({
                   {c.nome} (ANS: {c.codigoAns})
                 </option>
               ))}
-              <option value="conv-particular">Particular / Avulso</option>
             </select>
           </div>
 

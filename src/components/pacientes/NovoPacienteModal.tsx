@@ -267,8 +267,8 @@ export const NovoPacienteModal: React.FC<NovoPacienteModalProps> = ({
     setSalvando(true);
     try {
       const convObj = MOCK_CONVENIOS.find((c) => c.id === convenioId) || {
-        id: convenioId,
-        nome: 'SulAmérica Saúde',
+        id: 'conv-1',
+        nome: 'SULAMÉRICA',
       };
       const prestObj = prestadoresSistema.find((p) => p.id === prestadorId) || prestadoresSistema[0];
       const doutoresSel = prestadoresSistema.filter((p) => doutoresAtendentesIds.includes(p.id));
@@ -751,7 +751,6 @@ export const NovoPacienteModal: React.FC<NovoPacienteModalProps> = ({
                         {c.nome}
                       </option>
                     ))}
-                    <option value="conv-particular">Particular / Outro</option>
                   </select>
                 </div>
 
