@@ -2117,214 +2117,367 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       {/* MODAL: CRIAR NOVA AUTORIZAÇÃO */}
       {isNovoModalAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="bg-[#002172] text-white px-6 py-4 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-base font-['Quicksand']">Criar Nova Autorização para Acompanhamento</h3>
-                <p className="text-xs text-blue-100">Registre os dados para controle da solicitação externa</p>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Header */}
+            <div className="bg-[#002172] text-white px-6 py-4 flex items-center justify-between shrink-0 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-900/60 rounded-xl">
+                  <FileCheck2 className="w-5 h-5 text-[#91CA0C]" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base font-['Quicksand']">
+                    Criar Nova Autorização para Acompanhamento
+                  </h3>
+                  <p className="text-xs text-blue-100/90 font-medium">
+                    Registre os dados para controle da solicitação externa e faturamento
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setIsNovoModalAberto(false)} className="text-white/80 hover:text-white">
+              <button
+                onClick={() => setIsNovoModalAberto(false)}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCriarAutorizacao} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-              {/* Seleção e Pesquisa Otimizada de Paciente */}
-              <div className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+            {/* Form Body */}
+            <form onSubmit={handleCriarAutorizacao} className="p-6 md:p-7 space-y-6 overflow-y-auto flex-1 text-xs">
+              {/* SEÇÃO 1: PACIENTE, CONVÊNIO E PRESTADOR */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-slate-800">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                    <span>Paciente *</span>
-                  </label>
+                    1. Identificação do Paciente & Corpo Clínico
+                  </span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                    {listaPacientesFiltrados.length} {listaPacientesFiltrados.length === 1 ? 'paciente' : 'pacientes'}
+                    {listaPacientesFiltrados.length} {listaPacientesFiltrados.length === 1 ? 'paciente' : 'pacientes'} cadastrado(s)
                   </span>
                 </div>
 
-                {/* Campo de Busca Rápida com Ícones */}
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                    <Search className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <input
-                    type="text"
-                    value={termoBuscaPaciente}
-                    onChange={(e) => {
-                      setTermoBuscaPaciente(e.target.value);
-                      if (!pacienteDropdownAberto) setPacienteDropdownAberto(true);
-                    }}
-                    onFocus={() => setPacienteDropdownAberto(true)}
-                    placeholder="Pesquise por nome, carteirinha ou convênio..."
-                    className="w-full pl-9 pr-16 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400"
-                  />
-                  <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-1">
-                    {termoBuscaPaciente && (
-                      <button
-                        type="button"
-                        onClick={() => setTermoBuscaPaciente('')}
-                        className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md"
-                        title="Limpar pesquisa"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setPacienteDropdownAberto(!pacienteDropdownAberto)}
-                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md"
-                      title={pacienteDropdownAberto ? "Ocultar lista" : "Exibir lista"}
-                    >
-                      <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${pacienteDropdownAberto ? 'rotate-180 text-blue-600' : ''}`} />
-                    </button>
-                  </div>
-                </div>
+                {/* Seleção e Pesquisa de Paciente */}
+                <div className="space-y-2">
+                  <label className="block font-bold text-slate-800 dark:text-slate-200">
+                    Paciente *
+                  </label>
 
-                {/* Dropdown / Lista Expandida de Resultados */}
-                {pacienteDropdownAberto && (
-                  <div className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-md max-h-52 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in duration-100">
-                    {listaPacientesFiltrados.length === 0 ? (
-                      <div className="p-3 text-center space-y-2">
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Nenhum paciente encontrado para "<strong className="text-slate-700 dark:text-slate-200">{termoBuscaPaciente}</strong>"
-                        </p>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                      <Search className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <input
+                      type="text"
+                      value={termoBuscaPaciente}
+                      onChange={(e) => {
+                        setTermoBuscaPaciente(e.target.value);
+                        if (!pacienteDropdownAberto) setPacienteDropdownAberto(true);
+                      }}
+                      onFocus={() => setPacienteDropdownAberto(true)}
+                      placeholder="Pesquise por nome completo, número de carteirinha ou prontuário..."
+                      className="w-full pl-9 pr-16 py-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-[#002172] focus:border-[#002172] transition-all placeholder:text-slate-400"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-1">
+                      {termoBuscaPaciente && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setNovoPacienteNomePersonalizado(termoBuscaPaciente.trim());
-                            setNovoPacienteId(`pac-avulso-${Date.now()}`);
-                            setPacienteDropdownAberto(false);
-                          }}
-                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 text-[#002172] dark:text-blue-300 rounded-lg text-xs font-bold transition-colors"
+                          onClick={() => setTermoBuscaPaciente('')}
+                          className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md cursor-pointer"
+                          title="Limpar pesquisa"
                         >
-                          + Usar "{termoBuscaPaciente.trim()}" como paciente avulso
+                          <X className="w-3.5 h-3.5" />
                         </button>
-                      </div>
-                    ) : (
-                      listaPacientesFiltrados.map((pac, idx) => {
-                        const isSelected = novoPacienteId === pac.id && !novoPacienteNomePersonalizado;
-                        const cart = pac.carteirinhaAtual || pac.carteirinha;
-                        const conv = pac.convenioPrincipalNome || pac.convenioNome;
-                        const initials = pac.nome
-                          ? pac.nome.split(' ').map((n: string) => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
-                          : 'PA';
-
-                        return (
-                          <div
-                            key={`${pac.id}-${idx}`}
-                            onClick={() => handleSelecionarPaciente(pac)}
-                            className={`p-2.5 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 cursor-pointer flex items-center justify-between transition-colors ${
-                              isSelected ? 'bg-blue-50 dark:bg-blue-900/30 font-bold border-l-3 border-[#002172] dark:border-blue-400' : ''
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                              <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
-                                isSelected ? 'bg-[#002172] text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
-                              }`}>
-                                {initials}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5">
-                                  <span className={`text-xs truncate ${isSelected ? 'text-[#002172] dark:text-blue-300 font-bold' : 'text-slate-800 dark:text-white font-medium'}`}>
-                                    {destacarTermosBusca(pac.nome, termoBuscaPaciente)}
-                                  </span>
-                                  {pac.codigoProntuario && (
-                                    <span className="text-[9px] px-1 py-0.2 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded font-mono">
-                                      {pac.codigoProntuario}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500 dark:text-slate-400 flex-wrap">
-                                  {cart && (
-                                    <span className="flex items-center gap-1 font-mono text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/90 px-1.5 py-0.5 rounded">
-                                      <CreditCard className="w-2.5 h-2.5 text-slate-400" />
-                                      {cart}
-                                    </span>
-                                  )}
-                                  {conv && (
-                                    <span className="text-blue-600 dark:text-blue-400 font-medium truncate max-w-[150px]">
-                                      {conv}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            {isSelected && (
-                              <div className="ml-2 flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white shrink-0">
-                                <Check className="w-3 h-3" />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-
-                {/* Cartão Informativo do Paciente Selecionado */}
-                {(pacienteSelecionadoObj || novoPacienteNomePersonalizado) && (
-                  <div className="p-2.5 bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/80 rounded-xl flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className="w-7 h-7 rounded-full bg-[#002172] text-white flex items-center justify-center font-bold text-[10px] shrink-0 shadow-xs">
-                        <CheckCircle2 className="w-4 h-4 text-[#91CA0C]" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[11px] font-bold text-slate-900 dark:text-white truncate">
-                          {novoPacienteNomePersonalizado || pacienteSelecionadoObj?.nome}
-                        </div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-300 flex items-center gap-2 truncate">
-                          {pacienteSelecionadoObj?.carteirinha ? (
-                            <span className="font-mono">Cart: {pacienteSelecionadoObj.carteirinha}</span>
-                          ) : null}
-                          {pacienteSelecionadoObj?.convenioPrincipalNome || pacienteSelecionadoObj?.convenioNome ? (
-                            <span className="text-blue-700 dark:text-blue-300 font-medium">
-                              • {pacienteSelecionadoObj?.convenioPrincipalNome || pacienteSelecionadoObj?.convenioNome}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setPacienteDropdownAberto(!pacienteDropdownAberto)}
+                        className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md cursor-pointer"
+                        title={pacienteDropdownAberto ? "Ocultar lista" : "Exibir lista"}
+                      >
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${pacienteDropdownAberto ? 'rotate-180 text-blue-600' : ''}`} />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTermoBuscaPaciente('');
-                        setPacienteDropdownAberto(true);
-                      }}
-                      className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-[#002172] dark:text-blue-300 font-bold text-[11px] rounded-lg border border-slate-200 dark:border-slate-700 transition-colors shrink-0"
-                    >
-                      Alterar
-                    </button>
                   </div>
-                )}
-              </div>
 
-              {/* Operadora e Procedimento */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Operadora / Convênio *
-                  </label>
-                  <select
-                    value={novoOperadora}
-                    onChange={(e) => setNovoOperadora(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white"
-                  >
-                    {MOCK_CONVENIOS.map((conv) => (
-                      <option key={conv.id} value={conv.nome}>
-                        {conv.nome}
-                      </option>
-                    ))}
-                  </select>
+                  {/* Dropdown de Resultados */}
+                  {pacienteDropdownAberto && (
+                    <div className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-xl max-h-52 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in duration-100 z-20 relative">
+                      {listaPacientesFiltrados.length === 0 ? (
+                        <div className="p-4 text-center space-y-2">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Nenhum paciente encontrado para "<strong className="text-slate-700 dark:text-slate-200">{termoBuscaPaciente}</strong>"
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNovoPacienteNomePersonalizado(termoBuscaPaciente.trim());
+                              setNovoPacienteId(`pac-avulso-${Date.now()}`);
+                              setPacienteDropdownAberto(false);
+                            }}
+                            className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 text-[#002172] dark:text-blue-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                          >
+                            + Usar "{termoBuscaPaciente.trim()}" como paciente avulso
+                          </button>
+                        </div>
+                      ) : (
+                        listaPacientesFiltrados.map((pac, idx) => {
+                          const isSelected = novoPacienteId === pac.id && !novoPacienteNomePersonalizado;
+                          const cart = pac.carteirinhaAtual || pac.carteirinha;
+                          const conv = pac.convenioPrincipalNome || pac.convenioNome;
+                          const initials = pac.nome
+                            ? pac.nome.split(' ').map((n: string) => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
+                            : 'PA';
+
+                          return (
+                            <div
+                              key={`${pac.id}-${idx}`}
+                              onClick={() => handleSelecionarPaciente(pac)}
+                              className={`p-3 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 cursor-pointer flex items-center justify-between transition-colors ${
+                                isSelected ? 'bg-blue-50/90 dark:bg-blue-900/30 font-bold border-l-4 border-[#002172] dark:border-blue-400' : ''
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                  isSelected ? 'bg-[#002172] text-white shadow-xs' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
+                                }`}>
+                                  {initials}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-xs truncate ${isSelected ? 'text-[#002172] dark:text-blue-300 font-bold' : 'text-slate-800 dark:text-white font-medium'}`}>
+                                      {destacarTermosBusca(pac.nome, termoBuscaPaciente)}
+                                    </span>
+                                    {pac.codigoProntuario && (
+                                      <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded font-mono">
+                                        {pac.codigoProntuario}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500 dark:text-slate-400 flex-wrap">
+                                    {cart && (
+                                      <span className="flex items-center gap-1 font-mono text-slate-600 dark:text-slate-300">
+                                        <CreditCard className="w-2.5 h-2.5 text-slate-400" />
+                                        {cart}
+                                      </span>
+                                    )}
+                                    {conv && (
+                                      <span className="text-blue-700 dark:text-blue-300 font-medium">
+                                        • {conv}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              {isSelected && (
+                                <div className="ml-2 flex items-center justify-center w-5 h-5 rounded-full bg-[#002172] text-white shrink-0 shadow-xs">
+                                  <Check className="w-3 h-3" />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+
+                  {/* Resumo do Paciente Selecionado */}
+                  {(pacienteSelecionadoObj || novoPacienteNomePersonalizado) && (
+                    <div className="p-3 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/80 rounded-xl flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-8 h-8 rounded-full bg-[#002172] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                          <CheckCircle2 className="w-5 h-5 text-[#91CA0C]" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {novoPacienteNomePersonalizado || pacienteSelecionadoObj?.nome}
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-300 flex items-center gap-2.5 truncate mt-0.5">
+                            {pacienteSelecionadoObj?.carteirinha ? (
+                              <span className="font-mono">Carteirinha: {pacienteSelecionadoObj.carteirinha}</span>
+                            ) : null}
+                            {pacienteSelecionadoObj?.convenioPrincipalNome || pacienteSelecionadoObj?.convenioNome ? (
+                              <span className="text-blue-700 dark:text-blue-300 font-semibold">
+                                • {pacienteSelecionadoObj?.convenioPrincipalNome || pacienteSelecionadoObj?.convenioNome}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTermoBuscaPaciente('');
+                          setPacienteDropdownAberto(true);
+                        }}
+                        className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-[#002172] dark:text-blue-300 font-bold text-xs rounded-lg border border-slate-200 dark:border-slate-700 transition-colors shrink-0 cursor-pointer shadow-2xs"
+                      >
+                        Alterar
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Procedimento Selecionável com Códigos, CIDs e Preços */}
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Procedimento *
+                {/* Grid Operadora e Procedimento */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Operadora / Convênio *
                     </label>
-                    {procedimentoSelecionadoObj && (
-                      <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                        R$ {procedimentoSelecionadoObj.preco.toFixed(2).replace('.', ',')}
+                    <select
+                      value={novoOperadora}
+                      onChange={(e) => setNovoOperadora(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-[#002172]"
+                    >
+                      {MOCK_CONVENIOS.map((conv) => (
+                        <option key={conv.id} value={conv.nome}>
+                          {conv.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Procedimento Selecionável com Preços e CIDs */}
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-bold text-slate-700 dark:text-slate-300">
+                        Procedimento *
+                      </label>
+                      {procedimentoSelecionadoObj && (
+                        <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 font-bold">
+                          R$ {procedimentoSelecionadoObj.preco.toFixed(2).replace('.', ',')} / sessão
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={pesquisaProcedimento}
+                        onChange={(e) => {
+                          setPesquisaProcedimento(e.target.value);
+                          setNovoProcedimento(e.target.value);
+                          setProcedimentoDropdownAberto(true);
+                        }}
+                        onFocus={() => setProcedimentoDropdownAberto(true)}
+                        placeholder="Selecione ou busque código, CID ou nome..."
+                        className="w-full pl-3 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-[#002172] transition-all placeholder:text-slate-400"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setProcedimentoDropdownAberto(!procedimentoDropdownAberto)}
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      >
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                            procedimentoDropdownAberto ? 'rotate-180 text-blue-600' : ''
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Dropdown com Lista de Procedimentos */}
+                    {procedimentoDropdownAberto && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setProcedimentoDropdownAberto(false)}
+                        />
+                        <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in duration-100">
+                          {pacienteSelecionadoObj && procedimentosDoPacienteSelecionado.length > 0 && (
+                            <div className="p-2 bg-blue-50/90 dark:bg-blue-950/80 border-b border-blue-100 dark:border-blue-900 sticky top-0 z-10 flex items-center justify-between text-[11px] font-bold text-[#002172] dark:text-blue-300">
+                              <span>🎯 Procedimentos do Paciente</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMostrarTodosProcedimentos(!mostrarTodosProcedimentos);
+                                }}
+                                className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold cursor-pointer"
+                              >
+                                {mostrarTodosProcedimentos ? 'Filtrar do paciente' : 'Ver todos'}
+                              </button>
+                            </div>
+                          )}
+
+                          {listaProcedimentosFiltrados.length === 0 ? (
+                            <div className="p-3 text-center text-xs text-slate-400">
+                              Nenhum procedimento encontrado
+                            </div>
+                          ) : (
+                            listaProcedimentosFiltrados.map((proc, idx) => {
+                              const isSelected =
+                                novoProcedimento.toLowerCase() === proc.descricao.toLowerCase() ||
+                                novoProcedimento === proc.codigo;
+                              const isAvaliacao = proc.categoria === 'AVALIACAO_ABA';
+                              const isReavaliacao = proc.categoria === 'REAVALIACAO_ABA';
+                              const isConvencional = proc.categoria === 'CONVENCIONAL';
+                              const isDoPaciente = procedimentosDoPacienteSelecionado.some((pNome) => {
+                                const pNorm = pNome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                                const descNorm = (proc.descricao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                                return descNorm.includes(pNorm) || pNorm.includes(descNorm);
+                              });
+
+                              return (
+                                <div
+                                  key={`${proc.id || proc.codigo}-${idx}`}
+                                  onClick={() => handleSelecionarProcedimento(proc)}
+                                  className={`p-2.5 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 cursor-pointer transition-colors ${
+                                    isSelected
+                                      ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-[#002172] dark:border-blue-400 font-bold'
+                                      : ''
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 rounded">
+                                          {proc.codigo}
+                                        </span>
+                                        <span className="text-xs font-bold text-slate-900 dark:text-white">
+                                          {proc.descricao}
+                                        </span>
+                                        {isDoPaciente && (
+                                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
+                                            ✓ Do Paciente
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500 dark:text-slate-400 flex-wrap">
+                                        {proc.cid && (
+                                          <span className="font-mono bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 px-1.5 py-0.2 rounded">
+                                            CID: {proc.cid}
+                                          </span>
+                                        )}
+                                        <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                                          R$ {proc.preco.toFixed(2).replace('.', ',')}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    {isSelected && (
+                                      <div className="w-4 h-4 rounded-full bg-[#002172] text-white flex items-center justify-center shrink-0 mt-0.5">
+                                        <Check className="w-2.5 h-2.5" />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Seleção do Prestador / Doutor */}
+                <div className="relative pt-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-bold text-slate-700 dark:text-slate-300">
+                      Prestadores / Doutor *
+                    </label>
+                    {prestadorSelecionadoObj && (
+                      <span className="text-[10px] font-mono text-blue-700 dark:text-blue-400 font-bold">
+                        {prestadorSelecionadoObj.orgaoClasse} {prestadorSelecionadoObj.crmOuCrp} • {prestadorSelecionadoObj.uf}
                       </span>
                     )}
                   </div>
@@ -2332,129 +2485,79 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                   <div className="relative">
                     <input
                       type="text"
-                      value={pesquisaProcedimento}
+                      value={pesquisaPrestador}
                       onChange={(e) => {
-                        setPesquisaProcedimento(e.target.value);
-                        setNovoProcedimento(e.target.value);
-                        setProcedimentoDropdownAberto(true);
+                        setPesquisaPrestador(e.target.value);
+                        setNovoPrestador(e.target.value);
+                        setPrestadorDropdownAberto(true);
                       }}
-                      onFocus={() => setProcedimentoDropdownAberto(true)}
-                      placeholder="Selecione ou busque código, CID ou nome..."
-                      className="w-full pl-3 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400"
+                      onFocus={() => setPrestadorDropdownAberto(true)}
+                      placeholder="Pesquise por nome, CBO, CRM/CRP ou especialidade do Prestador..."
+                      className="w-full pl-3 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-[#002172] transition-all placeholder:text-slate-400"
                       required
                     />
                     <button
                       type="button"
-                      onClick={() => setProcedimentoDropdownAberto(!procedimentoDropdownAberto)}
-                      className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                      onClick={() => setPrestadorDropdownAberto(!prestadorDropdownAberto)}
+                      className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                     >
                       <ChevronDown
                         className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                          procedimentoDropdownAberto ? 'rotate-180 text-blue-600' : ''
+                          prestadorDropdownAberto ? 'rotate-180 text-blue-600' : ''
                         }`}
                       />
                     </button>
                   </div>
 
-                  {/* Dropdown com Lista de Procedimentos Registrados */}
-                  {procedimentoDropdownAberto && (
+                  {prestadorDropdownAberto && (
                     <>
                       <div
                         className="fixed inset-0 z-40"
-                        onClick={() => setProcedimentoDropdownAberto(false)}
+                        onClick={() => setPrestadorDropdownAberto(false)}
                       />
-                      <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in duration-100">
-                        {pacienteSelecionadoObj && procedimentosDoPacienteSelecionado.length > 0 && (
-                          <div className="p-2 bg-blue-50/90 dark:bg-blue-950/80 border-b border-blue-100 dark:border-blue-900 sticky top-0 z-10 flex items-center justify-between text-[11px] font-bold text-[#002172] dark:text-blue-300">
-                            <span>🎯 Procedimentos do Paciente ({pacienteSelecionadoObj.nome.split(' ')[0]})</span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setMostrarTodosProcedimentos(!mostrarTodosProcedimentos);
-                              }}
-                              className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold"
-                            >
-                              {mostrarTodosProcedimentos ? 'Filtrar apenas do paciente' : 'Ver todos'}
-                            </button>
-                          </div>
-                        )}
-
-                        {listaProcedimentosFiltrados.length === 0 ? (
-                          <div className="p-3 text-center text-xs text-slate-400">
-                            Nenhum procedimento cadastrado encontrado
+                      <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in duration-100">
+                        {listaPrestadoresFiltrados.length === 0 ? (
+                          <div className="p-3 text-xs text-slate-400 text-center">
+                            Nenhum prestador encontrado
                           </div>
                         ) : (
-                          listaProcedimentosFiltrados.map((proc, idx) => {
+                          listaPrestadoresFiltrados.map((pres, idx) => {
                             const isSelected =
-                              novoProcedimento.toLowerCase() === proc.descricao.toLowerCase() ||
-                              novoProcedimento === proc.codigo;
-                            const isAvaliacao = proc.categoria === 'AVALIACAO_ABA';
-                            const isReavaliacao = proc.categoria === 'REAVALIACAO_ABA';
-                            const isConvencional = proc.categoria === 'CONVENCIONAL';
-                            const isDoPaciente = procedimentosDoPacienteSelecionado.some((pNome) => {
-                              const pNorm = pNome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                              const descNorm = (proc.descricao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                              return descNorm.includes(pNorm) || pNorm.includes(descNorm);
-                            });
+                              novoPrestador.toLowerCase() === pres.nome.toLowerCase() ||
+                              novoPrestador === pres.id;
 
                             return (
                               <div
-                                key={`${proc.id || proc.codigo}-${idx}`}
-                                onClick={() => handleSelecionarProcedimento(proc)}
+                                key={`${pres.id}-${idx}`}
+                                onClick={() => handleSelecionarPrestador(pres)}
                                 className={`p-2.5 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 cursor-pointer transition-colors ${
                                   isSelected
-                                    ? 'bg-blue-50 dark:bg-blue-900/30 border-l-3 border-[#002172] dark:border-blue-400'
+                                    ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-[#002172] dark:border-blue-400 font-bold'
                                     : ''
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 rounded">
-                                        {proc.codigo}
-                                      </span>
                                       <span className="text-xs font-bold text-slate-900 dark:text-white">
-                                        {proc.descricao}
+                                        {pres.nome}
                                       </span>
-                                      {isDoPaciente && (
-                                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                          ✓ Do Paciente
-                                        </span>
-                                      )}
+                                      <span className="text-[10px] font-mono px-1.5 py-0.2 bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800">
+                                        {pres.orgaoClasse} {pres.crmOuCrp}
+                                      </span>
                                     </div>
                                     <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500 dark:text-slate-400 flex-wrap">
-                                      {proc.cid && (
-                                        <span className="font-mono bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 px-1.5 py-0.2 rounded">
-                                          CID: {proc.cid}
+                                      <span>CBO: <strong className="font-mono">{sanitizarCbo(pres.cbo)}</strong></span>
+                                      <span>• UF: <strong>{pres.uf}</strong></span>
+                                      {pres.especialidade && (
+                                        <span className="text-blue-700 dark:text-blue-400 font-medium">
+                                          • {pres.especialidade}
                                         </span>
                                       )}
-                                      <span className="font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800">
-                                        R$ {proc.preco.toFixed(2).replace('.', ',')}
-                                      </span>
-                                      <span
-                                        className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
-                                          isAvaliacao
-                                            ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
-                                            : isReavaliacao
-                                            ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300'
-                                            : isConvencional
-                                            ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300'
-                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                                        }`}
-                                      >
-                                        {isAvaliacao
-                                          ? 'Avaliação'
-                                          : isReavaliacao
-                                          ? 'Reavaliação'
-                                          : isConvencional
-                                          ? 'Convencional'
-                                          : 'Sessão Regular'}
-                                      </span>
                                     </div>
                                   </div>
                                   {isSelected && (
-                                    <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                                    <div className="w-4 h-4 rounded-full bg-[#002172] text-white flex items-center justify-center shrink-0 mt-0.5">
                                       <Check className="w-2.5 h-2.5" />
                                     </div>
                                   )}
@@ -2467,433 +2570,329 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                     </>
                   )}
 
-                  {/* Alternador de visualização e informações do procedimento ativo */}
-                  {procedimentosDoPacienteSelecionado.length > 0 && (
-                    <div className="mt-1 flex items-center justify-between text-[10px]">
-                      <span className="text-slate-500 dark:text-slate-400 font-medium">
-                        {mostrarTodosProcedimentos ? 'Exibindo todos os procedimentos da clínica' : 'Procedimentos do paciente'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setMostrarTodosProcedimentos(!mostrarTodosProcedimentos)}
-                        className="text-[#002172] dark:text-blue-300 font-bold hover:underline"
-                      >
-                        {mostrarTodosProcedimentos ? 'Filtrar do paciente' : 'Ver todos os procedimentos (+)'}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Informações resumidas do procedimento ativo */}
-                  {procedimentoSelecionadoObj && (
-                    <div className="mt-1.5 px-2.5 py-1.5 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between text-[11px]">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="font-mono text-[10px] font-bold text-blue-700 dark:text-blue-300">
-                          [{procedimentoSelecionadoObj.codigo}]
+                  {/* Informações detalhadas do Prestador Selecionado */}
+                  {prestadorSelecionadoObj && (
+                    <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          {prestadorSelecionadoObj.nome}
                         </span>
-                        {procedimentoSelecionadoObj.cid && (
-                          <span className="text-purple-700 dark:text-purple-300 font-mono text-[10px]">
-                            CID: {procedimentoSelecionadoObj.cid}
-                          </span>
+                        <span className="font-mono font-bold text-blue-700 dark:text-blue-300 text-[11px]">
+                          {prestadorSelecionadoObj.orgaoClasse} {prestadorSelecionadoObj.crmOuCrp} ({prestadorSelecionadoObj.uf})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2.5 text-[11px] text-slate-600 dark:text-slate-300 flex-wrap pt-0.5">
+                        <span>CBO: <strong className="font-mono">{sanitizarCbo(prestadorSelecionadoObj.cbo)}</strong></span>
+                        <span>• Especialidade: <strong>{prestadorSelecionadoObj.especialidade || prestadorSelecionadoObj.titulo}</strong></span>
+                        {prestadorSelecionadoObj.pastaAtribuida && (
+                          <span>• Pasta: <strong>{prestadorSelecionadoObj.pastaAtribuida}</strong></span>
                         )}
                       </div>
-                      <span className="font-bold text-emerald-700 dark:text-emerald-400 font-mono shrink-0 ml-2">
-                        R$ {procedimentoSelecionadoObj.preco.toFixed(2).replace('.', ',')} / sessão
-                      </span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Prestador Selecionável com Todos os Dados Profissionais */}
-              <div className="relative">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Prestadores *
-                  </label>
-                  {prestadorSelecionadoObj && (
-                    <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-bold">
-                      {prestadorSelecionadoObj.orgaoClasse} {prestadorSelecionadoObj.crmOuCrp} • {prestadorSelecionadoObj.uf}
-                    </span>
-                  )}
+              {/* SEÇÃO 2: FREQUÊNCIA & PERÍODO DO CICLO */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-slate-800">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                    2. Frequência Semanal e Período do Ciclo
+                  </span>
                 </div>
 
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={pesquisaPrestador}
-                    onChange={(e) => {
-                      setPesquisaPrestador(e.target.value);
-                      setNovoPrestador(e.target.value);
-                      setPrestadorDropdownAberto(true);
-                    }}
-                    onFocus={() => setPrestadorDropdownAberto(true)}
-                    placeholder="Pesquise por nome, CBO, CRM/CRP ou especialidade do Prestador..."
-                    className="w-full pl-3 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPrestadorDropdownAberto(!prestadorDropdownAberto)}
-                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  >
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                        prestadorDropdownAberto ? 'rotate-180 text-blue-600' : ''
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {prestadorDropdownAberto && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setPrestadorDropdownAberto(false)}
-                    />
-                    <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in duration-100">
-                      {listaPrestadoresFiltrados.length === 0 ? (
-                        <div className="p-3 text-xs text-slate-400 text-center">
-                          Nenhum prestador encontrado
-                        </div>
-                      ) : (
-                        listaPrestadoresFiltrados.map((pres, idx) => {
-                          const isSelected =
-                            novoPrestador.toLowerCase() === pres.nome.toLowerCase() ||
-                            novoPrestador === pres.id;
-
-                          return (
-                            <div
-                              key={`${pres.id}-${idx}`}
-                              onClick={() => handleSelecionarPrestador(pres)}
-                              className={`p-2.5 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 cursor-pointer transition-colors ${
-                                isSelected
-                                  ? 'bg-blue-50 dark:bg-blue-900/30 border-l-3 border-[#002172] dark:border-blue-400'
-                                  : ''
-                              }`}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-xs font-bold text-slate-900 dark:text-white">
-                                      {pres.nome}
-                                    </span>
-                                    <span className="text-[10px] font-mono px-1.5 py-0.2 bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800">
-                                      {pres.orgaoClasse} {pres.crmOuCrp}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500 dark:text-slate-400 flex-wrap">
-                                    <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded">
-                                      CBO: {sanitizarCbo(pres.cbo)}
-                                    </span>
-                                    <span className="font-medium bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded">
-                                      UF: {pres.uf}
-                                    </span>
-                                    {pres.especialidade && (
-                                      <span className="text-blue-600 dark:text-blue-400 font-medium">
-                                        {pres.especialidade}
-                                      </span>
-                                    )}
-                                    {pres.pastaAtribuida && (
-                                      <span className="text-slate-400 dark:text-slate-500">
-                                        • Pasta: {pres.pastaAtribuida}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                {isSelected && (
-                                  <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5">
-                                    <Check className="w-2.5 h-2.5" />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
+                <div className="p-4 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+                    {/* Frequência Semanal */}
+                    <div className="space-y-1">
+                      <label className="block font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                        Frequência Semanal do Paciente
+                      </label>
+                      <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 shadow-2xs">
+                        <input
+                          type="number"
+                          min={1}
+                          max={30}
+                          value={novoSessoesPorSemana || ''}
+                          onChange={(e) => setNovoSessoesPorSemana(e.target.value === '' ? 1 : Math.max(1, parseInt(e.target.value, 10)))}
+                          className="w-12 text-center font-mono font-black text-[#002172] dark:text-blue-400 text-sm bg-transparent border-0 focus:outline-none"
+                        />
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                          {novoSessoesPorSemana === 1 ? 'sessão/semana' : 'sessões/semana'}
+                        </span>
+                      </div>
                     </div>
-                  </>
-                )}
 
-                {/* Informações detalhadas do Prestador Selecionado */}
-                {prestadorSelecionadoObj && (
-                  <div className="mt-1.5 p-2.5 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-800/70 rounded-xl text-[11px] space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 dark:text-white">
-                        {prestadorSelecionadoObj.nome}
+                    {/* Total Automático Metric Box */}
+                    <div className="md:col-span-2 flex items-center justify-between p-3 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 rounded-xl shadow-2xs">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 block">
+                          Total Automático Calculado
+                        </span>
+                        <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
+                          Baseado no calendário e dias de atendimento
+                        </span>
+                      </div>
+                      <span className="text-base font-mono font-black text-emerald-900 dark:text-emerald-300">
+                        {novoQuantidade} {novoQuantidade === 1 ? 'sessão' : 'sessões'}
                       </span>
-                      <span className="font-mono font-bold text-blue-700 dark:text-blue-300">
-                        {prestadorSelecionadoObj.orgaoClasse} {prestadorSelecionadoObj.crmOuCrp} ({prestadorSelecionadoObj.uf})
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-slate-600 dark:text-slate-300 flex-wrap">
-                      <span>CBO: <strong className="font-mono">{sanitizarCbo(prestadorSelecionadoObj.cbo)}</strong></span>
-                      <span>• Especialidade: <strong>{prestadorSelecionadoObj.especialidade || prestadorSelecionadoObj.titulo}</strong></span>
-                      {prestadorSelecionadoObj.pastaAtribuida && (
-                        <span>• Pasta: <strong>{prestadorSelecionadoObj.pastaAtribuida}</strong></span>
-                      )}
                     </div>
                   </div>
-                )}
-              </div>
 
-              {/* Resumo Automático de Sessões do Paciente (Card Organizado e Claro com ajuste editável) */}
-              <div className="p-3.5 bg-blue-50/60 dark:bg-slate-800/80 border border-blue-100 dark:border-slate-700/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
-                <div className="space-y-1.5 flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Frequência Semanal do Paciente
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-1">
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        value={novoSessoesPorSemana || ''}
-                        onChange={(e) => setNovoSessoesPorSemana(e.target.value === '' ? 1 : Math.max(1, parseInt(e.target.value, 10)))}
-                        className="w-12 text-center font-mono font-black text-blue-700 dark:text-blue-400 text-sm bg-transparent border-0 focus:outline-none"
-                      />
-                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                        {novoSessoesPorSemana === 1 ? 'sessão/sem' : 'sessões/sem'}
-                      </span>
-                    </div>
-
-                    {/* Alternador de Período: Mês Inteiro vs Restante do Mês */}
-                    <div className="flex flex-wrap items-center bg-white dark:bg-slate-900 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs gap-1">
+                  {/* Alternador de Período do Ciclo */}
+                  <div className="space-y-1 pt-1">
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                      Período de Cobertura do Ciclo
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
                       <button
                         type="button"
                         onClick={() => setModoCiclo('MES_INTEIRO')}
-                        className={`px-2.5 py-1.5 rounded-lg font-bold transition-all text-center ${
+                        className={`p-2.5 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
                           modoCiclo === 'MES_INTEIRO'
-                            ? 'bg-blue-600 text-white shadow-2xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                            ? 'bg-[#002172] text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
                         }`}
                       >
-                        Até a Última Semana do Próximo Mês — ({dadosCalculadosMes.totalSemanas} sem)
+                        Até a última semana do próximo mês ({dadosCalculadosMes.totalSemanas} sem)
                       </button>
                       <button
                         type="button"
                         onClick={() => setModoCiclo('RESTANTE')}
-                        className={`px-2.5 py-1.5 rounded-lg font-bold transition-all text-center ${
+                        className={`p-2.5 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
                           modoCiclo === 'RESTANTE'
-                            ? 'bg-blue-600 text-white shadow-2xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                            ? 'bg-[#002172] text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
                         }`}
                       >
-                        Até a última Sessão deste mês — ({dadosCalculadosRestante.totalSemanas} sem)
+                        Até a última sessão deste mês ({dadosCalculadosRestante.totalSemanas} sem)
                       </button>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="self-stretch sm:self-auto flex items-center justify-between sm:justify-end gap-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 px-4 py-2 rounded-xl shrink-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
-                    Total Automático
+              {/* SEÇÃO 3: STATUS INICIAL & DATAS DA OPERADORA */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-slate-800">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                    3. Status Inicial e Dados Operacionais
                   </span>
-                  <span className="text-sm font-mono font-black text-emerald-800 dark:text-emerald-300">
-                    {novoQuantidade} {novoQuantidade === 1 ? 'sessão' : 'sessões'}
-                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Status Inicial da Solicitação *
+                    </label>
+                    <div className="grid grid-cols-3 gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setNovoStatusCriacao('EM_ANALISE')}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          novoStatusCriacao === 'EM_ANALISE'
+                            ? 'bg-amber-500 text-white shadow-xs'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-white"></span>
+                        <span>Em Análise</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setNovoStatusCriacao('CONCLUIDO')}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          novoStatusCriacao === 'CONCLUIDO'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-white"></span>
+                        <span>Concluído</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setNovoStatusCriacao('RECUSADO')}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          novoStatusCriacao === 'RECUSADO'
+                            ? 'bg-rose-600 text-white shadow-xs'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-white"></span>
+                        <span>Recusado</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Detalhes para Em Análise */}
+                  {novoStatusCriacao === 'EM_ANALISE' && (
+                    <div className="p-4 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-amber-900 dark:text-amber-300">
+                          Desde que dia? *
+                        </label>
+                        <span className="text-[11px] text-amber-800 dark:text-amber-400 font-mono font-bold bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 rounded">
+                          {calcularDiasCorridos(novaDataEmAnaliseDesde)} {calcularDiasCorridos(novaDataEmAnaliseDesde) === 1 ? 'dia corrido em análise' : 'dias corridos em análise'}
+                        </span>
+                      </div>
+                      <input
+                        type="date"
+                        value={novaDataEmAnaliseDesde}
+                        onChange={(e) => setNovaDataEmAnaliseDesde(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500"
+                        required={novoStatusCriacao === 'EM_ANALISE'}
+                      />
+                    </div>
+                  )}
+
+                  {/* Detalhes para Concluído */}
+                  {novoStatusCriacao === 'CONCLUIDO' && (
+                    <div className="space-y-3 p-4 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-emerald-900 dark:text-emerald-300 mb-1">
+                            N° da Guia / Autorização *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: OP-9882104"
+                            value={novoNumeroGuiaCriacao}
+                            onChange={(e) => setNovoNumeroGuiaCriacao(e.target.value)}
+                            className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-xl font-mono text-slate-800 dark:text-white"
+                            required={novoStatusCriacao === 'CONCLUIDO'}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-emerald-900 dark:text-emerald-300 mb-1">
+                            Data da Autorização *
+                          </label>
+                          <input
+                            type="date"
+                            value={novaDataAutorizacaoCriacao}
+                            onChange={(e) => setNovaDataAutorizacaoCriacao(e.target.value)}
+                            className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-xl font-mono text-slate-800 dark:text-white"
+                            required={novoStatusCriacao === 'CONCLUIDO'}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-emerald-900 dark:text-emerald-300 mb-1">
+                            Senha da Autorização *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: SENHA-83921"
+                            value={novaSenhaCriacao}
+                            onChange={(e) => setNovaSenhaCriacao(e.target.value)}
+                            className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-xl font-mono text-slate-800 dark:text-white"
+                            required={novoStatusCriacao === 'CONCLUIDO'}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-emerald-900 dark:text-emerald-300 mb-1">
+                            Validade da Senha *
+                          </label>
+                          <input
+                            type="date"
+                            value={novaValidadeSenhaCriacao}
+                            onChange={(e) => setNovaValidadeSenhaCriacao(e.target.value)}
+                            className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-xl font-mono text-slate-800 dark:text-white"
+                            required={novoStatusCriacao === 'CONCLUIDO'}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Detalhes para Recusado */}
+                  {novoStatusCriacao === 'RECUSADO' && (
+                    <div className="p-4 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 rounded-xl">
+                      <label className="block text-xs font-bold text-rose-900 dark:text-rose-300 mb-1">
+                        Motivo / Justificativa da Recusa
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Carência contratual ou limite de sessões atingido"
+                        value={novoMotivoRecusaCriacao}
+                        onChange={(e) => setNovoMotivoRecusaCriacao(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-rose-300 dark:border-rose-700 rounded-xl text-slate-800 dark:text-white"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
-                {/* Status da Autorização */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Status Inicial *
-                  </label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setNovoStatusCriacao('EM_ANALISE')}
-                      className={`px-2.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
-                        novoStatusCriacao === 'EM_ANALISE'
-                          ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500/20 shadow-xs'
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-                      <span className="truncate">Em Análise</span>
-                    </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setNovoStatusCriacao('CONCLUIDO')}
-                      className={`px-2.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
-                        novoStatusCriacao === 'CONCLUIDO'
-                          ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20 shadow-xs'
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                      <span className="truncate">Concluído</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setNovoStatusCriacao('RECUSADO')}
-                      className={`px-2.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
-                        novoStatusCriacao === 'RECUSADO'
-                          ? 'bg-red-50 dark:bg-red-950/50 border-red-500 text-red-700 dark:text-red-300 ring-2 ring-red-500/20 shadow-xs'
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
-                      <span className="truncate">Recusado</span>
-                    </button>
-                  </div>
-                </div>
-
-              {/* Opção para Em Análise: Desde que dia? */}
-              {novoStatusCriacao === 'EM_ANALISE' && (
-                <div className="p-3 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] font-bold text-amber-900 dark:text-amber-300">
-                      Desde que dia? *
-                    </label>
-                    <span className="text-[10px] text-amber-700 dark:text-amber-400 font-mono font-medium">
-                      {calcularDiasCorridos(novaDataEmAnaliseDesde)} {calcularDiasCorridos(novaDataEmAnaliseDesde) === 1 ? 'dia corrido em análise' : 'dias corridos em análise'}
-                    </span>
-                  </div>
-                  <input
-                    type="date"
-                    value={novaDataEmAnaliseDesde}
-                    onChange={(e) => setNovaDataEmAnaliseDesde(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-lg font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500"
-                    required={novoStatusCriacao === 'EM_ANALISE'}
-                  />
-                </div>
-              )}
-
-              {/* Campos condicionais para Concluído (N° Guia, Data Aut, Senha, Validade) */}
-              {novoStatusCriacao === 'CONCLUIDO' && (
-                <div className="space-y-3 p-3 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
-                        N° da Guia / Autorização *
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ex: OP-9882104"
-                        value={novoNumeroGuiaCriacao}
-                        onChange={(e) => setNovoNumeroGuiaCriacao(e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg font-mono text-slate-800 dark:text-white"
-                        required={novoStatusCriacao === 'CONCLUIDO'}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
-                        Data da Autorização *
-                      </label>
-                      <input
-                        type="date"
-                        value={novaDataAutorizacaoCriacao}
-                        onChange={(e) => setNovaDataAutorizacaoCriacao(e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg font-mono text-slate-800 dark:text-white"
-                        required={novoStatusCriacao === 'CONCLUIDO'}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
-                        Senha da Autorização *
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ex: SENHA-83921"
-                        value={novaSenhaCriacao}
-                        onChange={(e) => setNovaSenhaCriacao(e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg font-mono text-slate-800 dark:text-white"
-                        required={novoStatusCriacao === 'CONCLUIDO'}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
-                        Validade da Senha *
-                      </label>
-                      <input
-                        type="date"
-                        value={novaValidadeSenhaCriacao}
-                        onChange={(e) => setNovaValidadeSenhaCriacao(e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 rounded-lg font-mono text-slate-800 dark:text-white"
-                        required={novoStatusCriacao === 'CONCLUIDO'}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Campos condicionais para Recusado (Motivo da Recusa) */}
-              {novoStatusCriacao === 'RECUSADO' && (
-                <div className="p-3 bg-red-50/60 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 rounded-xl">
-                  <label className="block text-[11px] font-bold text-red-900 dark:text-red-300 mb-1">
-                    Motivo / Justificativa da Recusa
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Carência contratual ou limite de sessões atingido"
-                    value={novoMotivoRecusaCriacao}
-                    onChange={(e) => setNovoMotivoRecusaCriacao(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-red-200 dark:border-red-700 rounded-lg text-slate-800 dark:text-white"
-                  />
-                </div>
-              )}
-
-              {/* Campo Preview e Edição da Próxima Autorização */}
-              <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>Data da Próxima Autorização (Início do Próximo Ciclo)</span>
-                  </label>
-                  <span className="text-[10px] bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full font-semibold">
+              {/* SEÇÃO 4: PRÓXIMA AUTORIZAÇÃO E PROJEÇÃO */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-slate-800">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                    4. Próxima Autorização e Projeção de Ciclo
+                  </span>
+                  <span className="text-[10px] bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded font-semibold">
                     Preview Editável
                   </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-                  <input
-                    type="date"
-                    value={novoProximaAutorizacao}
-                    onChange={(e) => {
-                      setNovoProximaAutorizacao(e.target.value);
-                      setFoiEditadoProximaAut(true);
-                    }}
-                    className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded-lg font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                  <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                    <span>Data formatada:</span>
-                    <strong className="text-blue-900 dark:text-blue-300 font-bold">
-                      {novoProximaAutorizacao ? formatarDataComDiaSemanaBr(novoProximaAutorizacao) : 'A definir'}
-                    </strong>
-                  </div>
-                </div>
 
-                <div className="pt-2 border-t border-blue-200/60 dark:border-blue-800/60 text-[11px] space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-1.5 text-blue-950 dark:text-blue-200 font-medium">
-                    <span className="font-bold text-blue-900 dark:text-blue-300">📅 Dia(s) de atendimento deste procedimento:</span>
-                    <span className="bg-blue-100 dark:bg-blue-900/90 px-2 py-0.5 rounded font-bold text-blue-950 dark:text-blue-100">
-                      {diasAtendimentoProcedimentoAtual}
-                    </span>
+                <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-800/60 rounded-2xl space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                        Data da Próxima Autorização (Início do Próximo Ciclo)
+                      </label>
+                      <input
+                        type="date"
+                        value={novoProximaAutorizacao}
+                        onChange={(e) => {
+                          setNovoProximaAutorizacao(e.target.value);
+                          setFoiEditadoProximaAut(true);
+                        }}
+                        className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded-xl font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-[#002172]"
+                      />
+                    </div>
+
+                    <div className="p-3 bg-white dark:bg-slate-800/80 border border-blue-100 dark:border-blue-900 rounded-xl space-y-0.5">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase">Data formatada</span>
+                      <strong className="text-xs text-[#002172] dark:text-blue-300 font-bold block">
+                        {novoProximaAutorizacao ? formatarDataComDiaSemanaBr(novoProximaAutorizacao) : 'A definir'}
+                      </strong>
+                    </div>
                   </div>
-                  {dataUltimaSessaoCalculada && (
-                    <div className="flex flex-wrap items-center gap-1.5 text-blue-950 dark:text-blue-200 font-medium">
-                      <span className="font-bold text-blue-900 dark:text-blue-300">🏁 Última sessão calculada pelo sistema:</span>
-                      <span className="bg-blue-100 dark:bg-blue-900/80 px-2 py-0.5 rounded font-bold font-mono text-blue-950 dark:text-blue-100">
-                        {formatarDataComDiaSemanaBr(dataUltimaSessaoCalculada)}
+
+                  <div className="pt-2 border-t border-blue-200/60 dark:border-blue-800/60 text-[11px] space-y-1.5 text-slate-600 dark:text-slate-300">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">Dia(s) de atendimento deste procedimento:</span>
+                      <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 font-bold text-[#002172] dark:text-blue-300">
+                        {diasAtendimentoProcedimentoAtual}
                       </span>
                     </div>
-                  )}
-                  <p className="text-[10.5px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                    💡 <strong>Lembrete:</strong> Data prevista para a próxima solicitação. Você pode alterá-la livremente agora ou editar posteriormente na etapa de <strong>Faturamento</strong>.
-                  </p>
+
+                    {dataUltimaSessaoCalculada && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">Última sessão calculada pelo sistema:</span>
+                        <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 font-bold font-mono text-emerald-700 dark:text-emerald-400">
+                          {formatarDataComDiaSemanaBr(dataUltimaSessaoCalculada)}
+                        </span>
+                      </div>
+                    )}
+
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-relaxed pt-1">
+                      💡 <strong>Lembrete:</strong> Esta é a data prevista para a próxima solicitação. Você pode alterá-la livremente agora ou editar posteriormente na etapa de Faturamento.
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              {/* SEÇÃO 5: OBSERVAÇÕES INICIAIS */}
+              <div className="space-y-1.5 pt-1">
+                <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs">
                   Observações Iniciais
                 </label>
                 <textarea
@@ -2901,21 +2900,22 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                   placeholder="Informações relevantes para o acompanhamento..."
                   value={novaObservacoes}
                   onChange={(e) => setNovaObservacoes(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white focus:ring-2 focus:ring-[#002172] placeholder:text-slate-400"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
+              {/* Footer Actions */}
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsNovoModalAberto(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold bg-[#002172] hover:bg-[#001752] text-white rounded-xl shadow-xs"
+                  className="px-6 py-2.5 text-xs font-bold bg-[#002172] hover:bg-[#001752] text-white rounded-xl shadow-xs transition-colors cursor-pointer"
                 >
                   Cadastrar para Acompanhamento
                 </button>
