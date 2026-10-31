@@ -623,6 +623,7 @@ export function gerarCronogramaComAuditoriaFeriados(
   while (weekGuard++ < 60) {
     let alcancouAlvo = false;
 
+    // Garante que cada semana produza exatamente sessoesPorSemana sessões
     for (let i = 0; i < sessoesPorSemana; i++) {
       if (alvoFixado && sessoesBrutasSemFiltro.length >= totalSessoes) {
         alcancouAlvo = true;
@@ -633,8 +634,11 @@ export function gerarCronogramaComAuditoriaFeriados(
       const dtSess = new Date(currentMonday);
       dtSess.setDate(currentMonday.getDate() + (targetDay - 1));
 
-      // Não inclui datas anteriores à data de início do ciclo
-      if (dtSess < dtStart) continue;
+      // Se a data calculada for anterior a dtStart (ex: Quarta 07/10 quando o dia de atendimento é Terça 06/10),
+      // alinhamos a primeira sessão para dtStart para garantir que o ciclo comece exatamente no dia de Início do Ciclo
+      if (dtSess < dtStart) {
+        dtSess.setTime(dtStart.getTime());
+      }
       if (dtSess.getDay() === 0) dtSess.setDate(dtSess.getDate() + 1);
 
       sessoesBrutasSemFiltro.push({
@@ -643,7 +647,6 @@ export function gerarCronogramaComAuditoriaFeriados(
       });
     }
 
-    // Após completar todas as sessões da semana atual, verifica se a próxima autorização atinge o mês seguinte
     if (!alvoFixado && sessoesBrutasSemFiltro.length > 0) {
       const ultimaSessaoIso = sessoesBrutasSemFiltro[sessoesBrutasSemFiltro.length - 1].dataIso;
       const dtUlt = parseIsoDateLocal(ultimaSessaoIso);

@@ -740,6 +740,11 @@ export const CalculationPreviewModal: React.FC<CalculationPreviewModalProps> = (
                     ? `Dia fixo: ${DIAS_SEMANA_NOMES[diasSemanaHabituais[0]] || 'Quinta-feira'}`
                     : `${diasSemanaHabituais.length} dias selecionados`}
                 </span>
+                {diasSemanaHabituais.length < sessoesSemana && (
+                  <span className="mt-1 text-[9px] font-bold text-amber-700 dark:text-amber-400 block bg-amber-50 dark:bg-amber-950/60 p-1 rounded border border-amber-200 dark:border-amber-800">
+                    💡 Dica: Foram configuradas {sessoesSemana} sessões/sem. Selecione {sessoesSemana} dias para distribuir no mesmo ciclo.
+                  </span>
+                )}
               </div>
 
               <div className="bg-white dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
