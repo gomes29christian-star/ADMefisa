@@ -709,14 +709,14 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
       );
     });
 
-    if (pacienteEncontrado?.diasDaSemana && pacienteEncontrado.diasDaSemana.length > 0) {
-      return pacienteEncontrado.diasDaSemana.length;
-    }
     if (pacienteEncontrado?.sessoesPorSemana && pacienteEncontrado.sessoesPorSemana > 0) {
       return pacienteEncontrado.sessoesPorSemana;
     }
     if (pacienteEncontrado?.quantidadeSemana && pacienteEncontrado.quantidadeSemana > 0) {
       return pacienteEncontrado.quantidadeSemana;
+    }
+    if (pacienteEncontrado?.diasDaSemana && pacienteEncontrado.diasDaSemana.length > 0) {
+      return pacienteEncontrado.diasDaSemana.length;
     }
 
     const sessoesSemana = 1;
