@@ -25,6 +25,7 @@ import {
   ChevronDown,
   CreditCard,
   MessageSquare,
+  Info,
 } from 'lucide-react';
 import { AutorizacaoV2, StatusAutorizacao, HistoricoStatusAutorizacao } from '../../types/autorizacao';
 import { carregarAutorizacoesIniciais, salvarAutorizacoesStorage, calcularDiasCorridos, registrarAuditoriaAutorizacao } from '../../services/autorizacoesService';
@@ -2640,34 +2641,16 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Alternador de Período do Ciclo */}
-                  <div className="space-y-1 pt-1">
-                    <label className="block font-bold text-slate-700 dark:text-slate-300 text-[11px]">
-                      Período de Cobertura do Ciclo
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-                      <button
-                        type="button"
-                        onClick={() => setModoCiclo('MES_INTEIRO')}
-                        className={`p-2.5 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
-                          modoCiclo === 'MES_INTEIRO'
-                            ? 'bg-[#002172] text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        Até a última semana do próximo mês ({dadosCalculadosMes.totalSemanas} sem)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setModoCiclo('RESTANTE')}
-                        className={`p-2.5 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
-                          modoCiclo === 'RESTANTE'
-                            ? 'bg-[#002172] text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        Até a última sessão deste mês ({dadosCalculadosRestante.totalSemanas} sem)
-                      </button>
+                  {/* Mensagem de Cronograma Automático */}
+                  <div className="mt-2 p-3.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/80 rounded-xl flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
+                    <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-slate-900 dark:text-white block mb-0.5">
+                        Cronograma automático montado até a última sessão do mês da autorização.
+                      </span>
+                      <span className="text-slate-600 dark:text-slate-300 text-[11px]">
+                        Caso precise alterar, mude a data da Próxima autorização neste mesmo menu e personalize as datas no menu de faturamento desta mesma guia.
+                      </span>
                     </div>
                   </div>
                 </div>
