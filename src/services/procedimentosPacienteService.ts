@@ -124,14 +124,14 @@ export function identificarSessoesPorSemanaDoProcedimento(
     paciente.procedimentoPrincipal &&
     correspondemAoMesmoProcedimento(paciente.procedimentoPrincipal, procedimentoNome)
   ) {
-    if (Array.isArray(paciente.diasDaSemana) && paciente.diasDaSemana.length > 0) {
-      return paciente.diasDaSemana.length;
-    }
     if (paciente.sessoesPorSemana && Number(paciente.sessoesPorSemana) > 0) {
       return Number(paciente.sessoesPorSemana);
     }
     if (paciente.quantidadeSemana && Number(paciente.quantidadeSemana) > 0) {
       return Number(paciente.quantidadeSemana);
+    }
+    if (Array.isArray(paciente.diasDaSemana) && paciente.diasDaSemana.length > 0) {
+      return paciente.diasDaSemana.length;
     }
   }
 
@@ -190,11 +190,11 @@ export function identificarProcedimentosDoPaciente(
   // 1. Procedimento principal do paciente
   if (paciente.procedimentoPrincipal) {
     const sessoesPrinc =
+      (paciente.sessoesPorSemana && Number(paciente.sessoesPorSemana) > 0 ? Number(paciente.sessoesPorSemana) : undefined) ||
+      (paciente.quantidadeSemana && Number(paciente.quantidadeSemana) > 0 ? Number(paciente.quantidadeSemana) : undefined) ||
       (Array.isArray(paciente.diasDaSemana) && paciente.diasDaSemana.length > 0
         ? paciente.diasDaSemana.length
-        : undefined) ||
-      paciente.sessoesPorSemana ||
-      paciente.quantidadeSemana;
+        : undefined);
     adicionar(paciente.procedimentoPrincipal, sessoesPrinc, paciente.prestadorNome);
   }
 

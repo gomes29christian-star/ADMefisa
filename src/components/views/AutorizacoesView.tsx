@@ -351,10 +351,10 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         }
         if (!operadoraEncontrada) operadoraEncontrada = p.convenioPrincipalNome || p.convenioNome || '';
         if (!prestadorEncontrado) prestadorEncontrado = p.prestadorNome || '';
-        const sQtd = (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0)
-          ? p.diasDaSemana.length
-          : (p.sessoesPorSemana && p.sessoesPorSemana > 0 ? p.sessoesPorSemana : undefined) ||
-            (p.quantidadeSemana && p.quantidadeSemana > 0 ? p.quantidadeSemana : undefined);
+        const sQtd =
+          (p.sessoesPorSemana && Number(p.sessoesPorSemana) > 0 ? Number(p.sessoesPorSemana) : undefined) ||
+          (p.quantidadeSemana && Number(p.quantidadeSemana) > 0 ? Number(p.quantidadeSemana) : undefined) ||
+          (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0 ? p.diasDaSemana.length : undefined);
         if (sQtd) sessoesEncontradas = sQtd;
       }
     });
@@ -370,10 +370,10 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         }
         if (!operadoraEncontrada) operadoraEncontrada = p.convenioPrincipalNome || p.convenioNome || '';
         if (!prestadorEncontrado) prestadorEncontrado = p.prestadorNome || '';
-        const sQtd = (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0)
-          ? p.diasDaSemana.length
-          : (p.sessoesPorSemana && p.sessoesPorSemana > 0 ? p.sessoesPorSemana : undefined) ||
-            (p.quantidadeSemana && p.quantidadeSemana > 0 ? p.quantidadeSemana : undefined);
+        const sQtd =
+          (p.sessoesPorSemana && Number(p.sessoesPorSemana) > 0 ? Number(p.sessoesPorSemana) : undefined) ||
+          (p.quantidadeSemana && Number(p.quantidadeSemana) > 0 ? Number(p.quantidadeSemana) : undefined) ||
+          (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0 ? p.diasDaSemana.length : undefined);
         if (sQtd) sessoesEncontradas = sQtd;
       }
     });
