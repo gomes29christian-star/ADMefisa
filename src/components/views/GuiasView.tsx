@@ -429,18 +429,18 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
 
     setGuiaPrincipalGerada(numeroGerado);
     setGuiaSelecionadaDrawer(aut);
-    const temCustom = !!(aut.datasSessoesCustomizadas && aut.datasSessoesCustomizadas.length > 0);
     const sessoesPorSemanaAut = obterSessoesPorSemanaPaciente(aut);
-    const datasIniciais = temCustom
-      ? [...aut.datasSessoesCustomizadas!]
-      : calcularDatasSessoes(
-          aut.dataAutorizacao || aut.dataSolicitacao,
-          aut.quantidadeSolicitada || 1,
-          aut.pacienteNome || aut.pacienteId,
-          sessoesPorSemanaAut
-        );
-    setDatasSessoesDrawer(datasIniciais);
-    setAutomacaoDesativadaDrawer(temCustom);
+    const datasCalculadas = calcularDatasSessoes(
+      aut.dataAutorizacao || aut.dataSolicitacao,
+      aut.quantidadeSolicitada || 1,
+      aut.pacienteNome || aut.pacienteId,
+      sessoesPorSemanaAut,
+      undefined,
+      undefined,
+      aut.procedimento
+    );
+    setDatasSessoesDrawer(datasCalculadas);
+    setAutomacaoDesativadaDrawer(false);
     setModoEdicaoSessoesDrawer(false);
     setNumeroContaInput('');
     setPastaDoutoraInput(pastaDefinida);
