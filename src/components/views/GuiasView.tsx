@@ -54,6 +54,10 @@ import { UserFiltersService } from '../../services/userFiltersService';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
 import { obterBadgeColorProcedimento, CLASS_TABELA_LISTRADA_ROW } from '../../utils/procedureStyles';
 import { HolidayService } from '../../services/holidaysService';
+import {
+  obterDiasDeAtendimentoDoProcedimento,
+  identificarSessoesPorSemanaDoProcedimento,
+} from '../../services/procedimentosPacienteService';
 
 interface GuiasViewProps {
   onOpenAudit: () => void;
@@ -540,13 +544,15 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
     pacienteNomeOuId?: string,
     sessoesPorSemanaOverride?: number,
     datasFaltasParam?: string[],
-    modoFaltasParam?: ModoAbatimentoFaltas
+    modoFaltasParam?: ModoAbatimentoFaltas,
+    procedimentoNomeParam?: string
   ): string[] => {
     if (!dataInicioStr) return [];
 
-    let diaAlvo: DiaSemanaIndice = 1; // Padrão: Segunda-feira
+    let diaAlvo: DiaSemanaIndice = 2; // Terça-feira
     let diasHabituaisPac: DiaSemanaIndice[] | undefined = undefined;
     let sessoesSemanaPac = sessoesPorSemanaOverride || 1;
+
     if (pacienteNomeOuId) {
       const termoNorm = pacienteNomeOuId.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
       const todosPacientes = PacientesService.obterPacientes();
@@ -559,14 +565,24 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
           termoNorm.includes(nomeNorm)
         );
       });
-      if (pac?.diaDaSemana) {
-        diaAlvo = parseDiaSemanaNomeParaIndice(pac.diaDaSemana);
-      }
-      if (pac?.diasDaSemana && pac.diasDaSemana.length > 0) {
-        diasHabituaisPac = pac.diasDaSemana.map((dName) => parseDiaSemanaNomeParaIndice(dName));
-      }
-      if (!sessoesPorSemanaOverride && pac?.sessoesPorSemana) {
-        sessoesSemanaPac = pac.sessoesPorSemana;
+
+      if (pac) {
+        const diasPac = obterDiasDeAtendimentoDoProcedimento(pac, procedimentoNomeParam || pac.procedimentoPrincipal || '');
+        if (Array.isArray(diasPac) && diasPac.length > 0) {
+          diasHabituaisPac = diasPac.map((d) =>
+            typeof d === 'number' ? (d as DiaSemanaIndice) : parseDiaSemanaNomeParaIndice(String(d))
+          );
+          if (diasHabituaisPac.length > 0) {
+            diaAlvo = diasHabituaisPac[0];
+          }
+        } else if (pac.diaDaSemana) {
+          diaAlvo = parseDiaSemanaNomeParaIndice(pac.diaDaSemana);
+          diasHabituaisPac = [diaAlvo];
+        }
+
+        if (!sessoesPorSemanaOverride) {
+          sessoesSemanaPac = identificarSessoesPorSemanaDoProcedimento(pac, procedimentoNomeParam || pac.procedimentoPrincipal || '');
+        }
       }
     }
 
