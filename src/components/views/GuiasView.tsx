@@ -258,15 +258,21 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
   );
   const [idsGuiasSelecionadas, setIdsGuiasSelecionadas] = useState<string[]>([]);
 
-  // Sincronização em tempo real das guias salvas no localStorage
+  // Sincronização em tempo real das guias salvas no localStorage e eventos globais de pacientes
   useEffect(() => {
     const atualizarGuias = () => {
       const gs = carregarGuiasIniciais(GUIAS_PADRAO_INICIAIS);
       setGuias(gs);
     };
     window.addEventListener('storage', atualizarGuias);
+    window.addEventListener('guias_updated', atualizarGuias as EventListener);
+    window.addEventListener('pacientes_updated', atualizarGuias as EventListener);
+    window.addEventListener('paciente_dados_globalmente_atualizados', atualizarGuias as EventListener);
     return () => {
       window.removeEventListener('storage', atualizarGuias);
+      window.removeEventListener('guias_updated', atualizarGuias as EventListener);
+      window.removeEventListener('pacientes_updated', atualizarGuias as EventListener);
+      window.removeEventListener('paciente_dados_globalmente_atualizados', atualizarGuias as EventListener);
     };
   }, []);
 

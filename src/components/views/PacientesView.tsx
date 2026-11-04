@@ -257,6 +257,20 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
     PacientesService.obterPacientes()
   );
 
+  useEffect(() => {
+    const handleRecarregar = () => {
+      setPacientes(PacientesService.obterPacientes());
+    };
+    window.addEventListener('storage', handleRecarregar);
+    window.addEventListener('pacientes_updated', handleRecarregar as EventListener);
+    window.addEventListener('paciente_dados_globalmente_atualizados', handleRecarregar as EventListener);
+    return () => {
+      window.removeEventListener('storage', handleRecarregar);
+      window.removeEventListener('pacientes_updated', handleRecarregar as EventListener);
+      window.removeEventListener('paciente_dados_globalmente_atualizados', handleRecarregar as EventListener);
+    };
+  }, []);
+
   // Opções dinâmicas extraídas da base completa de pacientes para datalists / seleções digitáveis
   const opcoesProcedimentos = useMemo(() => {
     const set = new Set<string>();

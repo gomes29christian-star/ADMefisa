@@ -760,6 +760,18 @@ export class PacientesService {
       pacienteAtualizado.carteirinhaAtualMascarada = mascararCarteirinha(novaCarteirinha);
     }
 
+    if (camposAtualizados.sessoesPorSemana !== undefined || camposAtualizados.quantidadeSemana !== undefined) {
+      const novaQtd = Number(camposAtualizados.sessoesPorSemana || camposAtualizados.quantidadeSemana || 1);
+      pacienteAtualizado.sessoesPorSemana = novaQtd;
+      pacienteAtualizado.quantidadeSemana = novaQtd;
+
+      const procNome = pacienteAtualizado.procedimentoPrincipal || 'Psicologia ABA';
+      pacienteAtualizado.frequenciasPorProcedimento = {
+        ...(pacienteAtualizado.frequenciasPorProcedimento || {}),
+        [procNome]: novaQtd,
+      };
+    }
+
     // Regra do Nutricionismo: 1 por mês automaticamente!
     if (isProcedimentoNutricionismo(pacienteAtualizado.procedimentoPrincipal || pacienteAtualizado.procedimentos?.[0])) {
       pacienteAtualizado.diaDaSemana = '1 por mês';
@@ -769,6 +781,10 @@ export class PacientesService {
     }
 
     lista[indice] = pacienteAtualizado;
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pacientes_updated', { detail: pacienteAtualizado }));
+    }
 
     // Se houve alteração/registro de formulário, propaga automaticamente para TODOS os pacientes com o mesmo nome
     if (camposAtualizados.formulario !== undefined) {
@@ -789,35 +805,8 @@ export class PacientesService {
       });
     }
 
-    // Se houve alteração da data da Próxima Autorização, sincroniza no registro de autorizações ativas do paciente
-    if (camposAtualizados.proximaAutorizacaoData !== undefined && typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const rawAuts = localStorage.getItem('clinica_mefisa_autorizacoes_v2');
-        if (rawAuts) {
-          const auts = JSON.parse(rawAuts);
-          if (Array.isArray(auts)) {
-            let houveAjuste = false;
-            const normNome = normalizarTexto(pacienteAtualizado.nome);
-            const atualizadas = auts.map((a: any) => {
-              const mesmoPac = a.pacienteId === pacienteAtualizado.id || normalizarTexto(a.pacienteNome || '') === normNome;
-              if (mesmoPac) {
-                houveAjuste = true;
-                return {
-                  ...a,
-                  proximaAutorizacao: camposAtualizados.proximaAutorizacaoData,
-                };
-              }
-              return a;
-            });
-            if (houveAjuste) {
-              localStorage.setItem('clinica_mefisa_autorizacoes_v2', JSON.stringify(atualizadas));
-            }
-          }
-        }
-      } catch (errAut) {
-        console.warn('Erro ao sincronizar proximaAutorizacaoData em autorizações:', errAut);
-      }
-    }
+    // Sincronização global e automática em TODOS os módulos do site que usam os dados deste paciente
+    this.sincronizarAlteracoesPacienteGlobalmente(pacienteAnterior, pacienteAtualizado, camposAtualizados);
 
     this.persistirPacientes(lista);
     CloudSyncService.salvarPacienteNuvem(pacienteAtualizado).catch(() => {});
@@ -885,6 +874,165 @@ export class PacientesService {
     }
 
     return { paciente: pacienteAtualizado, eventosAuditoria: eventos };
+  }
+
+  /**
+   * Sincronização em Cascata Global: Ao alterar o cadastro de um paciente,
+   * propaga automaticamente as alterações (nome, carteirinha, operadora, prestador, procedimento, sessões/semana, próxima autorização)
+   * para TODOS os registros e módulos do site (autorizações, guias de faturamento, análises) que possuem o mesmo paciente.
+   */
+  static sincronizarAlteracoesPacienteGlobalmente(
+    pacienteAnterior: Paciente,
+    pacienteAtualizado: Paciente,
+    camposAtualizados: Partial<Paciente>
+  ) {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+
+    const normNomeAnterior = normalizarTexto(pacienteAnterior.nome || '');
+    const normNomeNovo = normalizarTexto(pacienteAtualizado.nome || '');
+    const pacId = pacienteAtualizado.id;
+
+    // 1. Atualiza registros de Autorizações em localStorage ('clinica_mefisa_autorizacoes_v2')
+    try {
+      const rawAuts = localStorage.getItem('clinica_mefisa_autorizacoes_v2');
+      if (rawAuts) {
+        const auts = JSON.parse(rawAuts);
+        if (Array.isArray(auts)) {
+          let mudou = false;
+          const autsAtualizadas = auts.map((a: any) => {
+            const mesmoPac =
+              (a.pacienteId && a.pacienteId === pacId) ||
+              (a.pacienteNome && normalizarTexto(a.pacienteNome) === normNomeAnterior) ||
+              (a.pacienteNome && normalizarTexto(a.pacienteNome) === normNomeNovo);
+
+            if (mesmoPac) {
+              mudou = true;
+              const novoObj = { ...a };
+              novoObj.pacienteId = pacId;
+              if (camposAtualizados.nome) novoObj.pacienteNome = pacienteAtualizado.nome;
+              if (camposAtualizados.carteirinha || camposAtualizados.carteirinhaAtual) {
+                novoObj.carteirinha = pacienteAtualizado.carteirinhaAtual || pacienteAtualizado.carteirinha;
+              }
+              if (camposAtualizados.convenioPrincipalNome || camposAtualizados.convenioNome) {
+                novoObj.operadora = pacienteAtualizado.convenioPrincipalNome || pacienteAtualizado.convenioNome;
+              }
+              if (camposAtualizados.prestadorNome) {
+                novoObj.prestador = pacienteAtualizado.prestadorNome;
+              }
+              if (camposAtualizados.sessoesPorSemana !== undefined || camposAtualizados.quantidadeSemana !== undefined) {
+                novoObj.sessoesPorSemana = pacienteAtualizado.sessoesPorSemana || pacienteAtualizado.quantidadeSemana;
+              }
+              if (camposAtualizados.proximaAutorizacaoData !== undefined) {
+                novoObj.proximaAutorizacao = camposAtualizados.proximaAutorizacaoData;
+              }
+              if (camposAtualizados.procedimentoPrincipal) {
+                novoObj.procedimento = pacienteAtualizado.procedimentoPrincipal;
+              }
+              return novoObj;
+            }
+            return a;
+          });
+
+          if (mudou) {
+            localStorage.setItem('clinica_mefisa_autorizacoes_v2', JSON.stringify(autsAtualizadas));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao sincronizar autorizações globalmente:', e);
+    }
+
+    // 2. Atualiza registros de Guias de Faturamento em localStorage ('mefisa_guias_faturamento_v2')
+    try {
+      const rawGuias = localStorage.getItem('mefisa_guias_faturamento_v2');
+      if (rawGuias) {
+        const guias = JSON.parse(rawGuias);
+        if (Array.isArray(guias)) {
+          let mudou = false;
+          const guiasAtualizadas = guias.map((g: any) => {
+            const mesmoPac =
+              (g.pacienteId && g.pacienteId === pacId) ||
+              (g.pacienteNome && normalizarTexto(g.pacienteNome) === normNomeAnterior) ||
+              (g.pacienteNome && normalizarTexto(g.pacienteNome) === normNomeNovo);
+
+            if (mesmoPac) {
+              mudou = true;
+              const novoObj = { ...g };
+              novoObj.pacienteId = pacId;
+              if (camposAtualizados.nome) novoObj.pacienteNome = pacienteAtualizado.nome;
+              if (camposAtualizados.carteirinha || camposAtualizados.carteirinhaAtual) {
+                novoObj.carteirinha = pacienteAtualizado.carteirinhaAtual || pacienteAtualizado.carteirinha;
+              }
+              if (camposAtualizados.convenioPrincipalNome || camposAtualizados.convenioNome) {
+                novoObj.convenioNome = pacienteAtualizado.convenioPrincipalNome || pacienteAtualizado.convenioNome;
+              }
+              if (camposAtualizados.prestadorNome) {
+                novoObj.prestadorNome = pacienteAtualizado.prestadorNome;
+              }
+              if (camposAtualizados.sessoesPorSemana !== undefined || camposAtualizados.quantidadeSemana !== undefined) {
+                novoObj.sessoesPorSemana = pacienteAtualizado.sessoesPorSemana || pacienteAtualizado.quantidadeSemana;
+              }
+              if (camposAtualizados.procedimentoPrincipal) {
+                novoObj.procedimentoNome = pacienteAtualizado.procedimentoPrincipal;
+              }
+              return novoObj;
+            }
+            return g;
+          });
+
+          if (mudou) {
+            localStorage.setItem('mefisa_guias_faturamento_v2', JSON.stringify(guiasAtualizadas));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao sincronizar guias globalmente:', e);
+    }
+
+    // 3. Atualiza registros de Análises em localStorage ('mefisa_analises_v1')
+    try {
+      const rawAnalises = localStorage.getItem('mefisa_analises_v1');
+      if (rawAnalises) {
+        const analises = JSON.parse(rawAnalises);
+        if (Array.isArray(analises)) {
+          let mudou = false;
+          const analisesAtualizadas = analises.map((an: any) => {
+            const mesmoPac =
+              (an.pacienteId && an.pacienteId === pacId) ||
+              (an.pacienteNome && normalizarTexto(an.pacienteNome) === normNomeAnterior) ||
+              (an.pacienteNome && normalizarTexto(an.pacienteNome) === normNomeNovo);
+
+            if (mesmoPac) {
+              mudou = true;
+              const novoObj = { ...an };
+              novoObj.pacienteId = pacId;
+              if (camposAtualizados.nome) novoObj.pacienteNome = pacienteAtualizado.nome;
+              if (camposAtualizados.carteirinha || camposAtualizados.carteirinhaAtual) {
+                novoObj.carteirinha = pacienteAtualizado.carteirinhaAtual || pacienteAtualizado.carteirinha;
+              }
+              if (camposAtualizados.convenioPrincipalNome || camposAtualizados.convenioNome) {
+                novoObj.convenioNome = pacienteAtualizado.convenioPrincipalNome || pacienteAtualizado.convenioNome;
+              }
+              return novoObj;
+            }
+            return an;
+          });
+
+          if (mudou) {
+            localStorage.setItem('mefisa_analises_v1', JSON.stringify(analisesAtualizadas));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao sincronizar análises globalmente:', e);
+    }
+
+    // 4. Emite eventos customizados do sistema para re-renderização reativa em tempo real
+    window.dispatchEvent(new CustomEvent('paciente_dados_globalmente_atualizados', { detail: pacienteAtualizado }));
+    window.dispatchEvent(new CustomEvent('pacientes_updated', { detail: pacienteAtualizado }));
+    window.dispatchEvent(new CustomEvent('autorizacoes_updated', { detail: pacienteAtualizado }));
+    window.dispatchEvent(new CustomEvent('guias_updated', { detail: pacienteAtualizado }));
+    window.dispatchEvent(new Event('storage'));
   }
 
   /**

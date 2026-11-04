@@ -105,10 +105,16 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       setAutorizacoes(carregarAutorizacoesIniciais());
     };
     window.addEventListener('storage', handleStorage);
+    window.addEventListener('autorizacoes_updated', handleStorage as EventListener);
+    window.addEventListener('pacientes_updated', handleStorage as EventListener);
+    window.addEventListener('paciente_dados_globalmente_atualizados', handleStorage as EventListener);
     // Recarregar sempre que montar ou focar a aba
     setAutorizacoes(carregarAutorizacoesIniciais());
     return () => {
       window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('autorizacoes_updated', handleStorage as EventListener);
+      window.removeEventListener('pacientes_updated', handleStorage as EventListener);
+      window.removeEventListener('paciente_dados_globalmente_atualizados', handleStorage as EventListener);
     };
   }, []);
 
@@ -487,15 +493,18 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
   // Auto-preenchimento de operadora, prestador e sessões por semana cadastrados para o paciente e procedimento
   const autoPreencherDadosDoPacienteEProcedimento = (pac: any, procNome: string) => {
     if (!pac) return;
-    const dados = obterDadosConsolidadosDoPaciente(pac.nome, pac.id);
+    const pacAtualizado = PacientesService.obterPacientePorId(pac.id) ||
+      PacientesService.obterPacientes().find(p => p.nome.toLowerCase() === pac.nome.toLowerCase()) || pac;
+
+    const dados = obterDadosConsolidadosDoPaciente(pacAtualizado.nome, pacAtualizado.id);
 
     const autAnteriorProc = autorizacoes.find((a) => {
-      const mesmoPac = a.pacienteId === pac.id || (a.pacienteNome && a.pacienteNome.toLowerCase().includes(pac.nome.toLowerCase()));
+      const mesmoPac = a.pacienteId === pacAtualizado.id || (a.pacienteNome && a.pacienteNome.toLowerCase().includes(pacAtualizado.nome.toLowerCase()));
       const mesmoProc = !procNome || a.procedimento.toLowerCase().includes(procNome.toLowerCase());
       return mesmoPac && mesmoProc;
     });
 
-    const convNome = autAnteriorProc?.operadora || dados.operadora || pac.convenioPrincipalNome || pac.convenioNome;
+    const convNome = pacAtualizado.convenioPrincipalNome || pacAtualizado.convenioNome || autAnteriorProc?.operadora || dados.operadora;
     if (convNome) {
       const convMatch = MOCK_CONVENIOS.find((c) =>
         c.nome.toLowerCase().includes(convNome.toLowerCase()) ||
@@ -504,13 +513,13 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       setNovoOperadora(convMatch ? convMatch.nome : convNome);
     }
 
-    const prestadorNome = autAnteriorProc?.prestador || dados.prestador || pac.prestadorNome;
+    const prestadorNome = pacAtualizado.prestadorNome || autAnteriorProc?.prestador || dados.prestador;
     if (prestadorNome) {
       setNovoPrestador(prestadorNome);
       setPesquisaPrestador(prestadorNome);
     }
 
-    const sessoes = identificarSessoesPorSemanaDoProcedimento(pac, procNome, autorizacoes);
+    const sessoes = identificarSessoesPorSemanaDoProcedimento(pacAtualizado, procNome, autorizacoes);
     setNovoSessoesPorSemana(sessoes);
   };
 

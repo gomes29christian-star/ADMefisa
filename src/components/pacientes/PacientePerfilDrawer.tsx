@@ -81,6 +81,24 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
   onDeletarPaciente,
 }) => {
   const [paciente, setPaciente] = useState<Paciente>(pacienteProp);
+
+  React.useEffect(() => {
+    if (pacienteProp) {
+      setPaciente(pacienteProp);
+    }
+  }, [pacienteProp]);
+
+  React.useEffect(() => {
+    const handlePacientesUpdated = (e: CustomEvent) => {
+      if (e.detail && (e.detail.id === pacienteProp.id || e.detail.nome === pacienteProp.nome)) {
+        setPaciente(e.detail);
+      }
+    };
+    window.addEventListener('pacientes_updated', handlePacientesUpdated as EventListener);
+    return () => {
+      window.removeEventListener('pacientes_updated', handlePacientesUpdated as EventListener);
+    };
+  }, [pacienteProp.id, pacienteProp.nome]);
   const { showMonthInitials } = useTheme();
   const [cpfRevelado, setCpfRevelado] = useState(false);
   const [carteirinhaRevelada, setCarteirinhaRevelada] = useState(false);
