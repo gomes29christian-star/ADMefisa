@@ -286,6 +286,21 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
           existente.convenioPrincipalNome = p.convenioPrincipalNome || p.convenioNome;
           existente.convenioNome = p.convenioPrincipalNome || p.convenioNome;
         }
+        if (p.frequenciasPorProcedimento) {
+          existente.frequenciasPorProcedimento = { ...existente.frequenciasPorProcedimento, ...p.frequenciasPorProcedimento };
+        }
+        if (p.diasPorProcedimento) {
+          existente.diasPorProcedimento = { ...existente.diasPorProcedimento, ...p.diasPorProcedimento };
+        }
+        if (p.terapias) {
+          existente.terapias = p.terapias;
+        }
+        if (p.sessoesPorSemana) {
+          existente.sessoesPorSemana = p.sessoesPorSemana;
+        }
+        if (p.quantidadeSemana) {
+          existente.quantidadeSemana = p.quantidadeSemana;
+        }
         return;
       }
 
@@ -305,6 +320,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       }
 
       map.set(key, {
+        ...p,
         id: pacId,
         nome: p.nome.trim(),
         carteirinha: cart,
@@ -318,10 +334,13 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
         cpf: p.cpf || '',
         doutoresAtendentesNomes: p.doutoresAtendentesNomes || [],
         sessoesPorSemana:
+          (p.sessoesPorSemana && Number(p.sessoesPorSemana) > 0 ? Number(p.sessoesPorSemana) : undefined) ||
+          (p.quantidadeSemana && Number(p.quantidadeSemana) > 0 ? Number(p.quantidadeSemana) : undefined) ||
           (Array.isArray(p.diasDaSemana) && p.diasDaSemana.length > 0 ? p.diasDaSemana.length : undefined) ||
-          (p.sessoesPorSemana && p.sessoesPorSemana > 0 ? p.sessoesPorSemana : undefined) ||
-          (p.quantidadeSemana && p.quantidadeSemana > 0 ? p.quantidadeSemana : undefined) ||
           1,
+        frequenciasPorProcedimento: p.frequenciasPorProcedimento || {},
+        diasPorProcedimento: p.diasPorProcedimento || {},
+        terapias: p.terapias || [],
       });
     };
 
@@ -2416,9 +2435,13 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
                         type="text"
                         value={pesquisaProcedimento}
                         onChange={(e) => {
-                          setPesquisaProcedimento(e.target.value);
-                          setNovoProcedimento(e.target.value);
+                          const val = e.target.value;
+                          setPesquisaProcedimento(val);
+                          setNovoProcedimento(val);
                           setProcedimentoDropdownAberto(true);
+                          if (pacienteSelecionadoObj) {
+                            autoPreencherDadosDoPacienteEProcedimento(pacienteSelecionadoObj, val);
+                          }
                         }}
                         onFocus={() => setProcedimentoDropdownAberto(true)}
                         placeholder="Selecione ou busque código, CID ou nome..."

@@ -64,23 +64,25 @@ export function identificarSessoesPorSemanaDoProcedimento(
 ): number {
   if (!procedimentoNome) return 1;
 
-  // 1. PRIORIDADE MESTRE CADASTRAL: Se o paciente possui sessoesPorSemana ou quantidadeSemana cadastrados no seu perfil
-  // E o procedimento consultado for o procedimento principal do paciente (ou se não houver um principal especificado)
-  if (paciente) {
-    const ehProcPrincipal = !paciente.procedimentoPrincipal || 
-      correspondemAoMesmoProcedimento(paciente.procedimentoPrincipal, procedimentoNome);
-      
-    if (ehProcPrincipal) {
-      if (paciente.sessoesPorSemana && Number(paciente.sessoesPorSemana) > 0) {
-        return Number(paciente.sessoesPorSemana);
-      }
-      if (paciente.quantidadeSemana && Number(paciente.quantidadeSemana) > 0) {
-        return Number(paciente.quantidadeSemana);
+  // 1. Procura no dicionário de frequências por procedimento do paciente
+  if (paciente && paciente.frequenciasPorProcedimento && typeof paciente.frequenciasPorProcedimento === 'object') {
+    for (const [chave, qtd] of Object.entries(paciente.frequenciasPorProcedimento)) {
+      if (correspondemAoMesmoProcedimento(chave, procedimentoNome) && typeof qtd === 'number' && qtd > 0) {
+        return qtd;
       }
     }
   }
 
-  // 2. Procura na lista de terapias estruturadas do paciente (se houver)
+  // 2. Procura no dicionário de dias por procedimento do paciente
+  if (paciente && paciente.diasPorProcedimento && typeof paciente.diasPorProcedimento === 'object') {
+    for (const [chave, dias] of Object.entries(paciente.diasPorProcedimento)) {
+      if (correspondemAoMesmoProcedimento(chave, procedimentoNome) && Array.isArray(dias) && dias.length > 0) {
+        return dias.length;
+      }
+    }
+  }
+
+  // 3. Procura na lista de terapias estruturadas do paciente (se houver)
   if (paciente && Array.isArray(paciente.terapias) && paciente.terapias.length > 0) {
     const terapia = paciente.terapias.find((t: any) =>
       correspondemAoMesmoProcedimento(t.procedimento, procedimentoNome)
@@ -95,20 +97,20 @@ export function identificarSessoesPorSemanaDoProcedimento(
     }
   }
 
-  // 3. Procura no dicionário de frequências por procedimento do paciente
-  if (paciente && paciente.frequenciasPorProcedimento && typeof paciente.frequenciasPorProcedimento === 'object') {
-    for (const [chave, qtd] of Object.entries(paciente.frequenciasPorProcedimento)) {
-      if (correspondemAoMesmoProcedimento(chave, procedimentoNome) && typeof qtd === 'number' && qtd > 0) {
-        return qtd;
+  // 4. PRIORIDADE MESTRE CADASTRAL: Se o paciente possui sessoesPorSemana ou quantidadeSemana cadastrados no seu perfil
+  if (paciente) {
+    const ehProcPrincipal = !paciente.procedimentoPrincipal || 
+      correspondemAoMesmoProcedimento(paciente.procedimentoPrincipal, procedimentoNome);
+      
+    if (ehProcPrincipal) {
+      if (paciente.sessoesPorSemana && Number(paciente.sessoesPorSemana) > 0) {
+        return Number(paciente.sessoesPorSemana);
       }
-    }
-  }
-
-  // 4. Procura no dicionário de dias por procedimento do paciente
-  if (paciente && paciente.diasPorProcedimento && typeof paciente.diasPorProcedimento === 'object') {
-    for (const [chave, dias] of Object.entries(paciente.diasPorProcedimento)) {
-      if (correspondemAoMesmoProcedimento(chave, procedimentoNome) && Array.isArray(dias) && dias.length > 0) {
-        return dias.length;
+      if (paciente.quantidadeSemana && Number(paciente.quantidadeSemana) > 0) {
+        return Number(paciente.quantidadeSemana);
+      }
+      if (Array.isArray(paciente.diasDaSemana) && paciente.diasDaSemana.length > 0) {
+        return paciente.diasDaSemana.length;
       }
     }
   }
