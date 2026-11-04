@@ -1,6 +1,7 @@
 import { Paciente } from '../types/clinic';
 import { AutorizacaoV2 } from '../types/autorizacao';
 import { ProcedimentosService } from './procedimentosService';
+import { PacientesService } from './pacientesService';
 
 /**
  * Normaliza nomes de procedimentos para comparações robustas
@@ -51,11 +52,6 @@ export function correspondemAoMesmoProcedimento(proc1: string, proc2: string): b
 
 /**
  * Identifica dinamicamente a quantidade de sessões por semana de um paciente para um procedimento específico.
- * Não utiliza nenhuma regra estática por nome de paciente; inspeciona dinamicamente:
- * 1. Terapias/frequências específicas do paciente para este procedimento
- * 2. Histórico de autorizações do paciente para este procedimento
- * 3. Dias da semana cadastrados no perfil caso coincida com o procedimento principal
- * 4. Padrão clínico cadastrado no catálogo TUSS do sistema
  */
 export function identificarSessoesPorSemanaDoProcedimento(
   paciente: Paciente | any,
@@ -64,24 +60,19 @@ export function identificarSessoesPorSemanaDoProcedimento(
 ): number {
   if (!paciente) return 1;
 
-  // Obtém o registro cadastral mestre ativo mais recente de localStorage (se disponível)
+  // Obtém o registro cadastral mestre ativo mais recente (se disponível)
   let pacReal = paciente;
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const salvos = localStorage.getItem('clinica_mefisa_pacientes_v1');
-      if (salvos) {
-        const lista: Paciente[] = JSON.parse(salvos);
-        if (Array.isArray(lista)) {
-          const encontrado = lista.find(
-            (p) =>
-              p.id === paciente.id ||
-              (p.nome && paciente.nome && p.nome.toLowerCase().trim() === paciente.nome.toLowerCase().trim())
-          );
-          if (encontrado) pacReal = encontrado;
-        }
-      }
-    } catch {}
-  }
+  try {
+    const lista = PacientesService.obterPacientes();
+    if (Array.isArray(lista) && lista.length > 0) {
+      const encontrado = lista.find(
+        (p) =>
+          p.id === paciente.id ||
+          (p.nome && paciente.nome && p.nome.toLowerCase().trim() === paciente.nome.toLowerCase().trim())
+      );
+      if (encontrado) pacReal = encontrado;
+    }
+  } catch {}
 
   // 1. PRIORIDADE MESTRE CADASTRAL: Se o paciente tem sessoesPorSemana/quantidadeSemana no seu perfil ativo,
   // E o procedimento consultado for o procedimento principal do paciente (ou omitido)
@@ -201,24 +192,19 @@ export function obterDiasDeAtendimentoDoProcedimento(
 ): any[] {
   if (!paciente) return ['Terça-feira'];
 
-  // Obtém o registro cadastral mestre ativo mais recente de localStorage (se disponível)
+  // Obtém o registro cadastral mestre ativo mais recente (se disponível)
   let pacReal = paciente;
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const salvos = localStorage.getItem('clinica_mefisa_pacientes_v1');
-      if (salvos) {
-        const lista: Paciente[] = JSON.parse(salvos);
-        if (Array.isArray(lista)) {
-          const encontrado = lista.find(
-            (p) =>
-              p.id === paciente.id ||
-              (p.nome && paciente.nome && p.nome.toLowerCase().trim() === paciente.nome.toLowerCase().trim())
-          );
-          if (encontrado) pacReal = encontrado;
-        }
-      }
-    } catch {}
-  }
+  try {
+    const lista = PacientesService.obterPacientes();
+    if (Array.isArray(lista) && lista.length > 0) {
+      const encontrado = lista.find(
+        (p) =>
+          p.id === paciente.id ||
+          (p.nome && paciente.nome && p.nome.toLowerCase().trim() === paciente.nome.toLowerCase().trim())
+      );
+      if (encontrado) pacReal = encontrado;
+    }
+  } catch {}
 
   const procNomeNormalizado = (procedimentoNome || '').toLowerCase().trim();
   const procPrincipalNormalizado = (pacReal.procedimentoPrincipal || '').toLowerCase().trim();
@@ -368,12 +354,9 @@ export function validarEManterDatasCustomizadas(
   if (!pacienteNomeOuId) return datasCustom;
 
   let todosPacientes: Paciente[] = [];
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const saved = localStorage.getItem('clinica_mefisa_pacientes_v1');
-      if (saved) todosPacientes = JSON.parse(saved);
-    } catch {}
-  }
+  try {
+    todosPacientes = PacientesService.obterPacientes();
+  } catch {}
 
   const termoNorm = pacienteNomeOuId.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   const pac = todosPacientes.find((p) => {

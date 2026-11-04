@@ -296,6 +296,7 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
   useEffect(() => {
     const atualizarAutorizacoes = () => {
       const auts = carregarAutorizacoesIniciais();
+      salvarAutorizacoesStorage(auts);
       setAutorizacoesConcluidas(auts.filter((a) => a.status === 'CONCLUIDO' || a.status === 'DIGITADA'));
     };
     atualizarAutorizacoes();
@@ -428,17 +429,26 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
       pacienteEncontrado?.pastaDoutoraMefisa ||
       (aut.prestador ? `Pasta ${aut.prestador}` : 'Pasta Corpo Clínico — Mefisa');
 
+    const autSanitizada: AutorizacaoV2 = {
+      ...aut,
+      datasSessoesCustomizadas: validarEManterDatasCustomizadas(
+        aut.datasSessoesCustomizadas,
+        aut.pacienteNome || aut.pacienteId,
+        aut.procedimento
+      ),
+    };
+
     setGuiaPrincipalGerada(numeroGerado);
-    setGuiaSelecionadaDrawer(aut);
-    const sessoesPorSemanaAut = obterSessoesPorSemanaPaciente(aut);
+    setGuiaSelecionadaDrawer(autSanitizada);
+    const sessoesPorSemanaAut = obterSessoesPorSemanaPaciente(autSanitizada);
     const datasCalculadas = calcularDatasSessoes(
-      aut.dataAutorizacao || aut.dataSolicitacao,
-      aut.quantidadeSolicitada || 1,
-      aut.pacienteNome || aut.pacienteId,
+      autSanitizada.dataAutorizacao || autSanitizada.dataSolicitacao,
+      autSanitizada.quantidadeSolicitada || 1,
+      autSanitizada.pacienteNome || autSanitizada.pacienteId,
       sessoesPorSemanaAut,
       undefined,
       undefined,
-      aut.procedimento
+      autSanitizada.procedimento
     );
     setDatasSessoesDrawer(datasCalculadas);
     setAutomacaoDesativadaDrawer(false);
