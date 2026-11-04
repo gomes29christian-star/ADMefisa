@@ -38,6 +38,9 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
   });
 
   const [nome, setNome] = useState(paciente.nome);
+  const [carteirinha, setCarteirinha] = useState<string>(
+    paciente.carteirinhaAtual || paciente.carteirinha || ''
+  );
   const [status, setStatus] = useState<StatusPaciente>(paciente.status);
   const [aguardandoDoutor, setAguardandoDoutor] = useState<boolean>(
     Boolean(paciente.aguardandoDoutor || paciente.proximaAutorizacaoData === 'AGUARDANDO DR.°(ª)' || paciente.proximaAutorizacaoData === 'AGUARDANDO_DOUTOR')
@@ -198,6 +201,8 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
         paciente.id,
         {
           nome: nome.trim(),
+          carteirinha: carteirinha.trim(),
+          carteirinhaAtual: carteirinha.trim(),
           status,
           aguardandoDoutor,
           proximaAutorizacaoData: (status === 'ENCERRADO' || status === 'INATIVO')
@@ -319,6 +324,25 @@ export const EditarPacienteModal: React.FC<EditarPacienteModalProps> = ({
                 onChange={(e) => setNome(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white focus:outline-[#002172]"
                 required
+              />
+            </div>
+
+            {/* Número da Carteirinha / Convênio */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                <span>Número da Carteirinha / Convênio</span>
+                {(paciente.convenioPrincipalNome || paciente.convenioNome) && (
+                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">
+                    Convênio: {paciente.convenioPrincipalNome || paciente.convenioNome}
+                  </span>
+                )}
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: 54588888491967280014"
+                value={carteirinha}
+                onChange={(e) => setCarteirinha(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-white focus:outline-[#002172]"
               />
             </div>
 

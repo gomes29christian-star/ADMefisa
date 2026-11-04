@@ -753,9 +753,11 @@ export class PacientesService {
     if (camposAtualizados.cpf) {
       pacienteAtualizado.cpfMascarado = mascararCpf(camposAtualizados.cpf);
     }
-    if (camposAtualizados.carteirinhaAtual) {
-      pacienteAtualizado.carteirinha = camposAtualizados.carteirinhaAtual;
-      pacienteAtualizado.carteirinhaAtualMascarada = mascararCarteirinha(camposAtualizados.carteirinhaAtual);
+    const novaCarteirinha = camposAtualizados.carteirinhaAtual || camposAtualizados.carteirinha;
+    if (novaCarteirinha) {
+      pacienteAtualizado.carteirinha = novaCarteirinha;
+      pacienteAtualizado.carteirinhaAtual = novaCarteirinha;
+      pacienteAtualizado.carteirinhaAtualMascarada = mascararCarteirinha(novaCarteirinha);
     }
 
     // Regra do Nutricionismo: 1 por mês automaticamente!
@@ -827,6 +829,8 @@ export class PacientesService {
       'nome',
       'status',
       'cpf',
+      'carteirinha',
+      'carteirinhaAtual',
       'dataNascimento',
       'convenioNome',
       'procedimentoPrincipal',

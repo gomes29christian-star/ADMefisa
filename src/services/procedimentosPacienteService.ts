@@ -64,7 +64,23 @@ export function identificarSessoesPorSemanaDoProcedimento(
 ): number {
   if (!procedimentoNome) return 1;
 
-  // 1. Procura na lista de terapias estruturadas do paciente (se houver)
+  // 1. PRIORIDADE MESTRE CADASTRAL: Se o paciente possui sessoesPorSemana ou quantidadeSemana cadastrados no seu perfil
+  // E o procedimento consultado for o procedimento principal do paciente (ou se não houver um principal especificado)
+  if (paciente) {
+    const ehProcPrincipal = !paciente.procedimentoPrincipal || 
+      correspondemAoMesmoProcedimento(paciente.procedimentoPrincipal, procedimentoNome);
+      
+    if (ehProcPrincipal) {
+      if (paciente.sessoesPorSemana && Number(paciente.sessoesPorSemana) > 0) {
+        return Number(paciente.sessoesPorSemana);
+      }
+      if (paciente.quantidadeSemana && Number(paciente.quantidadeSemana) > 0) {
+        return Number(paciente.quantidadeSemana);
+      }
+    }
+  }
+
+  // 2. Procura na lista de terapias estruturadas do paciente (se houver)
   if (paciente && Array.isArray(paciente.terapias) && paciente.terapias.length > 0) {
     const terapia = paciente.terapias.find((t: any) =>
       correspondemAoMesmoProcedimento(t.procedimento, procedimentoNome)
@@ -79,7 +95,7 @@ export function identificarSessoesPorSemanaDoProcedimento(
     }
   }
 
-  // 2. Procura no dicionário de frequências por procedimento do paciente
+  // 3. Procura no dicionário de frequências por procedimento do paciente
   if (paciente && paciente.frequenciasPorProcedimento && typeof paciente.frequenciasPorProcedimento === 'object') {
     for (const [chave, qtd] of Object.entries(paciente.frequenciasPorProcedimento)) {
       if (correspondemAoMesmoProcedimento(chave, procedimentoNome) && typeof qtd === 'number' && qtd > 0) {
@@ -88,7 +104,7 @@ export function identificarSessoesPorSemanaDoProcedimento(
     }
   }
 
-  // 3. Procura no dicionário de dias por procedimento do paciente
+  // 4. Procura no dicionário de dias por procedimento do paciente
   if (paciente && paciente.diasPorProcedimento && typeof paciente.diasPorProcedimento === 'object') {
     for (const [chave, dias] of Object.entries(paciente.diasPorProcedimento)) {
       if (correspondemAoMesmoProcedimento(chave, procedimentoNome) && Array.isArray(dias) && dias.length > 0) {
@@ -97,7 +113,20 @@ export function identificarSessoesPorSemanaDoProcedimento(
     }
   }
 
-  // 4. Procura no histórico de autorizações do paciente PARA ESTE PROCEDIMENTO
+  // 5. Fallback para sessoesPorSemana/quantidadeSemana/diasDaSemana do cadastro mestre do paciente
+  if (paciente) {
+    if (paciente.sessoesPorSemana && Number(paciente.sessoesPorSemana) > 0) {
+      return Number(paciente.sessoesPorSemana);
+    }
+    if (paciente.quantidadeSemana && Number(paciente.quantidadeSemana) > 0) {
+      return Number(paciente.quantidadeSemana);
+    }
+    if (Array.isArray(paciente.diasDaSemana) && paciente.diasDaSemana.length > 0) {
+      return paciente.diasDaSemana.length;
+    }
+  }
+
+  // 6. Histórico de autorizações do paciente PARA ESTE PROCEDIMENTO (secundário)
   if (paciente && Array.isArray(historicoAutorizacoes) && historicoAutorizacoes.length > 0) {
     const autProc = historicoAutorizacoes.find((a) => {
       const mesmoPac =
@@ -115,23 +144,6 @@ export function identificarSessoesPorSemanaDoProcedimento(
         const sessoesEstimadas = Math.round(Number(autProc.quantidadeSolicitada) / 4);
         if (sessoesEstimadas > 0) return sessoesEstimadas;
       }
-    }
-  }
-
-  // 5. Se o procedimento coincidir com o procedimento principal do paciente
-  if (
-    paciente &&
-    paciente.procedimentoPrincipal &&
-    correspondemAoMesmoProcedimento(paciente.procedimentoPrincipal, procedimentoNome)
-  ) {
-    if (paciente.sessoesPorSemana && Number(paciente.sessoesPorSemana) > 0) {
-      return Number(paciente.sessoesPorSemana);
-    }
-    if (paciente.quantidadeSemana && Number(paciente.quantidadeSemana) > 0) {
-      return Number(paciente.quantidadeSemana);
-    }
-    if (Array.isArray(paciente.diasDaSemana) && paciente.diasDaSemana.length > 0) {
-      return paciente.diasDaSemana.length;
     }
   }
 
