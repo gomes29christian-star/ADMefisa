@@ -309,7 +309,7 @@ export function expandirDiasHabituaisParaFrequencia(
   }
 
   const unicos = Array.from(new Set(diasBrutos)).filter((d) => d >= 1 && d <= 6);
-  if (unicos.length >= sessoesPorSemana || sessoesPorSemana <= 1) {
+  if (unicos.length >= 2 || unicos.length >= sessoesPorSemana || sessoesPorSemana <= 1) {
     return unicos.length > 0 ? unicos : [1];
   }
 
@@ -692,8 +692,10 @@ export function gerarCronogramaComAuditoriaFeriados(
   while (weekGuard++ < 60) {
     let alcancouAlvo = false;
 
-    // Garante que cada semana produza exatamente sessoesPorSemana sessões
-    for (let i = 0; i < sessoesPorSemana; i++) {
+    // Garante que cada semana produza as sessões necessárias cobrindo os dias selecionados
+    const sessoesPorSemanaEfetiva = Math.max(sessoesPorSemana || 1, diasSelecionados.length);
+
+    for (let i = 0; i < sessoesPorSemanaEfetiva; i++) {
       if (alvoFixado && sessoesBrutasSemFiltro.length >= totalSessoes) {
         alcancouAlvo = true;
         break;
@@ -703,10 +705,10 @@ export function gerarCronogramaComAuditoriaFeriados(
       const dtSess = new Date(currentMonday);
       dtSess.setDate(currentMonday.getDate() + (targetDay - 1));
 
-      // Se a data calculada for anterior a dtStart (ex: Quarta 07/10 quando o dia de atendimento é Terça 06/10),
-      // alinhamos a primeira sessão para dtStart para garantir que o ciclo comece exatamente no dia de Início do Ciclo
+      // Se a data calculada nesta semana for anterior a dtStart (ex: Terça 03/11 quando o início é Quarta 04/11),
+      // não duplicamos na data de início, mas sim avançamos para a próxima ocorrência válida.
       if (dtSess < dtStart) {
-        dtSess.setTime(dtStart.getTime());
+        continue;
       }
       if (dtSess.getDay() === 0) dtSess.setDate(dtSess.getDate() + 1);
 

@@ -64,25 +64,44 @@ export function identificarSessoesPorSemanaDoProcedimento(
 ): number {
   if (!paciente) return 1;
 
+  // Obtém o registro cadastral mestre ativo mais recente de localStorage (se disponível)
+  let pacReal = paciente;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const salvos = localStorage.getItem('clinica_mefisa_pacientes_v1');
+      if (salvos) {
+        const lista: Paciente[] = JSON.parse(salvos);
+        if (Array.isArray(lista)) {
+          const encontrado = lista.find(
+            (p) =>
+              p.id === paciente.id ||
+              (p.nome && paciente.nome && p.nome.toLowerCase().trim() === paciente.nome.toLowerCase().trim())
+          );
+          if (encontrado) pacReal = encontrado;
+        }
+      }
+    } catch {}
+  }
+
   // 1. PRIORIDADE MESTRE CADASTRAL: Se o paciente tem sessoesPorSemana/quantidadeSemana no seu perfil ativo,
   // E o procedimento consultado for o procedimento principal do paciente (ou omitido)
   const ehProcPrincipal =
     !procedimentoNome ||
-    !paciente.procedimentoPrincipal ||
-    correspondemAoMesmoProcedimento(paciente.procedimentoPrincipal, procedimentoNome);
+    !pacReal.procedimentoPrincipal ||
+    correspondemAoMesmoProcedimento(pacReal.procedimentoPrincipal, procedimentoNome);
 
   if (ehProcPrincipal) {
-    if (paciente.sessoesPorSemana && Number(paciente.sessoesPorSemana) > 0) {
-      return Number(paciente.sessoesPorSemana);
+    if (pacReal.sessoesPorSemana && Number(pacReal.sessoesPorSemana) > 0) {
+      return Number(pacReal.sessoesPorSemana);
     }
-    if (paciente.quantidadeSemana && Number(paciente.quantidadeSemana) > 0) {
-      return Number(paciente.quantidadeSemana);
+    if (pacReal.quantidadeSemana && Number(pacReal.quantidadeSemana) > 0) {
+      return Number(pacReal.quantidadeSemana);
     }
   }
 
   // 2. Procura no dicionário de frequências por procedimento do paciente
-  if (paciente.frequenciasPorProcedimento && typeof paciente.frequenciasPorProcedimento === 'object') {
-    for (const [chave, qtd] of Object.entries(paciente.frequenciasPorProcedimento)) {
+  if (pacReal.frequenciasPorProcedimento && typeof pacReal.frequenciasPorProcedimento === 'object') {
+    for (const [chave, qtd] of Object.entries(pacReal.frequenciasPorProcedimento)) {
       if (correspondemAoMesmoProcedimento(chave, procedimentoNome) && typeof qtd === 'number' && qtd > 0) {
         return qtd;
       }
@@ -90,8 +109,8 @@ export function identificarSessoesPorSemanaDoProcedimento(
   }
 
   // 3. Procura no dicionário de dias por procedimento do paciente
-  if (paciente.diasPorProcedimento && typeof paciente.diasPorProcedimento === 'object') {
-    for (const [chave, dias] of Object.entries(paciente.diasPorProcedimento)) {
+  if (pacReal.diasPorProcedimento && typeof pacReal.diasPorProcedimento === 'object') {
+    for (const [chave, dias] of Object.entries(pacReal.diasPorProcedimento)) {
       if (correspondemAoMesmoProcedimento(chave, procedimentoNome) && Array.isArray(dias) && dias.length > 0) {
         return dias.length;
       }
