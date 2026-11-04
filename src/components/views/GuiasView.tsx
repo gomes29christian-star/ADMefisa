@@ -42,6 +42,11 @@ import {
   ProcedimentoCompleto,
 } from '../../services/procedimentosService';
 import { PacientesService } from '../../services/pacientesService';
+import {
+  identificarSessoesPorSemanaDoProcedimento,
+  obterDiasDeAtendimentoDoProcedimento,
+  validarEManterDatasCustomizadas,
+} from '../../services/procedimentosPacienteService';
 import { GerenciarProcedimentosModal } from '../procedimentos/GerenciarProcedimentosModal';
 import {
   carregarAutorizacoesIniciais,
@@ -54,10 +59,6 @@ import { UserFiltersService } from '../../services/userFiltersService';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
 import { obterBadgeColorProcedimento, CLASS_TABELA_LISTRADA_ROW } from '../../utils/procedureStyles';
 import { HolidayService } from '../../services/holidaysService';
-import {
-  obterDiasDeAtendimentoDoProcedimento,
-  identificarSessoesPorSemanaDoProcedimento,
-} from '../../services/procedimentosPacienteService';
 
 interface GuiasViewProps {
   onOpenAudit: () => void;
@@ -677,10 +678,15 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
       return guia.datasSessoes;
     }
     const autCorrespondente = autorizacoesConcluidas.find((a) => a.id === guia.autorizacaoId);
-    if (autCorrespondente?.datasSessoesCustomizadas && autCorrespondente.datasSessoesCustomizadas.length > 0) {
-      return autCorrespondente.datasSessoesCustomizadas;
-    }
     const procNome = guia.procedimentoNome || autCorrespondente?.procedimento || '';
+    const customValidas = validarEManterDatasCustomizadas(
+      autCorrespondente?.datasSessoesCustomizadas,
+      guia.pacienteNome || guia.pacienteId,
+      procNome
+    );
+    if (customValidas && customValidas.length > 0) {
+      return customValidas;
+    }
     const sessoesSemana = autCorrespondente
       ? obterSessoesPorSemanaPaciente(autCorrespondente)
       : obterSessoesPorSemanaPaciente({ pacienteNome: guia.pacienteNome, pacienteId: guia.pacienteId, procedimento: procNome });
@@ -700,8 +706,13 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
   const obterStatusDigitabilidadeGuia = (aut: AutorizacaoV2) => {
     const dataInicio = aut.dataAutorizacao || aut.dataSolicitacao;
     const sessoesSemana = obterSessoesPorSemanaPaciente(aut);
-    const sessoes = aut.datasSessoesCustomizadas && aut.datasSessoesCustomizadas.length > 0
-      ? aut.datasSessoesCustomizadas
+    const customValidas = validarEManterDatasCustomizadas(
+      aut.datasSessoesCustomizadas,
+      aut.pacienteNome || aut.pacienteId,
+      aut.procedimento
+    );
+    const sessoes = customValidas && customValidas.length > 0
+      ? customValidas
       : calcularDatasSessoes(
           dataInicio,
           aut.quantidadeSolicitada || sessoesSemana * 4,
@@ -774,8 +785,8 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
   };
 
   const obterSessoesPorSemanaPaciente = (aut: any): number => {
-    if (aut.sessoesPorSemana && aut.sessoesPorSemana > 0) {
-      return aut.sessoesPorSemana;
+    if (aut.sessoesPorSemana && Number(aut.sessoesPorSemana) > 0) {
+      return Number(aut.sessoesPorSemana);
     }
     const todosPacientes = PacientesService.obterPacientes();
     const termoNorm = (aut.pacienteNome || aut.pacienteId || '')
@@ -793,24 +804,29 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
       );
     });
 
-    if (pacienteEncontrado?.sessoesPorSemana && pacienteEncontrado.sessoesPorSemana > 0) {
-      return pacienteEncontrado.sessoesPorSemana;
-    }
-    if (pacienteEncontrado?.quantidadeSemana && pacienteEncontrado.quantidadeSemana > 0) {
-      return pacienteEncontrado.quantidadeSemana;
-    }
-    if (pacienteEncontrado?.diasDaSemana && pacienteEncontrado.diasDaSemana.length > 0) {
-      return pacienteEncontrado.diasDaSemana.length;
+    if (pacienteEncontrado) {
+      const proc = aut.procedimento || aut.procedimentoNome || '';
+      const calc = identificarSessoesPorSemanaDoProcedimento(pacienteEncontrado, proc, autorizacoesConcluidas);
+      if (calc && calc > 0) return calc;
     }
 
-    const sessoesSemana = 1;
-    const datasSessoes = (aut.datasSessoesCustomizadas && aut.datasSessoesCustomizadas.length > 0)
-      ? aut.datasSessoesCustomizadas
+    if (aut.quantidadeSolicitada && Number(aut.quantidadeSolicitada) > 0) {
+      const estimativa = Math.round(Number(aut.quantidadeSolicitada) / 4);
+      if (estimativa > 0) return estimativa;
+    }
+
+    const customValidas = validarEManterDatasCustomizadas(
+      aut.datasSessoesCustomizadas,
+      aut.pacienteNome || aut.pacienteId,
+      aut.procedimento || aut.procedimentoNome
+    );
+    const datasSessoes = customValidas && customValidas.length > 0
+      ? customValidas
       : calcularDatasSessoes(
           aut.dataAutorizacao || aut.dataSolicitacao,
           aut.quantidadeSolicitada || 1,
           aut.pacienteNome || aut.pacienteId,
-          sessoesSemana
+          1
         );
     const sessoesCalculadas = calcularSessoesSemanaisJanela(datasSessoes);
     return sessoesCalculadas || 1;

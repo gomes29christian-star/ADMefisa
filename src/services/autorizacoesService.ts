@@ -2,6 +2,7 @@ import { AutorizacaoV2, HistoricoStatusAutorizacao, StatusAutorizacao } from '..
 import { GuiaDigitacao } from '../types/clinic';
 import { MOCK_AUDITORIA } from '../data/mockClinicData';
 import { CloudSyncService } from './cloudSyncService';
+import { validarEManterDatasCustomizadas } from './procedimentosPacienteService';
 
 const STORAGE_KEY_AUTORIZACOES = 'clinica_mefisa_autorizacoes_v2';
 const STORAGE_KEY_GUIAS_FATURAMENTO = 'clinica_mefisa_guias_faturamento_v2';
@@ -24,11 +25,19 @@ export const carregarAutorizacoesIniciais = (): AutorizacaoV2[] => {
       if (saved !== null) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.map((a: any) => ({
-            ...a,
-            operadora: 'SULAMÉRICA',
-            diasEmAnalise: a.status === 'EM_ANALISE' ? calcularDiasCorridos(a.dataSolicitacao) : (a.diasEmAnalise || 0),
-          }));
+          return parsed.map((a: any) => {
+            const datasCustomValidas = validarEManterDatasCustomizadas(
+              a.datasSessoesCustomizadas,
+              a.pacienteNome || a.pacienteId,
+              a.procedimento
+            );
+            return {
+              ...a,
+              operadora: 'SULAMÉRICA',
+              datasSessoesCustomizadas: datasCustomValidas,
+              diasEmAnalise: a.status === 'EM_ANALISE' ? calcularDiasCorridos(a.dataSolicitacao) : (a.diasEmAnalise || 0),
+            };
+          });
         }
       }
     }

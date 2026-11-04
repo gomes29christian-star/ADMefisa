@@ -353,3 +353,93 @@ export function identificarProcedimentosDoPaciente(
 
   return Array.from(mapa.values());
 }
+
+/**
+ * Valida se um conjunto de datas de sessões customizadas coincide com os dias de atendimento autorizados do paciente.
+ * Se contiver datas em dias da semana em que o paciente NÃO atende (ex: Sextas-feiras para um paciente de Terça/Quarta),
+ * a lista é considerada obsoleta/inválida e é descartada (retornando undefined) para forçar o recálculo automático.
+ */
+export function validarEManterDatasCustomizadas(
+  datasCustom: string[] | undefined,
+  pacienteNomeOuId?: string,
+  procedimentoNome?: string
+): string[] | undefined {
+  if (!datasCustom || !Array.isArray(datasCustom) || datasCustom.length === 0) return undefined;
+  if (!pacienteNomeOuId) return datasCustom;
+
+  let todosPacientes: Paciente[] = [];
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const saved = localStorage.getItem('clinica_mefisa_pacientes_v1');
+      if (saved) todosPacientes = JSON.parse(saved);
+    } catch {}
+  }
+
+  const termoNorm = pacienteNomeOuId.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const pac = todosPacientes.find((p) => {
+    const nomeNorm = (p.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    return (
+      p.id === pacienteNomeOuId ||
+      nomeNorm === termoNorm ||
+      nomeNorm.includes(termoNorm) ||
+      termoNorm.includes(nomeNorm)
+    );
+  });
+
+  if (!pac) return datasCustom;
+
+  const diasPac = obterDiasDeAtendimentoDoProcedimento(pac, procedimentoNome || pac.procedimentoPrincipal || '');
+  if (!Array.isArray(diasPac) || diasPac.length === 0) return datasCustom;
+
+  const parseDiaIndice = (d: any): number => {
+    if (typeof d === 'number') return d >= 0 && d <= 6 ? d : 2;
+    const str = String(d).trim();
+    if (/^[0-6]$/.test(str)) return Number(str);
+    const norm = str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (norm.includes('seg')) return 1;
+    if (norm.includes('ter')) return 2;
+    if (norm.includes('qua')) return 3;
+    if (norm.includes('qui')) return 4;
+    if (norm.includes('sex')) return 5;
+    if (norm.includes('sab') || norm.includes('sáb')) return 6;
+    if (norm.includes('dom')) return 0;
+    return 2;
+  };
+
+  const diasPermitidosSet = new Set<number>(diasPac.map(parseDiaIndice));
+
+  for (const dtStr of datasCustom) {
+    if (!dtStr) continue;
+    let diaSemanaIdx: number | null = null;
+    if (dtStr.includes('/')) {
+      const parts = dtStr.split('/');
+      if (parts.length === 3) {
+        const dd = Number(parts[0]);
+        const mm = Number(parts[1]) - 1;
+        const yyyy = Number(parts[2]);
+        if (!isNaN(dd) && !isNaN(mm) && !isNaN(yyyy)) {
+          diaSemanaIdx = new Date(yyyy, mm, dd).getDay();
+        }
+      }
+    } else if (dtStr.includes('-')) {
+      const parts = dtStr.split('-');
+      if (parts.length === 3) {
+        const yyyy = Number(parts[0]);
+        const mm = Number(parts[1]) - 1;
+        const dd = Number(parts[2]);
+        if (!isNaN(dd) && !isNaN(mm) && !isNaN(yyyy)) {
+          diaSemanaIdx = new Date(yyyy, mm, dd).getDay();
+        }
+      }
+    }
+
+    if (diaSemanaIdx !== null && diaSemanaIdx >= 0 && diaSemanaIdx <= 6) {
+      if (!diasPermitidosSet.has(diaSemanaIdx)) {
+        return undefined;
+      }
+    }
+  }
+
+  return datasCustom;
+}
+
