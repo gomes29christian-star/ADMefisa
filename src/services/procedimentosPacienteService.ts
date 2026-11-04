@@ -99,7 +99,7 @@ export function identificarSessoesPorSemanaDoProcedimento(
     }
   }
 
-  // 2. Procura no dicionário de frequências por procedimento do paciente
+  // 1. Dicionário de frequências por procedimento do paciente
   if (pacReal.frequenciasPorProcedimento && typeof pacReal.frequenciasPorProcedimento === 'object') {
     for (const [chave, qtd] of Object.entries(pacReal.frequenciasPorProcedimento)) {
       if (correspondemAoMesmoProcedimento(chave, procedimentoNome) && typeof qtd === 'number' && qtd > 0) {
@@ -108,7 +108,7 @@ export function identificarSessoesPorSemanaDoProcedimento(
     }
   }
 
-  // 3. Procura no dicionário de dias por procedimento do paciente
+  // 2. Dicionário de dias por procedimento do paciente
   if (pacReal.diasPorProcedimento && typeof pacReal.diasPorProcedimento === 'object') {
     for (const [chave, dias] of Object.entries(pacReal.diasPorProcedimento)) {
       if (correspondemAoMesmoProcedimento(chave, procedimentoNome) && Array.isArray(dias) && dias.length > 0) {
@@ -117,9 +117,17 @@ export function identificarSessoesPorSemanaDoProcedimento(
     }
   }
 
-  // 4. Procura na lista de terapias estruturadas do paciente (se houver)
-  if (Array.isArray(paciente.terapias) && paciente.terapias.length > 0) {
-    const terapia = paciente.terapias.find((t: any) =>
+  // 3. PRIORIDADE MESTRE CADASTRAL: sessoesPorSemana/quantidadeSemana do perfil ativo
+  if (pacReal.sessoesPorSemana && Number(pacReal.sessoesPorSemana) > 0) {
+    return Number(pacReal.sessoesPorSemana);
+  }
+  if (pacReal.quantidadeSemana && Number(pacReal.quantidadeSemana) > 0) {
+    return Number(pacReal.quantidadeSemana);
+  }
+
+  // 4. Terapias estruturadas
+  if (Array.isArray(pacReal.terapias) && pacReal.terapias.length > 0) {
+    const terapia = pacReal.terapias.find((t: any) =>
       correspondemAoMesmoProcedimento(t.procedimento, procedimentoNome)
     );
     if (terapia) {
@@ -132,23 +140,25 @@ export function identificarSessoesPorSemanaDoProcedimento(
     }
   }
 
-  // 5. Fallback para sessoesPorSemana/quantidadeSemana/diasDaSemana do cadastro mestre do paciente
-  if (paciente.sessoesPorSemana && Number(paciente.sessoesPorSemana) > 0) {
-    return Number(paciente.sessoesPorSemana);
-  }
-  if (paciente.quantidadeSemana && Number(paciente.quantidadeSemana) > 0) {
-    return Number(paciente.quantidadeSemana);
-  }
-  if (Array.isArray(paciente.diasDaSemana) && paciente.diasDaSemana.length > 0) {
-    return paciente.diasDaSemana.length;
+  // 5. Dias da semana cadastrados no perfil do paciente
+  if (Array.isArray(pacReal.diasDaSemana) && pacReal.diasDaSemana.length > 0) {
+    return pacReal.diasDaSemana.length;
   }
 
-  // 6. Histórico de autorizações do paciente PARA ESTE PROCEDIMENTO (secundário)
-  if (paciente && Array.isArray(historicoAutorizacoes) && historicoAutorizacoes.length > 0) {
+  // 6. Dias de atendimento obtidos para o procedimento
+  try {
+    const diasProc = obterDiasDeAtendimentoDoProcedimento(pacReal, procedimentoNome);
+    if (Array.isArray(diasProc) && diasProc.length > 0) {
+      return diasProc.length;
+    }
+  } catch {}
+
+  // 7. Histórico de autorizações do paciente PARA ESTE PROCEDIMENTO
+  if (pacReal && Array.isArray(historicoAutorizacoes) && historicoAutorizacoes.length > 0) {
     const autProc = historicoAutorizacoes.find((a) => {
       const mesmoPac =
-        (paciente.id && a.pacienteId === paciente.id) ||
-        (a.pacienteNome && paciente.nome && a.pacienteNome.toLowerCase().includes(paciente.nome.toLowerCase()));
+        (pacReal.id && a.pacienteId === pacReal.id) ||
+        (a.pacienteNome && pacReal.nome && a.pacienteNome.toLowerCase().includes(pacReal.nome.toLowerCase()));
       const mesmoProc = correspondemAoMesmoProcedimento(a.procedimento, procedimentoNome);
       return mesmoPac && mesmoProc;
     });

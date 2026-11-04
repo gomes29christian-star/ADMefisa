@@ -604,6 +604,14 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
     novoProcedimento,
   ]);
 
+  // Atualiza automaticamente a frequência semanal do paciente ao selecionar ou alterar o paciente ou procedimento
+  useEffect(() => {
+    if (isNovoModalAberto && pacienteSelecionadoObj) {
+      const sessoes = identificarSessoesPorSemanaDoProcedimento(pacienteSelecionadoObj, novoProcedimento, autorizacoes);
+      setNovoSessoesPorSemana(sessoes);
+    }
+  }, [isNovoModalAberto, pacienteSelecionadoObj, novoProcedimento, autorizacoes]);
+
   // Recalcula a data da Próxima Autorização no modal de registrar resultado quando a data da autorização muda
   useEffect(() => {
     if (autorizacaoParaResultado && !foiEditadoProximaAutRes) {
