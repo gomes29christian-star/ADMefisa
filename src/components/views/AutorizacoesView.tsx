@@ -36,21 +36,24 @@ import { useTheme } from '../../context/ThemeContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
 import { PacientesService, converterDataParaIso } from '../../services/pacientesService';
 import { ProcedimentosService, ProcedimentoCompleto } from '../../services/procedimentosService';
-import { identificarSessoesPorSemanaDoProcedimento } from '../../services/procedimentosPacienteService';
+import { identificarSessoesPorSemanaDoProcedimento, obterDiasDeAtendimentoDoProcedimento } from '../../services/procedimentosPacienteService';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
 import { UserFiltersService } from '../../services/userFiltersService';
 import { obterBadgeColorProcedimento, CLASS_TABELA_LISTRADA_ROW } from '../../utils/procedureStyles';
 
-function parseDiaSemanaNomeParaIndice(diaNome?: string): DiaSemanaIndice {
+function parseDiaSemanaNomeParaIndice(diaNome?: string | number): DiaSemanaIndice {
+  if (typeof diaNome === 'number') {
+    return (diaNome >= 0 && diaNome <= 6) ? (diaNome as DiaSemanaIndice) : 1;
+  }
   if (!diaNome) return 1;
-  const norm = diaNome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  if (norm.includes('segunda')) return 1;
-  if (norm.includes('terca')) return 2;
-  if (norm.includes('quarta')) return 3;
-  if (norm.includes('quinta')) return 4;
-  if (norm.includes('sexta')) return 5;
-  if (norm.includes('sabado')) return 6;
-  if (norm.includes('domingo')) return 0;
+  const norm = String(diaNome).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  if (norm.includes('seg')) return 1;
+  if (norm.includes('ter')) return 2;
+  if (norm.includes('qua')) return 3;
+  if (norm.includes('qui')) return 4;
+  if (norm.includes('sex')) return 5;
+  if (norm.includes('sab') || norm.includes('sáb')) return 6;
+  if (norm.includes('dom')) return 0;
   return 1;
 }
 
@@ -530,9 +533,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       const ano = dataRef.getFullYear();
       const mes = dataRef.getMonth();
 
-      const diasPac = pacienteSelecionadoObj?.diasPorProcedimento?.[novoProcedimento] ||
-                      pacienteSelecionadoObj?.diasDaSemana ||
-                      [pacienteSelecionadoObj?.diaDaSemana || 'Terça-feira'];
+      const diasPac = obterDiasDeAtendimentoDoProcedimento(pacienteSelecionadoObj, novoProcedimento);
 
       return contarOcorrenciasDiasNoMes(ano, mes, diasPac, novoSessoesPorSemana || 1);
     } catch {
@@ -545,9 +546,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
     try {
       const dataRefStr = novaDataAutorizacaoCriacao || new Date().toISOString().split('T')[0];
 
-      const diasPac = pacienteSelecionadoObj?.diasPorProcedimento?.[novoProcedimento] ||
-                      pacienteSelecionadoObj?.diasDaSemana ||
-                      [pacienteSelecionadoObj?.diaDaSemana || 'Terça-feira'];
+      const diasPac = obterDiasDeAtendimentoDoProcedimento(pacienteSelecionadoObj, novoProcedimento);
 
       return contarOcorrenciasDiasRestantesNoMes(dataRefStr, diasPac, novoSessoesPorSemana || 1);
     } catch {
@@ -581,9 +580,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
   useEffect(() => {
     if (!foiEditadoProximaAut && isNovoModalAberto) {
       const pac = pacienteSelecionadoObj;
-      const diasPac = pac?.diasPorProcedimento?.[novoProcedimento] ||
-                      pac?.diasDaSemana ||
-                      (pac?.diaDaSemana ? [pac.diaDaSemana] : ['Terça-feira']);
+      const diasPac = obterDiasDeAtendimentoDoProcedimento(pac, novoProcedimento);
       const diasArray: DiaSemanaIndice[] = (Array.isArray(diasPac) ? diasPac : [diasPac]).map((d) =>
         (typeof d === 'number' ? d : parseDiaSemanaNomeParaIndice(d)) as DiaSemanaIndice
       );
@@ -615,9 +612,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       const pac = listaPacientes.find(
         (p) => p.id === autorizacaoParaResultado.pacienteId || p.nome.toLowerCase() === autorizacaoParaResultado.pacienteNome.toLowerCase()
       );
-      const diasPac = pac?.diasPorProcedimento?.[autorizacaoParaResultado.procedimento] ||
-                      pac?.diasDaSemana ||
-                      (pac?.diaDaSemana ? [pac.diaDaSemana] : ['Terça-feira']);
+      const diasPac = obterDiasDeAtendimentoDoProcedimento(pac, autorizacaoParaResultado.procedimento);
       const diasArray: DiaSemanaIndice[] = (Array.isArray(diasPac) ? diasPac : [diasPac]).map((d) =>
         (typeof d === 'number' ? d : parseDiaSemanaNomeParaIndice(d)) as DiaSemanaIndice
       );
@@ -637,9 +632,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
   const dataUltimaSessaoCalculada = useMemo(() => {
     try {
       const dataRefStr = novaDataAutorizacaoCriacao || new Date().toISOString().split('T')[0];
-      const diasPac = pacienteSelecionadoObj?.diasPorProcedimento?.[novoProcedimento] ||
-                      pacienteSelecionadoObj?.diasDaSemana ||
-                      [pacienteSelecionadoObj?.diaDaSemana || 'Terça-feira'];
+      const diasPac = obterDiasDeAtendimentoDoProcedimento(pacienteSelecionadoObj, novoProcedimento);
       const diasArray: DiaSemanaIndice[] = (Array.isArray(diasPac) ? diasPac : [diasPac]).map((d) =>
         (typeof d === 'number' ? d : parseDiaSemanaNomeParaIndice(d)) as DiaSemanaIndice
       );
@@ -667,9 +660,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
       const pac = listaPacientes.find(
         (p) => p.id === autorizacaoParaResultado.pacienteId || p.nome.toLowerCase() === autorizacaoParaResultado.pacienteNome.toLowerCase()
       );
-      const diasPac = pac?.diasPorProcedimento?.[autorizacaoParaResultado.procedimento] ||
-                      pac?.diasDaSemana ||
-                      (pac?.diaDaSemana ? [pac.diaDaSemana] : ['Terça-feira']);
+      const diasPac = obterDiasDeAtendimentoDoProcedimento(pac, autorizacaoParaResultado.procedimento);
       const diasArray: DiaSemanaIndice[] = (Array.isArray(diasPac) ? diasPac : [diasPac]).map((d) =>
         (typeof d === 'number' ? d : parseDiaSemanaNomeParaIndice(d)) as DiaSemanaIndice
       );
@@ -692,9 +683,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
 
   const diasAtendimentoProcedimentoAtual = useMemo(() => {
     if (!pacienteSelecionadoObj) return 'Terça-feira (Padrão)';
-    const diasPac = pacienteSelecionadoObj.diasPorProcedimento?.[novoProcedimento] ||
-                    pacienteSelecionadoObj.diasDaSemana ||
-                    (pacienteSelecionadoObj.diaDaSemana ? [pacienteSelecionadoObj.diaDaSemana] : ['Terça-feira']);
+    const diasPac = obterDiasDeAtendimentoDoProcedimento(pacienteSelecionadoObj, novoProcedimento);
     return formatarDiasAtendimentoTexto(diasPac);
   }, [pacienteSelecionadoObj, novoProcedimento]);
 
@@ -703,9 +692,7 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
     const pac = listaPacientes.find(
       (p) => p.id === autorizacaoParaResultado.pacienteId || p.nome.toLowerCase() === autorizacaoParaResultado.pacienteNome.toLowerCase()
     );
-    const diasPac = pac?.diasPorProcedimento?.[autorizacaoParaResultado.procedimento] ||
-                    pac?.diasDaSemana ||
-                    (pac?.diaDaSemana ? [pac.diaDaSemana] : ['Terça-feira']);
+    const diasPac = obterDiasDeAtendimentoDoProcedimento(pac, autorizacaoParaResultado.procedimento);
     return formatarDiasAtendimentoTexto(diasPac);
   }, [autorizacaoParaResultado, listaPacientes]);
 

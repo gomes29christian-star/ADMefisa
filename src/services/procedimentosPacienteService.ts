@@ -164,6 +164,53 @@ export function identificarSessoesPorSemanaDoProcedimento(
 }
 
 /**
+ * Identifica os dias da semana de atendimento de um paciente para um procedimento específico
+ */
+export function obterDiasDeAtendimentoDoProcedimento(
+  paciente: Paciente | any,
+  procedimentoNome: string
+): any[] {
+  if (!paciente) return ['Terça-feira'];
+
+  // 1. Procurar em diasPorProcedimento
+  if (paciente.diasPorProcedimento && typeof paciente.diasPorProcedimento === 'object') {
+    for (const [key, val] of Object.entries(paciente.diasPorProcedimento)) {
+      if (correspondemAoMesmoProcedimento(key, procedimentoNome) && Array.isArray(val) && val.length > 0) {
+        return val;
+      }
+    }
+  }
+
+  // 2. Procurar em frequenciasPorProcedimento
+  if (paciente.frequenciasPorProcedimento && typeof paciente.frequenciasPorProcedimento === 'object') {
+    for (const [key, val] of Object.entries(paciente.frequenciasPorProcedimento)) {
+      if (correspondemAoMesmoProcedimento(key, procedimentoNome) && val && typeof val === 'object' && Array.isArray((val as any).dias) && (val as any).dias.length > 0) {
+        return (val as any).dias;
+      }
+    }
+  }
+
+  // 3. Procurar em terapias estruturadas
+  if (Array.isArray(paciente.terapias) && paciente.terapias.length > 0) {
+    const t = paciente.terapias.find((ter: any) => correspondemAoMesmoProcedimento(ter.procedimento, procedimentoNome));
+    if (t && Array.isArray(t.diasDaSemana) && t.diasDaSemana.length > 0) {
+      return t.diasDaSemana;
+    }
+  }
+
+  // 4. Fallback para diasDaSemana do cadastro mestre do paciente
+  if (Array.isArray(paciente.diasDaSemana) && paciente.diasDaSemana.length > 0) {
+    return paciente.diasDaSemana;
+  }
+
+  if (paciente.diaDaSemana) {
+    return [paciente.diaDaSemana];
+  }
+
+  return ['Terça-feira'];
+}
+
+/**
  * Identifica dinamicamente todos os procedimentos que um paciente realiza e suas respectivas frequências semanais
  */
 export function identificarProcedimentosDoPaciente(

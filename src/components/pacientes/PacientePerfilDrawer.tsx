@@ -58,7 +58,7 @@ import {
   normalizarEDeduplicarDiasSemana,
 } from '../../services/businessRules';
 import { ProcedimentosService } from '../../services/procedimentosService';
-import { identificarSessoesPorSemanaDoProcedimento } from '../../services/procedimentosPacienteService';
+import { identificarSessoesPorSemanaDoProcedimento, obterDiasDeAtendimentoDoProcedimento } from '../../services/procedimentosPacienteService';
 import { VisualizadorFormularioModal } from './VisualizadorFormularioModal';
 import { FormularioStorageService } from '../../services/formularioStorageService';
 import { converterArquivoParaImagens } from '../../services/pdfConverterService';
@@ -408,9 +408,7 @@ export const PacientePerfilDrawer: React.FC<PacientePerfilDrawerProps> = ({
     return 1;
   };
 
-  const diasArrayNomes = paciente.diasDaSemana && paciente.diasDaSemana.length > 0
-    ? paciente.diasDaSemana
-    : [paciente.diaDaSemana || 'Segunda-feira'];
+  const diasArrayNomes = obterDiasDeAtendimentoDoProcedimento(paciente, procDescOuCod);
   const diasIndices = diasArrayNomes.map(converterDiaNomeParaIndice);
 
   // A data de início do ciclo se baseia na data da Próxima Autorização do paciente (quando definida e válida),
