@@ -172,39 +172,80 @@ export function obterDiasDeAtendimentoDoProcedimento(
 ): any[] {
   if (!paciente) return ['Terça-feira'];
 
-  // 1. Procurar em diasPorProcedimento
-  if (paciente.diasPorProcedimento && typeof paciente.diasPorProcedimento === 'object') {
-    for (const [key, val] of Object.entries(paciente.diasPorProcedimento)) {
+  // Obtém o registro cadastral mestre ativo mais recente de localStorage (se disponível)
+  let pacReal = paciente;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const salvos = localStorage.getItem('clinica_mefisa_pacientes_v1');
+      if (salvos) {
+        const lista: Paciente[] = JSON.parse(salvos);
+        if (Array.isArray(lista)) {
+          const encontrado = lista.find(
+            (p) =>
+              p.id === paciente.id ||
+              (p.nome && paciente.nome && p.nome.toLowerCase().trim() === paciente.nome.toLowerCase().trim())
+          );
+          if (encontrado) pacReal = encontrado;
+        }
+      }
+    } catch {}
+  }
+
+  const procNomeNormalizado = (procedimentoNome || '').toLowerCase().trim();
+  const procPrincipalNormalizado = (pacReal.procedimentoPrincipal || '').toLowerCase().trim();
+  const ehProcPrincipal =
+    !procedimentoNome ||
+    !procPrincipalNormalizado ||
+    correspondemAoMesmoProcedimento(procPrincipalNormalizado, procNomeNormalizado);
+
+  // Se for o procedimento principal (ou omitido) e o paciente possuir diasDaSemana/diaDaSemana no cadastro mestre ativo,
+  // os dias do cadastro mestre ativo têm PRIORIDADE ABSOLUTA!
+  if (ehProcPrincipal && Array.isArray(pacReal.diasDaSemana) && pacReal.diasDaSemana.length > 0) {
+    return pacReal.diasDaSemana;
+  }
+  if (ehProcPrincipal && pacReal.diaDaSemana) {
+    return [pacReal.diaDaSemana];
+  }
+
+  // 1. Procurar em diasPorProcedimento do cadastro mestre
+  if (pacReal.diasPorProcedimento && typeof pacReal.diasPorProcedimento === 'object') {
+    for (const [key, val] of Object.entries(pacReal.diasPorProcedimento)) {
       if (correspondemAoMesmoProcedimento(key, procedimentoNome) && Array.isArray(val) && val.length > 0) {
         return val;
       }
     }
   }
 
-  // 2. Procurar em frequenciasPorProcedimento
-  if (paciente.frequenciasPorProcedimento && typeof paciente.frequenciasPorProcedimento === 'object') {
-    for (const [key, val] of Object.entries(paciente.frequenciasPorProcedimento)) {
-      if (correspondemAoMesmoProcedimento(key, procedimentoNome) && val && typeof val === 'object' && Array.isArray((val as any).dias) && (val as any).dias.length > 0) {
+  // 2. Procurar em frequenciasPorProcedimento do cadastro mestre
+  if (pacReal.frequenciasPorProcedimento && typeof pacReal.frequenciasPorProcedimento === 'object') {
+    for (const [key, val] of Object.entries(pacReal.frequenciasPorProcedimento)) {
+      if (
+        correspondemAoMesmoProcedimento(key, procedimentoNome) &&
+        val &&
+        typeof val === 'object' &&
+        Array.isArray((val as any).dias) &&
+        (val as any).dias.length > 0
+      ) {
         return (val as any).dias;
       }
     }
   }
 
   // 3. Procurar em terapias estruturadas
-  if (Array.isArray(paciente.terapias) && paciente.terapias.length > 0) {
-    const t = paciente.terapias.find((ter: any) => correspondemAoMesmoProcedimento(ter.procedimento, procedimentoNome));
+  if (Array.isArray(pacReal.terapias) && pacReal.terapias.length > 0) {
+    const t = pacReal.terapias.find((ter: any) => correspondemAoMesmoProcedimento(ter.procedimento, procedimentoNome));
     if (t && Array.isArray(t.diasDaSemana) && t.diasDaSemana.length > 0) {
       return t.diasDaSemana;
     }
   }
 
   // 4. Fallback para diasDaSemana do cadastro mestre do paciente
-  if (Array.isArray(paciente.diasDaSemana) && paciente.diasDaSemana.length > 0) {
-    return paciente.diasDaSemana;
+  if (Array.isArray(pacReal.diasDaSemana) && pacReal.diasDaSemana.length > 0) {
+    return pacReal.diasDaSemana;
   }
 
-  if (paciente.diaDaSemana) {
-    return [paciente.diaDaSemana];
+  if (pacReal.diaDaSemana) {
+    return [pacReal.diaDaSemana];
   }
 
   return ['Terça-feira'];

@@ -772,6 +772,19 @@ export class PacientesService {
       };
     }
 
+    if (camposAtualizados.diasDaSemana !== undefined || camposAtualizados.diaDaSemana !== undefined || camposAtualizados.diasPorProcedimento !== undefined) {
+      const diasNovos = camposAtualizados.diasDaSemana || (camposAtualizados.diaDaSemana ? [camposAtualizados.diaDaSemana] : []);
+      const procNome = pacienteAtualizado.procedimentoPrincipal || 'Psicologia ABA';
+      if (diasNovos.length > 0) {
+        pacienteAtualizado.diasDaSemana = diasNovos;
+        pacienteAtualizado.diaDaSemana = String(diasNovos[0]);
+        pacienteAtualizado.diasPorProcedimento = {
+          ...(pacienteAtualizado.diasPorProcedimento || {}),
+          [procNome]: diasNovos,
+        };
+      }
+    }
+
     // Regra do Nutricionismo: 1 por mês automaticamente!
     if (isProcedimentoNutricionismo(pacienteAtualizado.procedimentoPrincipal || pacienteAtualizado.procedimentos?.[0])) {
       pacienteAtualizado.diaDaSemana = '1 por mês';

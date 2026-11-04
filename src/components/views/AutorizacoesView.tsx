@@ -295,20 +295,18 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
           existente.convenioPrincipalNome = p.convenioPrincipalNome || p.convenioNome;
           existente.convenioNome = p.convenioPrincipalNome || p.convenioNome;
         }
-        if (p.frequenciasPorProcedimento) {
-          existente.frequenciasPorProcedimento = { ...existente.frequenciasPorProcedimento, ...p.frequenciasPorProcedimento };
+        if (p.frequenciasPorProcedimento && !existente.frequenciasPorProcedimento) {
+          existente.frequenciasPorProcedimento = p.frequenciasPorProcedimento;
+        } else if (p.frequenciasPorProcedimento && existente.frequenciasPorProcedimento) {
+          existente.frequenciasPorProcedimento = { ...p.frequenciasPorProcedimento, ...existente.frequenciasPorProcedimento };
         }
-        if (p.diasPorProcedimento) {
-          existente.diasPorProcedimento = { ...existente.diasPorProcedimento, ...p.diasPorProcedimento };
+        if (p.diasPorProcedimento && !existente.diasPorProcedimento) {
+          existente.diasPorProcedimento = p.diasPorProcedimento;
+        } else if (p.diasPorProcedimento && existente.diasPorProcedimento) {
+          existente.diasPorProcedimento = { ...p.diasPorProcedimento, ...existente.diasPorProcedimento };
         }
-        if (p.terapias) {
+        if (p.terapias && !existente.terapias) {
           existente.terapias = p.terapias;
-        }
-        if (p.sessoesPorSemana) {
-          existente.sessoesPorSemana = p.sessoesPorSemana;
-        }
-        if (p.quantidadeSemana) {
-          existente.quantidadeSemana = p.quantidadeSemana;
         }
         return;
       }
