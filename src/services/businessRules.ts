@@ -305,56 +305,15 @@ export function expandirDiasHabituaisParaFrequencia(
   sessoesPorSemana: number
 ): DiaSemanaIndice[] {
   if (!diasBrutos || diasBrutos.length === 0) {
-    diasBrutos = [1];
+    return [2];
   }
 
-  const unicos = Array.from(new Set(diasBrutos)).filter((d) => d >= 1 && d <= 6);
-  if (unicos.length >= 2 || unicos.length >= sessoesPorSemana || sessoesPorSemana <= 1) {
-    return unicos.length > 0 ? unicos : [1];
+  const unicos = Array.from(new Set(diasBrutos)).filter((d) => typeof d === 'number' && d >= 0 && d <= 6);
+  if (unicos.length > 0) {
+    return unicos;
   }
 
-  const diaBase = unicos[0] || 1;
-  const mapaExpansao: Record<number, Record<number, DiaSemanaIndice[]>> = {
-    2: {
-      1: [1, 3], // Seg, Qua
-      2: [2, 4], // Ter, Qui
-      3: [3, 5], // Qua, Sex
-      4: [2, 4], // Ter, Qui
-      5: [3, 5], // Qua, Sex
-      6: [2, 6], // Ter, Sáb
-    },
-    3: {
-      1: [1, 3, 5],
-      2: [1, 2, 4],
-      3: [1, 3, 5],
-      4: [2, 4, 6],
-      5: [1, 3, 5],
-      6: [2, 4, 6],
-    },
-    4: {
-      1: [1, 2, 4, 5],
-      2: [1, 2, 4, 5],
-      3: [1, 3, 4, 5],
-      4: [1, 2, 4, 5],
-      5: [1, 2, 4, 5],
-      6: [1, 2, 4, 6],
-    },
-    5: {
-      1: [1, 2, 3, 4, 5],
-      2: [1, 2, 3, 4, 5],
-      3: [1, 2, 3, 4, 5],
-      4: [1, 2, 3, 4, 5],
-      5: [1, 2, 3, 4, 5],
-      6: [1, 2, 3, 4, 6],
-    },
-  };
-
-  const expandido = mapaExpansao[Math.min(5, sessoesPorSemana)]?.[diaBase];
-  if (expandido && expandido.length > 0) {
-    return expandido;
-  }
-
-  return unicos;
+  return [2];
 }
 
 /**

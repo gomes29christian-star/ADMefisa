@@ -525,17 +525,22 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
     setTimeout(() => setCopiadoChave(null), 2000);
   };
 
-  const parseDiaSemanaNomeParaIndice = (diaNome?: string): DiaSemanaIndice => {
-    if (!diaNome) return 1;
-    const norm = diaNome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (norm.includes('segunda') || norm.includes('seg')) return 1;
-    if (norm.includes('terca') || norm.includes('ter')) return 2;
-    if (norm.includes('quarta') || norm.includes('qua')) return 3;
-    if (norm.includes('quinta') || norm.includes('qui')) return 4;
-    if (norm.includes('sexta') || norm.includes('sex')) return 5;
-    if (norm.includes('sabado') || norm.includes('sab')) return 6;
-    if (norm.includes('domingo') || norm.includes('dom')) return 0;
-    return 1;
+  const parseDiaSemanaNomeParaIndice = (diaNome?: string | number): DiaSemanaIndice => {
+    if (typeof diaNome === 'number') {
+      return (diaNome >= 0 && diaNome <= 6) ? (diaNome as DiaSemanaIndice) : 2;
+    }
+    if (!diaNome) return 2;
+    const norm = String(diaNome).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    const num = parseInt(norm, 10);
+    if (!isNaN(num) && num >= 0 && num <= 6) return num as DiaSemanaIndice;
+    if (norm.includes('seg')) return 1;
+    if (norm.includes('ter')) return 2;
+    if (norm.includes('qua')) return 3;
+    if (norm.includes('qui')) return 4;
+    if (norm.includes('sex')) return 5;
+    if (norm.includes('sab') || norm.includes('sáb')) return 6;
+    if (norm.includes('dom')) return 0;
+    return 2;
   };
 
   const calcularDatasSessoes = (
