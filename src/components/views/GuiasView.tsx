@@ -675,9 +675,21 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
     if (autCorrespondente?.datasSessoesCustomizadas && autCorrespondente.datasSessoesCustomizadas.length > 0) {
       return autCorrespondente.datasSessoesCustomizadas;
     }
-    const qtd = autCorrespondente?.quantidadeSolicitada || 8;
-    const sessoesSemana = autCorrespondente ? obterSessoesPorSemanaPaciente(autCorrespondente) : 1;
-    return calcularDatasSessoes(guia.dataAutorizacao, qtd, guia.pacienteNome || guia.pacienteId, sessoesSemana);
+    const procNome = guia.procedimentoNome || autCorrespondente?.procedimento || '';
+    const sessoesSemana = autCorrespondente
+      ? obterSessoesPorSemanaPaciente(autCorrespondente)
+      : obterSessoesPorSemanaPaciente({ pacienteNome: guia.pacienteNome, pacienteId: guia.pacienteId, procedimento: procNome });
+    const qtd = autCorrespondente?.quantidadeSolicitada || sessoesSemana * 4;
+    const dataIni = guia.dataAutorizacao || autCorrespondente?.dataAutorizacao || autCorrespondente?.dataSolicitacao || new Date().toISOString().split('T')[0];
+    return calcularDatasSessoes(
+      dataIni,
+      qtd,
+      guia.pacienteNome || guia.pacienteId,
+      sessoesSemana,
+      undefined,
+      undefined,
+      procNome
+    );
   };
 
   const obterStatusDigitabilidadeGuia = (aut: AutorizacaoV2) => {
@@ -685,7 +697,15 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
     const sessoesSemana = obterSessoesPorSemanaPaciente(aut);
     const sessoes = aut.datasSessoesCustomizadas && aut.datasSessoesCustomizadas.length > 0
       ? aut.datasSessoesCustomizadas
-      : calcularDatasSessoes(dataInicio, aut.quantidadeSolicitada || 1, aut.pacienteNome || aut.pacienteId, sessoesSemana);
+      : calcularDatasSessoes(
+          dataInicio,
+          aut.quantidadeSolicitada || sessoesSemana * 4,
+          aut.pacienteNome || aut.pacienteId,
+          sessoesSemana,
+          undefined,
+          undefined,
+          aut.procedimento
+        );
 
     if (!sessoes || sessoes.length === 0) {
       return {
@@ -748,7 +768,7 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
     };
   };
 
-  const obterSessoesPorSemanaPaciente = (aut: AutorizacaoV2): number => {
+  const obterSessoesPorSemanaPaciente = (aut: any): number => {
     if (aut.sessoesPorSemana && aut.sessoesPorSemana > 0) {
       return aut.sessoesPorSemana;
     }
@@ -2344,11 +2364,12 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
                   const sessoesPorSemanaDrawer = obterSessoesPorSemanaPaciente(guiaSelecionadaDrawer);
                   const datasPadraoOriginais = calcularDatasSessoes(
                     guiaSelecionadaDrawer.dataAutorizacao || guiaSelecionadaDrawer.dataSolicitacao,
-                    guiaSelecionadaDrawer.quantidadeSolicitada,
+                    guiaSelecionadaDrawer.quantidadeSolicitada || sessoesPorSemanaDrawer * 4,
                     guiaSelecionadaDrawer.pacienteNome || guiaSelecionadaDrawer.pacienteId,
                     sessoesPorSemanaDrawer,
                     temFaltasJustificadasDrawer ? datasFaltasDrawer : undefined,
-                    modoFaltasDrawer
+                    modoFaltasDrawer,
+                    (guiaSelecionadaDrawer as any).procedimentoNome || (guiaSelecionadaDrawer as any).procedimento
                   );
                   const datasSessoes = automacaoDesativadaDrawer
                     ? datasSessoesDrawer

@@ -705,10 +705,10 @@ export function gerarCronogramaComAuditoriaFeriados(
       const dtSess = new Date(currentMonday);
       dtSess.setDate(currentMonday.getDate() + (targetDay - 1));
 
-      // Se a data calculada nesta semana for anterior a dtStart (ex: Terça 03/11 quando o início é Quarta 04/11),
-      // não duplicamos na data de início, mas sim avançamos para a próxima ocorrência válida.
+      // Se a data calculada for anterior a dtStart (ex: Terça 03/11 quando o início do ciclo é Quarta 04/11),
+      // alinhamos para dtStart para que o ciclo comece exatamente no Dia da Solicitação/Início do Ciclo
       if (dtSess < dtStart) {
-        continue;
+        dtSess.setTime(dtStart.getTime());
       }
       if (dtSess.getDay() === 0) dtSess.setDate(dtSess.getDate() + 1);
 
