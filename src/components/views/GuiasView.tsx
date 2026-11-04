@@ -53,6 +53,7 @@ import { AutorizacaoV2 } from '../../types/autorizacao';
 import { UserFiltersService } from '../../services/userFiltersService';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
 import { obterBadgeColorProcedimento, CLASS_TABELA_LISTRADA_ROW } from '../../utils/procedureStyles';
+import { HolidayService } from '../../services/holidaysService';
 
 interface GuiasViewProps {
   onOpenAudit: () => void;
@@ -2544,16 +2545,35 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
                       {!modoEdicaoSessoesDrawer ? (
                         <div className="space-y-2">
                           <div className="flex flex-wrap gap-1.5 font-mono text-xs">
-                            {datasSessoes.map((dt, i) => (
-                              <span
-                                key={i}
-                                className="px-2.5 py-1 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-100 shadow-2xs hover:border-[#002172] transition-colors flex items-center gap-1.5"
-                                title={`Sessão #${i + 1} em formato brasileiro dd/mm/aaaa`}
-                              >
-                                <span className="text-[10px] text-slate-400 font-normal">#{i + 1}</span>
-                                <span>{dt}</span>
-                              </span>
-                            ))}
+                            {datasSessoes.map((dt, i) => {
+                              let iso = '';
+                              if (dt && dt.includes('/')) {
+                                const [dia, mes, ano] = dt.split('/');
+                                iso = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+                              }
+                              const feriado = iso ? HolidayService.verificarFeriado(iso) : null;
+
+                              return (
+                                <span
+                                  key={i}
+                                  className={`px-2.5 py-1 rounded-lg border font-bold text-xs shadow-2xs hover:border-[#002172] transition-colors flex items-center gap-1.5 ${
+                                    feriado
+                                      ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border-amber-400 dark:border-amber-700'
+                                      : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-700'
+                                  }`}
+                                  title={feriado ? `Feriado: ${feriado.nome} (${feriado.regraDeterminante})` : `Sessão #${i + 1} em formato brasileiro dd/mm/aaaa`}
+                                >
+                                  <span className="text-[10px] text-slate-400 font-normal">#{i + 1}</span>
+                                  <span>{dt}</span>
+                                  {feriado && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-600 text-white flex items-center gap-1">
+                                      <AlertTriangle className="w-2.5 h-2.5" />
+                                      <span>Feriado</span>
+                                    </span>
+                                  )}
+                                </span>
+                              );
+                            })}
                           </div>
 
                           <div className="flex items-center justify-between flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-1">

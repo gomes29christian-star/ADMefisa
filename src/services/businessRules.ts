@@ -769,10 +769,13 @@ export function gerarCronogramaComAuditoriaFeriados(
     const conflito = verificarConflitoFeriado(s.dataIso);
     if (conflito) totalConflitos++;
 
+    const dataAjustadaIso = conflito ? conflito.novaDataSugerida : s.dataIso;
+    const dtAjustada = parseIsoDateLocal(dataAjustadaIso);
+
     return {
       numero: idx + 1,
-      data: s.dataIso,
-      diaSemana: formatarDiaSemanaPt(s.diaSemanaIdx),
+      data: dataAjustadaIso,
+      diaSemana: formatarDiaSemanaPt(dtAjustada.getDay() as DiaSemanaIndice),
       temConflitoFeriado: !!conflito,
       conflito: conflito || undefined,
     };

@@ -247,8 +247,18 @@ export class HolidayService {
    * Verifica se uma data YYYY-MM-DD é feriado aplicável
    */
   public static verificarFeriado(dataStr: string): FeriadoConfig | null {
+    if (!dataStr || typeof dataStr !== 'string') return null;
+    const limpo = dataStr.trim();
+    const parts = limpo.split('-');
+    const mmdd = parts.length === 3 ? `${parts[1]}-${parts[2]}` : '';
+
     const lista = this.obterFeriados();
-    const encontrado = lista.find((f) => f.data === dataStr && f.bloqueiaAtendimento);
+    const encontrado = lista.find((f) => {
+      if (!f.bloqueiaAtendimento) return false;
+      if (f.data === limpo) return true;
+      if (mmdd && (f.data.endsWith(`-${mmdd}`) || f.data.slice(5) === mmdd)) return true;
+      return false;
+    });
     return encontrado || null;
   }
 
