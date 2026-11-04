@@ -32,25 +32,60 @@ import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
 import { GerenciarProcedimentosModal } from '../procedimentos/GerenciarProcedimentosModal';
 import { formatarDataBr } from '../../services/businessRules';
 
+import { UserFiltersService } from '../../services/userFiltersService';
+
 interface SpreadsheetCentralViewProps {
   onOpenAudit: () => void;
   onOpenCalculator: () => void;
   usuarioAtualNome: string;
+  usuarioAtualId?: string;
 }
 
 export const SpreadsheetCentralView: React.FC<SpreadsheetCentralViewProps> = ({
   onOpenAudit,
   onOpenCalculator,
   usuarioAtualNome,
+  usuarioAtualId,
 }) => {
   const { getThemeStrokeStyle, showMonthInitials } = useTheme();
 
-  // Filtros locais da sessão do usuário
-  const [busca, setBusca] = useState('');
-  const [convenioFiltro, setConvenioFiltro] = useState('todos');
-  const [especialidadeFiltro, setEspecialidadeFiltro] = useState('todas');
-  const [apenasPendencias, setApenasPendencias] = useState(false);
-  const [modoDensidade, setModoDensidade] = useState<'confortavel' | 'compacta'>('confortavel');
+  const padraoCentralFiltros = {
+    busca: '',
+    convenioFiltro: 'todos',
+    especialidadeFiltro: 'todas',
+    apenasPendencias: false,
+    modoDensidade: 'confortavel' as 'confortavel' | 'compacta',
+  };
+
+  const savedCentralFiltros = useMemo(
+    () => UserFiltersService.obterFiltros('central', usuarioAtualId, padraoCentralFiltros),
+    [usuarioAtualId]
+  );
+
+  const [busca, setBusca] = useState(savedCentralFiltros.busca);
+  const [convenioFiltro, setConvenioFiltro] = useState(savedCentralFiltros.convenioFiltro);
+  const [especialidadeFiltro, setEspecialidadeFiltro] = useState(savedCentralFiltros.especialidadeFiltro);
+  const [apenasPendencias, setApenasPendencias] = useState(savedCentralFiltros.apenasPendencias);
+  const [modoDensidade, setModoDensidade] = useState<'confortavel' | 'compacta'>(savedCentralFiltros.modoDensidade);
+
+  React.useEffect(() => {
+    const f = UserFiltersService.obterFiltros('central', usuarioAtualId, padraoCentralFiltros);
+    setBusca(f.busca);
+    setConvenioFiltro(f.convenioFiltro);
+    setEspecialidadeFiltro(f.especialidadeFiltro);
+    setApenasPendencias(f.apenasPendencias);
+    setModoDensidade(f.modoDensidade);
+  }, [usuarioAtualId]);
+
+  React.useEffect(() => {
+    UserFiltersService.salvarFiltros('central', usuarioAtualId, {
+      busca,
+      convenioFiltro,
+      especialidadeFiltro,
+      apenasPendencias,
+      modoDensidade,
+    });
+  }, [busca, convenioFiltro, especialidadeFiltro, apenasPendencias, modoDensidade, usuarioAtualId]);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [linhaEditandoId, setLinhaEditandoId] = useState<string | null>(null);
   const [isProcedimentosModalOpen, setIsProcedimentosModalOpen] = useState(false);

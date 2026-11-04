@@ -50,11 +50,13 @@ import {
   salvarGuiasStorage,
 } from '../../services/autorizacoesService';
 import { AutorizacaoV2 } from '../../types/autorizacao';
+import { UserFiltersService } from '../../services/userFiltersService';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
 import { obterBadgeColorProcedimento, CLASS_TABELA_LISTRADA_ROW } from '../../utils/procedureStyles';
 
 interface GuiasViewProps {
   onOpenAudit: () => void;
+  usuarioAtual?: Usuario;
 }
 
 const GUIAS_PADRAO_INICIAIS: GuiaDigitacao[] = [
@@ -138,32 +140,66 @@ const GUIAS_PADRAO_INICIAIS: GuiaDigitacao[] = [
   },
 ];
 
-export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit }) => {
+export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual }) => {
   const { showMonthInitials } = useTheme();
-  const [busca, setBusca] = useState('');
-  const [statusFiltro, setStatusFiltro] = useState('TODOS');
-  const [filtroDataInicio, setFiltroDataInicio] = useState('');
-  const [filtroDataFim, setFiltroDataFim] = useState('');
 
-  // Filtros programáveis por coluna para as colunas do Faturamento
-  const [filtrosColunas, setFiltrosColunas] = useState({
-    classificacao: '',
-    numeroGuia: '',
-    paciente: '',
-    dataAutorizacao: '',
-    dataColocacaoPasta: '',
-    pastaDoutora: '',
-    polo: '',
-    responsavelColocacaoPasta: '',
-    dataRetorno: '',
-    dataDigitacao: '',
-    responsavelDigitacao: '',
-    assinada: '',
-    responsavelColherAssinatura: '',
-  });
+  const padraoGuiasFiltros = {
+    busca: '',
+    statusFiltro: 'TODOS',
+    filtroDataInicio: '',
+    filtroDataFim: '',
+    apenasIncompletas: false,
+    filtrosColunas: {
+      classificacao: '',
+      numeroGuia: '',
+      paciente: '',
+      dataAutorizacao: '',
+      dataColocacaoPasta: '',
+      pastaDoutora: '',
+      polo: '',
+      responsavelColocacaoPasta: '',
+      dataRetorno: '',
+      dataDigitacao: '',
+      responsavelDigitacao: '',
+      assinada: '',
+      responsavelColherAssinatura: '',
+    },
+  };
 
-  // Filtro de Guias Incompletas (Campos em branco)
-  const [apenasIncompletas, setApenasIncompletas] = useState(false);
+  const savedGuiasFiltros = React.useMemo(
+    () => UserFiltersService.obterFiltros('guias', usuarioAtual?.id, padraoGuiasFiltros),
+    [usuarioAtual?.id]
+  );
+
+  const [busca, setBusca] = useState(savedGuiasFiltros.busca);
+  const [statusFiltro, setStatusFiltro] = useState(savedGuiasFiltros.statusFiltro);
+  const [filtroDataInicio, setFiltroDataInicio] = useState(savedGuiasFiltros.filtroDataInicio);
+  const [filtroDataFim, setFiltroDataFim] = useState(savedGuiasFiltros.filtroDataFim);
+  const [apenasIncompletas, setApenasIncompletas] = useState(savedGuiasFiltros.apenasIncompletas);
+  const [filtrosColunas, setFiltrosColunas] = useState(savedGuiasFiltros.filtrosColunas);
+
+  // Recarrega filtros ao trocar o usuário ativo
+  useEffect(() => {
+    const f = UserFiltersService.obterFiltros('guias', usuarioAtual?.id, padraoGuiasFiltros);
+    setBusca(f.busca);
+    setStatusFiltro(f.statusFiltro);
+    setFiltroDataInicio(f.filtroDataInicio);
+    setFiltroDataFim(f.filtroDataFim);
+    setApenasIncompletas(f.apenasIncompletas);
+    setFiltrosColunas(f.filtrosColunas);
+  }, [usuarioAtual?.id]);
+
+  // Persiste filtros por usuário
+  useEffect(() => {
+    UserFiltersService.salvarFiltros('guias', usuarioAtual?.id, {
+      busca,
+      statusFiltro,
+      filtroDataInicio,
+      filtroDataFim,
+      apenasIncompletas,
+      filtrosColunas,
+    });
+  }, [busca, statusFiltro, filtroDataInicio, filtroDataFim, apenasIncompletas, filtrosColunas, usuarioAtual?.id]);
 
   const isEmBranco = (val: any) => !val || String(val).trim() === '';
 

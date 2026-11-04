@@ -38,6 +38,7 @@ import { PacientesService, converterDataParaIso } from '../../services/pacientes
 import { ProcedimentosService, ProcedimentoCompleto } from '../../services/procedimentosService';
 import { identificarSessoesPorSemanaDoProcedimento } from '../../services/procedimentosPacienteService';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
+import { UserFiltersService } from '../../services/userFiltersService';
 import { obterBadgeColorProcedimento, CLASS_TABELA_LISTRADA_ROW } from '../../utils/procedureStyles';
 
 function parseDiaSemanaNomeParaIndice(diaNome?: string): DiaSemanaIndice {
@@ -111,27 +112,91 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
     };
   }, []);
 
-  // Estados de Filtros Individuais
-  const [filtroStatus, setFiltroStatus] = useState<string>('TODOS');
-  const [filtroPeriodo, setFiltroPeriodo] = useState<string>('TODOS');
-  const [filtroResponsavel, setFiltroResponsavel] = useState<string>('TODOS');
-  const [filtroTempo, setFiltroTempo] = useState<string>('TODOS');
-  const [filtroAlerta, setFiltroAlerta] = useState<string>('TODOS');
-  const [apenasMinhas, ApenasMinhas] = useState<boolean>(false);
-  const [pesquisa, setPesquisa] = useState<string>('');
-  const [filtroDataInicio, setFiltroDataInicio] = useState<string>('');
-  const [filtroDataFim, setFiltroDataFim] = useState<string>('');
+  // Estados de Filtros Individuais Isolados por Usuário
+  const padraoAutorizacoesFiltros = {
+    filtroStatus: 'TODOS',
+    filtroPeriodo: 'TODOS',
+    filtroResponsavel: 'TODOS',
+    filtroTempo: 'TODOS',
+    filtroAlerta: 'TODOS',
+    apenasMinhas: false,
+    pesquisa: '',
+    filtroDataInicio: '',
+    filtroDataFim: '',
+    secaoAtiva: 'TODAS' as 'TODAS' | 'ABA' | 'CONVENCIONAL',
+    filtrosColunas: {
+      paciente: '',
+      procedimento: '',
+      prestador: '',
+      solicitacao: '',
+      quantidade: '',
+      status: '',
+      responsavel: '',
+    },
+  };
 
-  // Filtros programáveis por coluna
-  const [filtrosColunas, setFiltrosColunas] = useState({
-    paciente: '',
-    procedimento: '',
-    prestador: '',
-    solicitacao: '',
-    quantidade: '',
-    status: '',
-    responsavel: '',
-  });
+  const savedAutFiltros = useMemo(
+    () => UserFiltersService.obterFiltros('autorizacoes', usuarioAtual?.id, padraoAutorizacoesFiltros),
+    [usuarioAtual?.id]
+  );
+
+  const [filtroStatus, setFiltroStatus] = useState<string>(savedAutFiltros.filtroStatus);
+  const [filtroPeriodo, setFiltroPeriodo] = useState<string>(savedAutFiltros.filtroPeriodo);
+  const [filtroResponsavel, setFiltroResponsavel] = useState<string>(savedAutFiltros.filtroResponsavel);
+  const [filtroTempo, setFiltroTempo] = useState<string>(savedAutFiltros.filtroTempo);
+  const [filtroAlerta, setFiltroAlerta] = useState<string>(savedAutFiltros.filtroAlerta);
+  const [apenasMinhas, ApenasMinhas] = useState<boolean>(savedAutFiltros.apenasMinhas);
+  const [pesquisa, setPesquisa] = useState<string>(savedAutFiltros.pesquisa);
+  const [filtroDataInicio, setFiltroDataInicio] = useState<string>(savedAutFiltros.filtroDataInicio);
+  const [filtroDataFim, setFiltroDataFim] = useState<string>(savedAutFiltros.filtroDataFim);
+  const [secaoAtiva, setSecaoAtiva] = useState<'TODAS' | 'ABA' | 'CONVENCIONAL'>(savedAutFiltros.secaoAtiva);
+  const [filtrosColunas, setFiltrosColunas] = useState(savedAutFiltros.filtrosColunas);
+
+  // Recarrega os filtros ao alternar de usuário
+  useEffect(() => {
+    const f = UserFiltersService.obterFiltros('autorizacoes', usuarioAtual?.id, padraoAutorizacoesFiltros);
+    setFiltroStatus(f.filtroStatus);
+    setFiltroPeriodo(f.filtroPeriodo);
+    setFiltroResponsavel(f.filtroResponsavel);
+    setFiltroTempo(f.filtroTempo);
+    setFiltroAlerta(f.filtroAlerta);
+    ApenasMinhas(f.apenasMinhas);
+    setPesquisa(f.pesquisa);
+    setFiltroDataInicio(f.filtroDataInicio);
+    setFiltroDataFim(f.filtroDataFim);
+    setSecaoAtiva(f.secaoAtiva);
+    setFiltrosColunas(f.filtrosColunas);
+  }, [usuarioAtual?.id]);
+
+  // Persiste automaticamente no localStorage por usuário
+  useEffect(() => {
+    UserFiltersService.salvarFiltros('autorizacoes', usuarioAtual?.id, {
+      filtroStatus,
+      filtroPeriodo,
+      filtroResponsavel,
+      filtroTempo,
+      filtroAlerta,
+      apenasMinhas,
+      pesquisa,
+      filtroDataInicio,
+      filtroDataFim,
+      secaoAtiva,
+      filtrosColunas,
+    });
+  }, [
+    filtroStatus,
+    filtroPeriodo,
+    filtroResponsavel,
+    filtroTempo,
+    filtroAlerta,
+    apenasMinhas,
+    pesquisa,
+    filtroDataInicio,
+    filtroDataFim,
+    secaoAtiva,
+    filtrosColunas,
+    usuarioAtual?.id,
+  ]);
 
   const temFiltroColunaAtivo = Object.values(filtrosColunas).some(v => Boolean(v && v.trim())) || Boolean(filtroDataInicio) || Boolean(filtroDataFim);
 
@@ -286,9 +351,6 @@ export const AutorizacoesView: React.FC<AutorizacoesViewProps> = ({
 
     return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   }, [autorizacoes, isNovoModalAberto]);
-
-  // Seção/Módulo Ativo: TODAS | ABA | CONVENCIONAL
-  const [secaoAtiva, setSecaoAtiva] = useState<'TODAS' | 'ABA' | 'CONVENCIONAL'>('TODAS');
 
   const [novoPacienteId, setNovoPacienteId] = useState('');
   const [novoPacienteNomePersonalizado, setNovoPacienteNomePersonalizado] = useState('');

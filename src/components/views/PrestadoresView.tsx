@@ -27,12 +27,13 @@ import {
 } from 'lucide-react';
 import { MOCK_PRESTADORES, salvarPrestadoresStorage, deduplicarPrestadores, sanitizarPrestadorExternoCrm } from '../../data/mockClinicData';
 import { LISTA_CBOS_OPCOES, obterDescricaoCbo } from '../../data/cbosData';
-import { Prestador } from '../../types/clinic';
+import { Prestador, Usuario } from '../../types/clinic';
 import { sanitizarCbo } from '../../services/businessRules';
 import { useTheme } from '../../context/ThemeContext';
 import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
 import { matchTextFilter } from '../../utils/filterUtils';
 import { obterBadgeColorProcedimento, CLASS_TABELA_LISTRADA_ROW } from '../../utils/procedureStyles';
+import { UserFiltersService } from '../../services/userFiltersService';
 
 const LISTA_PROCEDIMENTOS_OPCOES = [
   'Musicoterapia',
@@ -49,7 +50,11 @@ Dra. Ana Beatriz Albuquerque;123.456.789-01;CRP;06/12345;SP;Psicologia ABA;Fono,
 Dr. Carlos Eduardo Neves;234.567.890-12;CRFa;2-4567;SP;Fonoaudiologia Clínica;Fonoaudiologia | Musicoterapia
 Dra. Mariana Souza;345.678.901-23;CREFITO;15892;SP;Psicomotricidade;Psicomotricidade / T.O.`;
 
-export const PrestadoresView: React.FC = () => {
+interface PrestadoresViewProps {
+  usuarioAtual?: Usuario;
+}
+
+export const PrestadoresView: React.FC<PrestadoresViewProps> = ({ usuarioAtual }) => {
   const { getThemeStrokeStyle } = useTheme();
   const [prestadores, setPrestadores] = useState<Prestador[]>(() =>
     deduplicarPrestadores(MOCK_PRESTADORES).map(sanitizarPrestadorExternoCrm)
@@ -170,20 +175,68 @@ export const PrestadoresView: React.FC = () => {
   const [linhasPreviasImport, setLinhasPreviasImport] = useState<any[]>([]);
   const [tipoImportacaoLote, setTipoImportacaoLote] = useState<'MEFISA' | 'PRESTADOR'>('PRESTADOR');
 
-  // Estados de Filtros e Busca para Doutores/Prestadores
-  const [buscaGlobal, setBuscaGlobal] = useState('');
-  const [filtroConselho, setFiltroConselho] = useState('TODOS');
-  const [filtroEspecialidade, setFiltroEspecialidade] = useState('TODOS');
-  const [filtroProcedimento, setFiltroProcedimento] = useState('TODOS');
-  const [modoExibicao, setModoExibicao] = useState<'cards' | 'tabela'>('cards');
+  // Estados de Filtros e Busca para Doutores/Prestadores Isolados por Usuário
+  const padraoPrestadoresFiltros = {
+    buscaGlobal: '',
+    filtroConselho: 'TODOS',
+    filtroEspecialidade: 'TODOS',
+    filtroProcedimento: 'TODOS',
+    modoExibicao: 'cards' as 'cards' | 'tabela',
+    filtrosColunas: {
+      nome: '',
+      registro: '',
+      cbo: '',
+      procedimentos: '',
+      pasta: '',
+    },
+    abaAtiva: 'mefisa' as 'mefisa' | 'prestadores' | 'importacao',
+  };
 
-  const [filtrosColunas, setFiltrosColunas] = useState({
-    nome: '',
-    registro: '',
-    cbo: '',
-    procedimentos: '',
-    pasta: '',
-  });
+  const savedPrestFiltros = React.useMemo(
+    () => UserFiltersService.obterFiltros('prestadores', usuarioAtual?.id, padraoPrestadoresFiltros),
+    [usuarioAtual?.id]
+  );
+
+  const [buscaGlobal, setBuscaGlobal] = useState(savedPrestFiltros.buscaGlobal);
+  const [filtroConselho, setFiltroConselho] = useState(savedPrestFiltros.filtroConselho);
+  const [filtroEspecialidade, setFiltroEspecialidade] = useState(savedPrestFiltros.filtroEspecialidade);
+  const [filtroProcedimento, setFiltroProcedimento] = useState(savedPrestFiltros.filtroProcedimento);
+  const [modoExibicao, setModoExibicao] = useState<'cards' | 'tabela'>(savedPrestFiltros.modoExibicao);
+  const [filtrosColunas, setFiltrosColunas] = useState(savedPrestFiltros.filtrosColunas);
+
+  // Sync state when active user changes
+  React.useEffect(() => {
+    const f = UserFiltersService.obterFiltros('prestadores', usuarioAtual?.id, padraoPrestadoresFiltros);
+    setBuscaGlobal(f.buscaGlobal);
+    setFiltroConselho(f.filtroConselho);
+    setFiltroEspecialidade(f.filtroEspecialidade);
+    setFiltroProcedimento(f.filtroProcedimento);
+    setModoExibicao(f.modoExibicao);
+    setFiltrosColunas(f.filtrosColunas);
+    if (f.abaAtiva) setAbaAtiva(f.abaAtiva);
+  }, [usuarioAtual?.id]);
+
+  // Persist filters per user
+  React.useEffect(() => {
+    UserFiltersService.salvarFiltros('prestadores', usuarioAtual?.id, {
+      buscaGlobal,
+      filtroConselho,
+      filtroEspecialidade,
+      filtroProcedimento,
+      modoExibicao,
+      filtrosColunas,
+      abaAtiva,
+    });
+  }, [
+    buscaGlobal,
+    filtroConselho,
+    filtroEspecialidade,
+    filtroProcedimento,
+    modoExibicao,
+    filtrosColunas,
+    abaAtiva,
+    usuarioAtual?.id,
+  ]);
 
   const temFiltrosAtivos = Boolean(buscaGlobal.trim()) || filtroConselho !== 'TODOS' || filtroEspecialidade !== 'TODOS' || filtroProcedimento !== 'TODOS' || Object.values(filtrosColunas).some(v => Boolean(v && v.trim()));
 

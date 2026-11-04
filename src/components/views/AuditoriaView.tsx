@@ -40,17 +40,57 @@ interface AuditoriaViewProps {
 type CampoOrdenacao = 'dataHora' | 'usuarioNome' | 'entidade' | 'acao' | 'campoAlterado';
 type DirecaoOrdenacao = 'asc' | 'desc';
 
+import { UserFiltersService } from '../../services/userFiltersService';
+
 export const AuditoriaView: React.FC<AuditoriaViewProps> = ({ usuarioAtual }) => {
   const { showMonthInitials } = useTheme();
   const [logs, setLogs] = useState<EventoAuditoriaCompleto[]>(() => AuditoriaService.obterLogs());
-  const [busca, setBusca] = useState('');
-  const [filtroUsuario, setFiltroUsuario] = useState('TODOS');
-  const [filtroEntidade, setFiltroEntidade] = useState('TODAS');
-  const [filtroTipoAcao, setFiltroTipoAcao] = useState('TODOS');
-  const [filtroPeriodo, setFiltroPeriodo] = useState('TODOS');
-  
-  const [campoOrdenacao, setCampoOrdenacao] = useState<CampoOrdenacao>('dataHora');
-  const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<DirecaoOrdenacao>('desc');
+
+  const padraoAuditoriaFiltros = {
+    busca: '',
+    filtroUsuario: 'TODOS',
+    filtroEntidade: 'TODAS',
+    filtroTipoAcao: 'TODOS',
+    filtroPeriodo: 'TODOS',
+    campoOrdenacao: 'dataHora' as CampoOrdenacao,
+    direcaoOrdenacao: 'desc' as DirecaoOrdenacao,
+  };
+
+  const savedAudFiltros = useMemo(
+    () => UserFiltersService.obterFiltros('auditoria', usuarioAtual?.id, padraoAuditoriaFiltros),
+    [usuarioAtual?.id]
+  );
+
+  const [busca, setBusca] = useState(savedAudFiltros.busca);
+  const [filtroUsuario, setFiltroUsuario] = useState(savedAudFiltros.filtroUsuario);
+  const [filtroEntidade, setFiltroEntidade] = useState(savedAudFiltros.filtroEntidade);
+  const [filtroTipoAcao, setFiltroTipoAcao] = useState(savedAudFiltros.filtroTipoAcao);
+  const [filtroPeriodo, setFiltroPeriodo] = useState(savedAudFiltros.filtroPeriodo);
+  const [campoOrdenacao, setCampoOrdenacao] = useState<CampoOrdenacao>(savedAudFiltros.campoOrdenacao);
+  const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<DirecaoOrdenacao>(savedAudFiltros.direcaoOrdenacao);
+
+  React.useEffect(() => {
+    const f = UserFiltersService.obterFiltros('auditoria', usuarioAtual?.id, padraoAuditoriaFiltros);
+    setBusca(f.busca);
+    setFiltroUsuario(f.filtroUsuario);
+    setFiltroEntidade(f.filtroEntidade);
+    setFiltroTipoAcao(f.filtroTipoAcao);
+    setFiltroPeriodo(f.filtroPeriodo);
+    setCampoOrdenacao(f.campoOrdenacao);
+    setDirecaoOrdenacao(f.direcaoOrdenacao);
+  }, [usuarioAtual?.id]);
+
+  React.useEffect(() => {
+    UserFiltersService.salvarFiltros('auditoria', usuarioAtual?.id, {
+      busca,
+      filtroUsuario,
+      filtroEntidade,
+      filtroTipoAcao,
+      filtroPeriodo,
+      campoOrdenacao,
+      direcaoOrdenacao,
+    });
+  }, [busca, filtroUsuario, filtroEntidade, filtroTipoAcao, filtroPeriodo, campoOrdenacao, direcaoOrdenacao, usuarioAtual?.id]);
 
   const [idsSelecionados, setIdsSelecionados] = useState<string[]>([]);
   const [logSelecionado, setLogSelecionado] = useState<EventoAuditoriaCompleto | null>(null);

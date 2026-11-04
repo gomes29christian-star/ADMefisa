@@ -211,6 +211,7 @@ import { TopScrollTableWrapper } from '../common/TopScrollTableWrapper';
 import { formatarDataBr, normalizarDiaSemana, normalizarEDeduplicarDiasSemana, isProcedimentoNutricionismo } from '../../services/businessRules';
 import { matchDateFilter, matchTextFilter } from '../../utils/filterUtils';
 
+import { UserFiltersService } from '../../services/userFiltersService';
 import { obterBadgeColorProcedimento, CLASS_TABELA_LISTRADA_ROW } from '../../utils/procedureStyles';
 
 const obterBadgeProcedimento = (proc: string) => obterBadgeColorProcedimento(proc);
@@ -423,35 +424,65 @@ export const PacientesView: React.FC<PacientesViewProps> = ({
     setTimeout(() => setNotificacaoSucesso(null), 4000);
   };
 
-  // Filtros locais da sessão do usuário corrente (ISOLADOS POR USUÁRIO)
-  const [filtros, setFiltros] = useState<FiltroPacientesUsuario>(() =>
-    PacientesService.obterFiltroUsuario(usuarioAtual.id)
+  // Filtros locais da sessão do usuário corrente (ISOLADOS POR USUÁRIO via UserFiltersService)
+  const padraoPacientesFiltros = {
+    filtros: PacientesService.obterFiltroUsuario(usuarioAtual.id),
+    secaoAtiva: 'TODOS' as 'TODOS' | 'ABA' | 'CONVENCIONAL',
+    datasProximaAutSel: [] as string[],
+    datasUltimaAutSel: [] as string[],
+    datasAtualizacaoSel: [] as string[],
+    filtrosColunas: {
+      nome: '',
+      procedimento: '',
+      carteirinha: '',
+      token: '',
+      impresso: '',
+      polo: '',
+      semanas: '',
+      status: '',
+      convenio: '',
+      proximaAut: '',
+      ultimaAut: '',
+      pendencias: '',
+      atualizacao: '',
+    },
+  };
+
+  const savedPacientesFiltros = useMemo(
+    () => UserFiltersService.obterFiltros('pacientes', usuarioAtual.id, padraoPacientesFiltros),
+    [usuarioAtual.id]
   );
 
-  // Estado de Seção/Aba Ativa: TODOS | ABA | CONVENCIONAL
-  const [secaoAtiva, setSecaoAtiva] = useState<'TODOS' | 'ABA' | 'CONVENCIONAL'>('TODOS');
+  const [filtros, setFiltros] = useState<FiltroPacientesUsuario>(savedPacientesFiltros.filtros);
+  const [secaoAtiva, setSecaoAtiva] = useState<'TODOS' | 'ABA' | 'CONVENCIONAL'>(savedPacientesFiltros.secaoAtiva);
+  const [datasProximaAutSel, setDatasProximaAutSel] = useState<string[]>(savedPacientesFiltros.datasProximaAutSel);
+  const [datasUltimaAutSel, setDatasUltimaAutSel] = useState<string[]>(savedPacientesFiltros.datasUltimaAutSel);
+  const [datasAtualizacaoSel, setDatasAtualizacaoSel] = useState<string[]>(savedPacientesFiltros.datasAtualizacaoSel);
+  const [filtrosColunas, setFiltrosColunas] = useState(savedPacientesFiltros.filtrosColunas);
 
-  // Estados de seleção múltipla para datas de autorização
-  const [datasProximaAutSel, setDatasProximaAutSel] = useState<string[]>([]);
-  const [datasUltimaAutSel, setDatasUltimaAutSel] = useState<string[]>([]);
-  const [datasAtualizacaoSel, setDatasAtualizacaoSel] = useState<string[]>([]);
+  // Recarrega filtros quando muda o usuário ativo
+  useEffect(() => {
+    const f = UserFiltersService.obterFiltros('pacientes', usuarioAtual.id, padraoPacientesFiltros);
+    setFiltros(f.filtros);
+    setSecaoAtiva(f.secaoAtiva);
+    setDatasProximaAutSel(f.datasProximaAutSel || []);
+    setDatasUltimaAutSel(f.datasUltimaAutSel || []);
+    setDatasAtualizacaoSel(f.datasAtualizacaoSel || []);
+    setFiltrosColunas(f.filtrosColunas);
+  }, [usuarioAtual.id]);
 
-  // Filtros programáveis por coluna
-  const [filtrosColunas, setFiltrosColunas] = useState({
-    nome: '',
-    procedimento: '',
-    carteirinha: '',
-    token: '',
-    impresso: '',
-    polo: '',
-    semanas: '',
-    status: '',
-    convenio: '',
-    proximaAut: '',
-    ultimaAut: '',
-    pendencias: '',
-    atualizacao: '',
-  });
+  // Persiste automaticamente no localStorage por usuário
+  useEffect(() => {
+    UserFiltersService.salvarFiltros('pacientes', usuarioAtual.id, {
+      filtros,
+      secaoAtiva,
+      datasProximaAutSel,
+      datasUltimaAutSel,
+      datasAtualizacaoSel,
+      filtrosColunas,
+    });
+    PacientesService.salvarFiltroUsuario(usuarioAtual.id, filtros);
+  }, [filtros, secaoAtiva, datasProximaAutSel, datasUltimaAutSel, datasAtualizacaoSel, filtrosColunas, usuarioAtual.id]);
 
   // Alternar status de impressão (Imprimido vs A imprimir)
   const handleToggleStatusImpressao = (pac: Paciente, e?: React.SyntheticEvent) => {

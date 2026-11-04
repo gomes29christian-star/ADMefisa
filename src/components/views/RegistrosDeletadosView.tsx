@@ -25,6 +25,8 @@ interface RegistrosDeletadosViewProps {
   onRestaurarSucesso?: (tipo: string, registro: any) => void;
 }
 
+import { UserFiltersService } from '../../services/userFiltersService';
+
 export const RegistrosDeletadosView: React.FC<RegistrosDeletadosViewProps> = ({
   activeUsuario,
   onRestaurarSucesso,
@@ -33,9 +35,36 @@ export const RegistrosDeletadosView: React.FC<RegistrosDeletadosViewProps> = ({
   const [registros, setRegistros] = useState<DeletedRecord[]>(() =>
     DeletedRecordsService.obterRegistrosDeletados()
   );
-  const [filtroTipo, setFiltroTipo] = useState<string>('todos');
-  const [filtroPeriodo, setFiltroPeriodo] = useState<string>('todos');
-  const [busca, setBusca] = useState('');
+
+  const padraoLixeiraFiltros = {
+    filtroTipo: 'todos',
+    filtroPeriodo: 'todos',
+    busca: '',
+  };
+
+  const savedLixeiraFiltros = useMemo(
+    () => UserFiltersService.obterFiltros('lixeira', activeUsuario?.id, padraoLixeiraFiltros),
+    [activeUsuario?.id]
+  );
+
+  const [filtroTipo, setFiltroTipo] = useState<string>(savedLixeiraFiltros.filtroTipo);
+  const [filtroPeriodo, setFiltroPeriodo] = useState<string>(savedLixeiraFiltros.filtroPeriodo);
+  const [busca, setBusca] = useState(savedLixeiraFiltros.busca);
+
+  React.useEffect(() => {
+    const f = UserFiltersService.obterFiltros('lixeira', activeUsuario?.id, padraoLixeiraFiltros);
+    setFiltroTipo(f.filtroTipo);
+    setFiltroPeriodo(f.filtroPeriodo);
+    setBusca(f.busca);
+  }, [activeUsuario?.id]);
+
+  React.useEffect(() => {
+    UserFiltersService.salvarFiltros('lixeira', activeUsuario?.id, {
+      filtroTipo,
+      filtroPeriodo,
+      busca,
+    });
+  }, [filtroTipo, filtroPeriodo, busca, activeUsuario?.id]);
   const [idsSelecionados, setIdsSelecionados] = useState<string[]>([]);
   const [feedbackMsg, setFeedbackMsg] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
   const [isConfirmarExclusaoModalOpen, setIsConfirmarExclusaoModalOpen] = useState(false);

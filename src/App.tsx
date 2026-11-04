@@ -210,6 +210,7 @@ function MainApp() {
               onOpenAudit={() => setIsAuditOpen(true)}
               onOpenCalculator={() => setIsCalculatorOpen(true)}
               usuarioAtualNome={activeUsuario.nome}
+              usuarioAtualId={activeUsuario.id}
             />
           )}
 
@@ -240,14 +241,17 @@ function MainApp() {
           )}
 
           {activeTab === 'guias' && (
-            <GuiasView onOpenAudit={() => setIsAuditOpen(true)} />
+            <GuiasView
+              onOpenAudit={() => setIsAuditOpen(true)}
+              usuarioAtual={activeUsuario}
+            />
           )}
 
           {activeTab === 'analises' && (
             <AnalisesView onOpenAudit={() => setIsAuditOpen(true)} />
           )}
 
-          {activeTab === 'prestadores' && <PrestadoresView />}
+          {activeTab === 'prestadores' && <PrestadoresView usuarioAtual={activeUsuario} />}
 
           {activeTab === 'pendencias' && (
             <PendenciasView
