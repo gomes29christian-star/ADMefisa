@@ -296,6 +296,68 @@ export function obterUltimoDiaDoMes(ano: number, mes: number): number {
 }
 
 /**
+ * Garante que a lista de dias habituais de atendimento tenha quantidade de dias distintos
+ * correspondente à frequência semanal (sessoesPorSemana), expandindo inteligentemente
+ * a partir do dia habitual primário do paciente (ex: Terça -> Terça e Quinta para 2x/semana).
+ */
+export function expandirDiasHabituaisParaFrequencia(
+  diasBrutos: DiaSemanaIndice[],
+  sessoesPorSemana: number
+): DiaSemanaIndice[] {
+  if (!diasBrutos || diasBrutos.length === 0) {
+    diasBrutos = [1];
+  }
+
+  const unicos = Array.from(new Set(diasBrutos)).filter((d) => d >= 1 && d <= 6);
+  if (unicos.length >= sessoesPorSemana || sessoesPorSemana <= 1) {
+    return unicos.length > 0 ? unicos : [1];
+  }
+
+  const diaBase = unicos[0] || 1;
+  const mapaExpansao: Record<number, Record<number, DiaSemanaIndice[]>> = {
+    2: {
+      1: [1, 3], // Seg, Qua
+      2: [2, 4], // Ter, Qui
+      3: [3, 5], // Qua, Sex
+      4: [2, 4], // Ter, Qui
+      5: [3, 5], // Qua, Sex
+      6: [2, 6], // Ter, Sáb
+    },
+    3: {
+      1: [1, 3, 5],
+      2: [1, 2, 4],
+      3: [1, 3, 5],
+      4: [2, 4, 6],
+      5: [1, 3, 5],
+      6: [2, 4, 6],
+    },
+    4: {
+      1: [1, 2, 4, 5],
+      2: [1, 2, 4, 5],
+      3: [1, 3, 4, 5],
+      4: [1, 2, 4, 5],
+      5: [1, 2, 4, 5],
+      6: [1, 2, 4, 6],
+    },
+    5: {
+      1: [1, 2, 3, 4, 5],
+      2: [1, 2, 3, 4, 5],
+      3: [1, 2, 3, 4, 5],
+      4: [1, 2, 3, 4, 5],
+      5: [1, 2, 3, 4, 5],
+      6: [1, 2, 3, 4, 6],
+    },
+  };
+
+  const expandido = mapaExpansao[Math.min(5, sessoesPorSemana)]?.[diaBase];
+  if (expandido && expandido.length > 0) {
+    return expandido;
+  }
+
+  return unicos;
+}
+
+/**
  * Conta o número exato de ocorrências dos dias da semana em que o paciente atende
  * dentro do mês civil (calendário real).
  * Exemplo: Em Setembro/2026, existem 5 terças-feiras (dias 01, 08, 15, 22 e 29).
@@ -336,18 +398,21 @@ export function contarOcorrenciasDiasNoMes(
     indicesAlvo.add(2); // Terça-feira
   }
 
+  const rawArray: DiaSemanaIndice[] = Array.from(indicesAlvo) as DiaSemanaIndice[];
+  const setEfetivo = new Set<number>(expandirDiasHabituaisParaFrequencia(rawArray, sessoesPorSemana));
+
   let ocorrenciasTotal = 0;
   for (let dia = 1; dia <= ultimoDia; dia++) {
     const d = new Date(ano, mes, dia);
-    if (indicesAlvo.has(d.getDay())) {
+    if (setEfetivo.has(d.getDay())) {
       ocorrenciasTotal++;
     }
   }
 
-  const numDiasHabituais = Math.max(1, indicesAlvo.size);
-  const sessoesPorDia = Math.max(1, sessoesPorSemana / numDiasHabituais);
-  const totalSessoes = Math.max(1, Math.round(ocorrenciasTotal * sessoesPorDia));
-  const totalSemanas = Math.max(1, Math.round(ocorrenciasTotal / numDiasHabituais));
+  const numDiasHabituais = Math.max(1, setEfetivo.size);
+  const sessoesPorDia = Math.max(1, Math.round(sessoesPorSemana / numDiasHabituais));
+  const totalSessoes = Math.max(1, ocorrenciasTotal * sessoesPorDia);
+  const totalSemanas = Math.max(1, Math.round(totalSessoes / Math.max(1, sessoesPorSemana)));
 
   return {
     totalSessoes,
@@ -407,18 +472,21 @@ export function contarOcorrenciasDiasRestantesNoMes(
     indicesAlvo.add(2);
   }
 
+  const rawArray: DiaSemanaIndice[] = Array.from(indicesAlvo) as DiaSemanaIndice[];
+  const setEfetivo = new Set<number>(expandirDiasHabituaisParaFrequencia(rawArray, sessoesPorSemana));
+
   let ocorrenciasTotal = 0;
   for (let dia = diaInicio; dia <= ultimoDia; dia++) {
     const d = new Date(ano, mes, dia);
-    if (indicesAlvo.has(d.getDay())) {
+    if (setEfetivo.has(d.getDay())) {
       ocorrenciasTotal++;
     }
   }
 
-  const numDiasHabituais = Math.max(1, indicesAlvo.size);
-  const sessoesPorDia = Math.max(1, sessoesPorSemana / numDiasHabituais);
-  const totalSessoes = Math.max(1, Math.round(ocorrenciasTotal * sessoesPorDia));
-  const totalSemanas = Math.max(1, Math.round(ocorrenciasTotal / numDiasHabituais));
+  const numDiasHabituais = Math.max(1, setEfetivo.size);
+  const sessoesPorDia = Math.max(1, Math.round(sessoesPorSemana / numDiasHabituais));
+  const totalSessoes = Math.max(1, ocorrenciasTotal * sessoesPorDia);
+  const totalSemanas = Math.max(1, Math.round(totalSessoes / Math.max(1, sessoesPorSemana)));
 
   return {
     totalSessoes,
@@ -593,7 +661,8 @@ export function gerarCronogramaComAuditoriaFeriados(
     ? diaSemanaHabitualParam
     : [diaSemanaHabitualParam !== undefined && diaSemanaHabitualParam !== null ? diaSemanaHabitualParam : 1];
 
-  const diasSelecionados = Array.from(new Set(rawDias))
+  const diasExpandidos = expandirDiasHabituaisParaFrequencia(rawDias, sessoesPorSemana);
+  const diasSelecionados = Array.from(new Set(diasExpandidos))
     .filter((d) => d >= 1 && d <= 6)
     .sort((a, b) => a - b);
 
