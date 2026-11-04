@@ -2378,7 +2378,7 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
                   );
                   const datasSessoes = automacaoDesativadaDrawer
                     ? datasSessoesDrawer
-                    : (datasSessoesDrawer.length > 0 ? datasSessoesDrawer : datasPadraoOriginais);
+                    : datasPadraoOriginais;
 
                   return (
                     <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
@@ -2777,13 +2777,16 @@ export const GuiasView: React.FC<GuiasViewProps> = ({ onOpenAudit, usuarioAtual 
                 {/* Bloco de Observações Obrigatórias do Rodapé */}
                 {(() => {
                   const sessoesPorSemanaDrawer = obterSessoesPorSemanaPaciente(guiaSelecionadaDrawer);
-                  const datasSessoesDrawerEfetivas = datasSessoesDrawer.length > 0
+                  const datasSessoesDrawerEfetivas = automacaoDesativadaDrawer
                     ? datasSessoesDrawer
                     : calcularDatasSessoes(
                         guiaSelecionadaDrawer.dataAutorizacao || guiaSelecionadaDrawer.dataSolicitacao,
-                        guiaSelecionadaDrawer.quantidadeSolicitada,
+                        guiaSelecionadaDrawer.quantidadeSolicitada || sessoesPorSemanaDrawer * 4,
                         guiaSelecionadaDrawer.pacienteNome || guiaSelecionadaDrawer.pacienteId,
-                        sessoesPorSemanaDrawer
+                        sessoesPorSemanaDrawer,
+                        temFaltasJustificadasDrawer ? datasFaltasDrawer : undefined,
+                        modoFaltasDrawer,
+                        (guiaSelecionadaDrawer as any).procedimentoNome || (guiaSelecionadaDrawer as any).procedimento
                       );
                   const textoRepeticoes = formatarContagemRepeticoesSessoes(datasSessoesDrawerEfetivas);
                   const temMesmoDia = !!textoRepeticoes;
